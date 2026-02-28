@@ -1,0 +1,1 @@
+An old armchair, upholstered in something soft and deep blue. It has clearly been sat in many times. It holds the shape of comfort — not anyone's specific comfort, but the idea of it. When you sit in it, the room becomes exactly the right temperature, and the light from the window becomes exactly the right brightness, and for a moment, nothing is required of you.

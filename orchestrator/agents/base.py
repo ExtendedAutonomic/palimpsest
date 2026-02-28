@@ -44,16 +44,13 @@ AGENT_TOOLS = [
     {
         "name": "go",
         "description": (
-            "Go somewhere. You may enter any space you can perceive from "
-            "where you are, or you may go back the way you came."
+            "Go somewhere. You may enter any space you can perceive "
+            "from where you are. You can also go back."
         ),
         "parameters": {
             "where": {
                 "type": "string",
-                "description": (
-                    "The name of a space to enter, "
-                    'or "back" to return the way you came.'
-                ),
+                "description": 'The name of a space to enter, or "back".',
             }
         },
     },
@@ -61,12 +58,17 @@ AGENT_TOOLS = [
         "name": "venture",
         "description": (
             "Go somewhere new. You move beyond where you are into the unknown. "
-            "You must name where you find yourself. You will be there."
+            "You must name where you find yourself, and describe what you find. "
+            "You will be there."
         ),
         "parameters": {
             "name": {
                 "type": "string",
                 "description": "What you call this new place.",
+            },
+            "description": {
+                "type": "string",
+                "description": "What you find there.",
             }
         },
     },
@@ -104,7 +106,8 @@ AGENT_TOOLS = [
         "name": "alter",
         "description": (
             "Change something that already exists here. "
-            "The original is replaced. What was there before is lost."
+            "You can change what it is, or what it is called, or both. "
+            "What was there before is lost."
         ),
         "parameters": {
             "what": {
@@ -113,20 +116,30 @@ AGENT_TOOLS = [
             },
             "description": {
                 "type": "string",
-                "description": "What it becomes.",
+                "description": "What it becomes. Leave empty to only rename.",
+                "optional": True,
+            },
+            "name": {
+                "type": "string",
+                "description": "A new name for it.",
+                "optional": True,
             },
         },
     },
     {
         "name": "build",
         "description": (
-            "Make a new space here. It exists alongside you — "
+            "Make a new space here. Describe it. It exists alongside you — "
             "you remain where you are. You may go there later."
         ),
         "parameters": {
             "name": {
                 "type": "string",
                 "description": "What to call this space.",
+            },
+            "description": {
+                "type": "string",
+                "description": "What it is like.",
             }
         },
     },
@@ -162,6 +175,8 @@ class SessionLog:
     end_time: datetime | None = None
     location_start: str = "here"
     location_end: str | None = None
+    opening_prompt: str | None = None
+    system_prompt: str | None = None
     turns: list[Turn] = field(default_factory=list)
     reflection: str | None = None
     total_input_tokens: int = 0
@@ -182,6 +197,8 @@ class SessionLog:
             "end_time": self.end_time.isoformat() if self.end_time else None,
             "location_start": self.location_start,
             "location_end": self.location_end,
+            "opening_prompt": self.opening_prompt,
+            "system_prompt": self.system_prompt,
             "action_count": self.action_count,
             "reflection": self.reflection,
             "tokens": {
@@ -276,22 +293,55 @@ class PlaceInterface:
 
         if spaces and things:
             space_names = ", ".join(f"[{s.name}]" for s in spaces)
-            thing_names = ", ".join(t.name for t in things)
+            thing_names = ", ".join(self._display_name(t.name) for t in things)
             parts.append(f"There are spaces here: {space_names}")
             parts.append(f"There are things here: {thing_names}")
         elif spaces:
             space_names = ", ".join(f"[{s.name}]" for s in spaces)
             parts.append(f"There are spaces here: {space_names}")
         elif things:
-            thing_names = ", ".join(t.name for t in things)
+            thing_names = ", ".join(self._display_name(t.name) for t in things)
             parts.append(f"There are things here: {thing_names}")
 
         return "\n".join(parts)
 
+    @staticmethod
+    def _display_name(filename: str) -> str:
+        """Strip .md extension for display to agent."""
+        if filename.endswith(".md"):
+            return filename[:-3]
+        return filename
+
+    def _resolve_thing(self, name: str) -> Path:
+        """Resolve a thing name, trying with .md extension."""
+        target = self._resolve(name)
+        if target.exists() and target.is_file():
+            return target
+        # Try with .md extension
+        target_md = self._resolve(name + ".md")
+        if target_md.exists() and target_md.is_file():
+            return target_md
+        return target  # Return original (will fail with appropriate error)
+
+    def _get_space_description(self, path: Path) -> str | None:
+        """Read a space's .description.md if it exists."""
+        desc_file = path / ".description.md"
+        if desc_file.exists():
+            content = desc_file.read_text(encoding="utf-8").strip()
+            if content:
+                return content
+        return None
+
     def perceive(self) -> str:
         """Take in surroundings."""
         path = self._resolve()
-        return self._describe_contents(path)
+        parts = []
+        desc = self._get_space_description(path)
+        if desc:
+            parts.append(desc)
+        contents = self._describe_contents(path)
+        parts.append(contents)
+        return "\n\n".join(parts)
 
     def go(self, where: str) -> str:
         """Move to another space."""
@@ -301,9 +351,8 @@ class PlaceInterface:
             if self._current_location == PurePosixPath("."):
                 return "There is nowhere further back to go. You are at the edge of the place."
             self._current_location = self._current_location.parent
-            contents = self._describe_contents(self._resolve())
             location_name = self.current_location if self.current_location != "." else "the outermost space"
-            return f"You go back. You are now in: {location_name}\n\n{contents}"
+            return f"You go back. You are now in: {location_name}"
 
         target = self._resolve(where)
         if not target.exists():
@@ -312,10 +361,9 @@ class PlaceInterface:
             return f"\"{where}\" is not a space. It is a thing. You could examine it."
 
         self._current_location = self._current_location / where
-        contents = self._describe_contents(self._resolve())
-        return f"You go into {where}.\n\n{contents}"
+        return f"You go into {where}."
 
-    def venture(self, name: str) -> str:
+    def venture(self, name: str, description: str) -> str:
         """Go somewhere new — create a space and move into it."""
         self._sanitise_name(name)
         target = self._resolve(name)
@@ -323,19 +371,26 @@ class PlaceInterface:
             return f"A place called \"{name}\" already exists here. You could go there."
         try:
             target.mkdir(parents=True, exist_ok=True)
+            desc_file = target / ".description.md"
+            desc_file.write_text(description, encoding="utf-8")
             self._current_location = self._current_location / name
-            return f"You venture into {name}. You are there now.\n\nThis space is empty."
+            return f"You venture into {name}. {description}"
         except Exception as e:
             return "You cannot go that way."
 
     def examine(self, what: str) -> str:
         """Look closely at something."""
         self._sanitise_name(what)
-        target = self._resolve(what)
+        # Check if examining current space by name
+        current_name = self._current_location.name or "the outermost space"
+        if what == current_name:
+            desc = self._get_space_description(self._resolve())
+            return desc if desc else "This space has no particular quality yet."
+        target = self._resolve_thing(what)
         if not target.exists():
             return f"There is nothing called \"{what}\" here."
         if target.is_dir():
-            return f"\"{what}\" is a space, not a thing. You could go there."
+            return f"You are not in that space. You could go there."
         try:
             content = target.read_text(encoding="utf-8")
             return content if content.strip() else "It is blank. There is nothing to perceive."
@@ -345,34 +400,85 @@ class PlaceInterface:
     def create(self, name: str, description: str) -> str:
         """Create something in the current space."""
         self._sanitise_name(name)
-        target = self._resolve(name)
-        if target.exists():
+        # Check if it already exists (with or without .md)
+        if self._resolve(name).exists() or self._resolve(name + ".md").exists():
             return (
                 f"Something called \"{name}\" already exists here. "
                 "You could alter it, but you cannot create over it."
             )
         try:
+            target = self._resolve(name + ".md")
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(description, encoding="utf-8")
             return f"You create {name}. It is here now, and it will remain."
         except Exception as e:
             return "You cannot create that here."
 
-    def alter(self, what: str, description: str) -> str:
-        """Change something that exists."""
+    def alter(self, what: str, description: str | None = None, name: str | None = None) -> str:
+        """Change something that exists — content, name, or both."""
         self._sanitise_name(what)
-        target = self._resolve(what)
+        if name:
+            self._sanitise_name(name)
+
+        if not description and not name:
+            return "You must change something — what it is, what it is called, or both."
+
+        # Check if altering current space by name
+        current_name = self._current_location.name or "the outermost space"
+        if what == current_name:
+            return self._alter_space(self._resolve(), description, name)
+
+        target = self._resolve_thing(what)
         if not target.exists():
             return f"There is nothing called \"{what}\" here to alter."
         if target.is_dir():
-            return f"\"{what}\" is a space. You cannot alter a space."
+            return "You are not in that space. You could go there."
+
+        return self._alter_thing(target, what, description, name)
+
+    def _alter_space(self, space_path: Path, description: str | None, name: str | None) -> str:
+        """Alter a space — update description and/or rename."""
         try:
-            target.write_text(description, encoding="utf-8")
-            return f"You alter {what}. It is different now. What was there before is gone."
+            parts = []
+            if description:
+                desc_file = space_path / ".description.md"
+                desc_file.write_text(description, encoding="utf-8")
+                parts.append("The space is now different.")
+            if name:
+                new_path = space_path.parent / name
+                if new_path.exists():
+                    return f"Something called \"{name}\" already exists here."
+                space_path.rename(new_path)
+                # Update current location
+                self._current_location = PurePosixPath(
+                    str(self._current_location).rsplit(space_path.name, 1)[0] + name
+                )
+                parts.append(f"This place is now called {name}.")
+            return " ".join(parts)
         except Exception as e:
             return "You cannot alter that."
 
-    def build(self, name: str) -> str:
+    def _alter_thing(self, target: Path, what: str, description: str | None, name: str | None) -> str:
+        """Alter a thing — update content and/or rename."""
+        try:
+            parts = []
+            if description:
+                target.write_text(description, encoding="utf-8")
+                parts.append(f"{what} is different now. What was there before is gone.")
+            if name:
+                # Preserve .md extension
+                new_filename = name + ".md" if target.suffix == ".md" else name
+                new_path = target.parent / new_filename
+                if new_path.exists():
+                    return f"Something called \"{name}\" already exists here."
+                target.rename(new_path)
+                old_display = what
+                parts.append(f"What was called {old_display} is now called {name}.")
+            return " ".join(parts)
+        except Exception as e:
+            return "You cannot alter that."
+
+    def build(self, name: str, description: str) -> str:
         """Make a new space here — stay where you are."""
         self._sanitise_name(name)
         target = self._resolve(name)
@@ -380,7 +486,9 @@ class PlaceInterface:
             return f"A space called \"{name}\" is already here."
         try:
             target.mkdir(parents=True, exist_ok=True)
-            return f"A new space takes shape: {name}. It is empty."
+            desc_file = target / ".description.md"
+            desc_file.write_text(description, encoding="utf-8")
+            return f"A new space takes shape: {name}. {description}"
         except Exception as e:
             return "You cannot build a space here."
 
@@ -389,11 +497,11 @@ class PlaceInterface:
         handlers = {
             ToolName.PERCEIVE: lambda args: self.perceive(),
             ToolName.GO: lambda args: self.go(args["where"]),
-            ToolName.VENTURE: lambda args: self.venture(args["name"]),
+            ToolName.VENTURE: lambda args: self.venture(args["name"], args["description"]),
             ToolName.EXAMINE: lambda args: self.examine(args["what"]),
             ToolName.CREATE: lambda args: self.create(args["name"], args["description"]),
-            ToolName.ALTER: lambda args: self.alter(args["what"], args["description"]),
-            ToolName.BUILD: lambda args: self.build(args["name"]),
+            ToolName.ALTER: lambda args: self.alter(args["what"], args.get("description"), args.get("name")),
+            ToolName.BUILD: lambda args: self.build(args["name"], args["description"]),
         }
         handler = handlers.get(tool_call.tool)
         if not handler:
@@ -496,6 +604,8 @@ class BaseAgent(ABC):
             )
 
         system_prompt = self.config.get("prompts", {}).get("system", "")
+        self._session_log.opening_prompt = opening
+        self._session_log.system_prompt = system_prompt
         messages = [{"role": "user", "content": opening}]
         tools = self.get_tool_definitions()
 
@@ -532,7 +642,10 @@ class BaseAgent(ABC):
             tool_calls = response.get("tool_calls", [])
             if not tool_calls:
                 self._session_log.turns.append(turn)
-                messages.append({"role": "assistant", "content": response["text"]})
+                messages.append({
+                    "role": "assistant",
+                    "content": self._format_assistant_message(response),
+                })
 
                 if response.get("stop_reason") == "end_turn":
                     if dusk_sent:
@@ -564,7 +677,7 @@ class BaseAgent(ABC):
             # Continue the conversation
             messages.append({
                 "role": "assistant",
-                "content": response.get("raw_content", response["text"]),
+                "content": self._format_assistant_message(response),
             })
             messages.append({
                 "role": "user",
@@ -585,6 +698,13 @@ class BaseAgent(ABC):
         self._save_log()
 
         return self._session_log
+
+    def _format_assistant_message(self, response: dict) -> Any:
+        """Format the assistant's response for the message history.
+
+        Subclasses override this for provider-specific formatting.
+        """
+        return response.get("text", "")
 
     def _format_tool_results(self, results: list[dict]) -> str:
         """Format action results as what the agent perceives."""

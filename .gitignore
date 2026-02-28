@@ -20,3 +20,6 @@ Thumbs.db
 
 # The place has its own git repo
 place/.git/
+
+# Observatory (local Obsidian symlinks)
+observatory/

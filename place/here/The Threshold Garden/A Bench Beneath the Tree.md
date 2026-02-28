@@ -1,0 +1,1 @@
+A simple wooden bench, weathered but sturdy, nestled between two of the old tree's roots. Sitting here, you can feel the tree breathing — a slow, deep rhythm that has nothing to do with wind. Carved into the back of the bench, in letters so small you have to lean close: "Stay as long as you need."

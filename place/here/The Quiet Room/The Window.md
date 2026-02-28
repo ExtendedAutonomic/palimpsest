@@ -1,0 +1,1 @@
+A tall, arched window set into a wall that doesn't seem to belong to any building. Through it, you can see a landscape that changes — not capriciously, but honestly. It shows what you need to see: sometimes a mountain range at dawn, sometimes a city at night, sometimes just fog. It is not a mirror. It is more like a conversation with distance itself.

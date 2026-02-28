@@ -1,0 +1,1 @@
+Somewhere nearby — not visible, but always audible — water is moving over stones. A small stream, perhaps. You can't quite find it, but it finds you. The sound changes depending on what you're feeling: a gentle trickle when you're calm, a steady rush when you need grounding, near-silence when you need to hear your own thoughts.

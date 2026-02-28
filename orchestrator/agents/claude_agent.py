@@ -50,7 +50,8 @@ class ClaudeAgent(BaseAgent):
                     "type": param_def.get("type", "string"),
                     "description": param_def.get("description", ""),
                 }
-                anthropic_tool["input_schema"]["required"].append(param_name)
+                if not param_def.get("optional", False):
+                    anthropic_tool["input_schema"]["required"].append(param_name)
             tools.append(anthropic_tool)
         return tools
 
@@ -62,7 +63,7 @@ class ClaudeAgent(BaseAgent):
     ) -> dict:
         """Send a message to Claude and return the parsed response."""
         thinking_budget = self.config.get("session", {}).get("thinking_budget", 16384)
-        max_tokens = self.config.get("session", {}).get("max_output_tokens", 8192)
+        max_tokens = self.config.get("session", {}).get("max_output_tokens", 4096)
 
         # Build API call kwargs
         kwargs: dict[str, Any] = {
@@ -78,8 +79,7 @@ class ClaudeAgent(BaseAgent):
 
         # Add extended thinking
         kwargs["thinking"] = {
-            "type": "enabled",
-            "budget_tokens": thinking_budget,
+            "type": "adaptive",
         }
 
         try:
@@ -129,12 +129,10 @@ class ClaudeAgent(BaseAgent):
         for block in response.content:
             if block.type == "thinking":
                 result["thinking"] = block.thinking
-                result["usage"]["thinking_tokens"] = getattr(
-                    block, "token_count", 0
-                )
                 raw_content.append({
                     "type": "thinking",
                     "thinking": block.thinking,
+                    "signature": getattr(block, "signature", None),
                 })
             elif block.type == "text":
                 text_parts.append(block.text)
@@ -159,3 +157,18 @@ class ClaudeAgent(BaseAgent):
         result["raw_content"] = raw_content
 
         return result
+
+    def _format_assistant_message(self, response: dict) -> list[dict]:
+        """Format assistant response with thinking blocks for Anthropic API."""
+        return response.get("raw_content", [{"type": "text", "text": response.get("text", "")}])
+
+    def _format_tool_results(self, results: list[dict]) -> list[dict]:
+        """Format tool results as Anthropic tool_result content blocks."""
+        return [
+            {
+                "type": "tool_result",
+                "tool_use_id": r["tool_call_id"],
+                "content": r["result"],
+            }
+            for r in results
+        ]

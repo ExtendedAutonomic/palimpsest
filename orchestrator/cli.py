@@ -22,6 +22,9 @@ from pathlib import Path
 
 import click
 import yaml
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Project root — two levels up from this file
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -191,6 +194,11 @@ async def _run_single_session(
 
     # Commit changes to the place
     _commit_place_changes(agent_name, session_num)
+
+    # Generate readable log
+    from .renderer import save_readable_log
+    log_file = LOG_PATH / agent_name / f"session_{session_num:04d}.json"
+    readable = save_readable_log(log_file)
 
     click.echo(f"\nSession complete.")
     click.echo(f"  Actions: {log.action_count}")

@@ -15,6 +15,7 @@ dependencies = [
     "rich>=13.0.0",          # Terminal output
     "schedule>=1.2.0",       # Scheduling
     "click>=8.0.0",          # CLI
+    "python-dotenv>=1.0.0",  # Load .env files
 ]
 
 [project.optional-dependencies]
@@ -25,3 +26,6 @@ dev = [
 
 [project.scripts]
 palimpsest = "orchestrator.cli:cli"
+
+[tool.setuptools.packages.find]
+include = ["orchestrator*"]
