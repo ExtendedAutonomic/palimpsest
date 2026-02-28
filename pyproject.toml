@@ -1,0 +1,27 @@
+# Palimpsest
+# An experiment in AI phenomenology
+
+[project]
+name = "palimpsest"
+version = "0.1.0"
+description = "Give AI agents an empty place and watch what they build."
+requires-python = ">=3.11"
+dependencies = [
+    "anthropic>=0.42.0",
+    "google-genai>=1.0.0",
+    "openai>=1.60.0",        # DeepSeek uses OpenAI-compatible API
+    "pyyaml>=6.0",
+    "gitpython>=3.1.0",
+    "rich>=13.0.0",          # Terminal output
+    "schedule>=1.2.0",       # Scheduling
+    "click>=8.0.0",          # CLI
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.8.0",
+]
+
+[project.scripts]
+palimpsest = "orchestrator.cli:cli"

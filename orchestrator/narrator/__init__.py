@@ -1,0 +1,1 @@
+"""Palimpsest narrator system."""

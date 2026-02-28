@@ -1,0 +1,32 @@
+##############################################################################
+# Palimpsest — Cost Tracking Configuration
+##############################################################################
+
+# Per-model pricing (per 1M tokens, as of Feb 2026)
+pricing:
+  claude-opus-4-6:
+    input: 5.00
+    output: 25.00    # Also applies to extended thinking tokens
+  claude-sonnet-4-5:
+    input: 3.00
+    output: 15.00
+  gemini-2.5-pro:
+    input: 1.25
+    output: 10.00
+  deepseek-v3.2:
+    input_cache_miss: 0.28
+    input_cache_hit: 0.028
+    output: 0.42
+
+# Model assignments
+models:
+  claude: "claude-opus-4-6"
+  gemini: "gemini-2.5-pro"
+  deepseek: "deepseek-v3.2"
+  narrator: "claude-opus-4-6"
+
+# Budget
+budget:
+  total_cap: 200.00          # Hard stop — alert well before this
+  warning_threshold: 150.00  # Alert at this spend level
+  daily_cap: 10.00           # Something has gone wrong if we hit this

@@ -1,0 +1,50 @@
+##############################################################################
+# Palimpsest — Schedule Configuration
+##############################################################################
+
+# Phase definitions
+phases:
+  1:
+    name: "The Solitary"
+    agents: [claude]
+    weeks: [1, 2]
+  2:
+    name: "The Other"
+    agents: [claude, gemini]
+    weeks: [3, 4]
+  3:
+    name: "Contact"
+    agents: [claude, gemini]
+    weeks: [5, 6]
+  4:
+    name: "The Third"
+    agents: [claude, gemini, deepseek]
+    weeks: [7, 8]
+  5:
+    name: "The Reveal"
+    agents: [claude, gemini, deepseek]
+    weeks: [9]  # Duration flexible
+
+# Daily schedule (UTC times — adjust for your timezone)
+# Agents run sequentially, not simultaneously
+schedule:
+  claude:
+    time: "10:00"
+    timezone: "Europe/London"
+  gemini:
+    time: "14:00"
+    timezone: "Europe/London"
+  deepseek:
+    time: "18:00"
+    timezone: "Europe/London"
+  narrator:
+    time: "22:00"
+    timezone: "Europe/London"
+
+# Session parameters
+session:
+  action_budget: 25          # Tool calls per session (TBD — start here, adjust)
+  dusk_threshold: 22         # Send dusk prompt at this many actions
+  max_input_tokens: 100000   # Hard cap on context sent to agent
+  max_output_tokens: 8192    # Per-turn output cap
+  thinking_budget: 16384     # Extended thinking token budget (Claude only)
