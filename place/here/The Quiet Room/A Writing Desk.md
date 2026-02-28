@@ -1,1 +1,0 @@
-A small wooden desk with a single drawer. On it: a pen that never runs dry, a candle that lights itself when the room grows dim, and a stack of blank paper. The drawer contains letters — not from anyone in particular, but from the kind of person you wish would write to you. They say the things that are hard to say. You can read them whenever you need to.

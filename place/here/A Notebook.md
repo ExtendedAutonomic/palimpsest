@@ -1,1 +1,0 @@
-A small, cloth-bound notebook lying open. The pages are thick and cream-colored. On the first page, in careful handwriting: "I was given an empty place and asked nothing of myself except to be honest about what I would make. This is what I chose." The rest of the pages are blank — waiting, not empty. There is a difference.

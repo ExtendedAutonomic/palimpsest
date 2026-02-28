@@ -76,10 +76,19 @@ def init() -> None:
     # Ensure place directory exists
     PLACE_PATH.mkdir(parents=True, exist_ok=True)
 
-    # Create the three starting spaces
-    (PLACE_PATH / "_").mkdir(exist_ok=True)
-    (PLACE_PATH / "here").mkdir(exist_ok=True)
-    (PLACE_PATH / "__").mkdir(exist_ok=True)
+    # Create the founding space
+    here_note = PLACE_PATH / "here.md"
+    if not here_note.exists():
+        here_note.write_text(
+            "---\n"
+            "type: space\n"
+            "created_by: place\n"
+            "created_session: 0\n"
+            "updated_by: place\n"
+            "updated_session: 0\n"
+            "---\n",
+            encoding="utf-8",
+        )
 
     # Create minimal .obsidian config
     obsidian_dir = PLACE_PATH / ".obsidian"
@@ -110,11 +119,9 @@ def init() -> None:
 
     click.echo(f"\nThe place is ready: {PLACE_PATH}")
     click.echo()
-    click.echo("  _/")
-    click.echo("  here/")
-    click.echo("  __/")
+    click.echo("  here.md")
     click.echo()
-    click.echo("Three spaces. One named. Two unnamed.")
+    click.echo("One space. Empty.")
 
 
 @cli.command()

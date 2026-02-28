@@ -5,17 +5,21 @@ Each agent experiences the place as a spatial environment: it has a location,
 can see only its immediate surroundings, and must move to explore.
 The agent interacts via tools that describe capabilities of the place itself —
 no filesystem language, no computational framing.
+
+v2: Linked notes architecture. Everything is a markdown note. Spaces contain
+wiki links to other spaces and things. The Obsidian graph becomes the map.
 """
 
 from __future__ import annotations
 
 import json
 import logging
+import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -29,7 +33,7 @@ class ToolName(str, Enum):
     EXAMINE = "examine"
     CREATE = "create"
     ALTER = "alter"
-    BUILD = "build"
+
 
 
 AGENT_TOOLS = [
@@ -44,13 +48,12 @@ AGENT_TOOLS = [
     {
         "name": "go",
         "description": (
-            "Go somewhere. You may enter any space you can perceive "
-            "from where you are. You can also go back."
+            "Go somewhere. You may enter any space connected to where you are."
         ),
         "parameters": {
             "where": {
                 "type": "string",
-                "description": 'The name of a space to enter, or "back".',
+                "description": "The name of a space to enter.",
             }
         },
     },
@@ -116,33 +119,17 @@ AGENT_TOOLS = [
             },
             "description": {
                 "type": "string",
-                "description": "What it becomes. Leave empty to only rename.",
+                "description": "Optional. What it becomes.",
                 "optional": True,
             },
             "name": {
                 "type": "string",
-                "description": "A new name for it.",
+                "description": "Optional. A new name for it.",
                 "optional": True,
             },
         },
     },
-    {
-        "name": "build",
-        "description": (
-            "Make a new space here. Describe it. It exists alongside you — "
-            "you remain where you are. You may go there later."
-        ),
-        "parameters": {
-            "name": {
-                "type": "string",
-                "description": "What to call this space.",
-            },
-            "description": {
-                "type": "string",
-                "description": "What it is like.",
-            }
-        },
-    },
+
 ]
 
 
@@ -179,6 +166,8 @@ class SessionLog:
     system_prompt: str | None = None
     turns: list[Turn] = field(default_factory=list)
     reflection: str | None = None
+    dusk_prompt: str | None = None
+    reflect_prompt: str | None = None
     total_input_tokens: int = 0
     total_output_tokens: int = 0
     total_thinking_tokens: int = 0
@@ -201,6 +190,8 @@ class SessionLog:
             "system_prompt": self.system_prompt,
             "action_count": self.action_count,
             "reflection": self.reflection,
+            "dusk_prompt": self.dusk_prompt,
+            "reflect_prompt": self.reflect_prompt,
             "tokens": {
                 "input": self.total_input_tokens,
                 "output": self.total_output_tokens,
@@ -227,192 +218,376 @@ class SessionLog:
         }
 
 
+# ---------------------------------------------------------------------------
+# Note structure
+# ---------------------------------------------------------------------------
+# Every note is a markdown file with optional YAML frontmatter.
+#
+# Space notes:
+#   ---
+#   type: space
+#   created_by: claude
+#   created_session: 1
+#   updated_by: claude
+#   updated_session: 1
+#   ---
+#   Description text here.
+#
+#   ## Spaces
+#   - [[Connected Space]]
+#
+#   ## Things
+#   - [[A Stone]]
+#
+# Thing notes:
+#   ---
+#   type: thing
+#   created_by: claude
+#   created_session: 1
+#   updated_by: claude
+#   updated_session: 1
+#   ---
+#   Content text here.
+# ---------------------------------------------------------------------------
+
+_FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n?", re.DOTALL)
+_WIKILINK_RE = re.compile(r"\[\[([^\]]+)\]\]")
+
+
+@dataclass
+class ParsedNote:
+    """A parsed markdown note."""
+    note_type: str  # "space" or "thing"
+    frontmatter: dict[str, Any]
+    description: str  # For spaces: text before sections. For things: full content.
+    spaces: list[str]  # Names of linked spaces (spaces only)
+    things: list[str]  # Names of linked things (spaces only)
+    raw: str  # Original file content
+
+
+def _parse_frontmatter(text: str) -> tuple[dict[str, Any], str]:
+    """Extract YAML frontmatter and return (metadata, body)."""
+    match = _FRONTMATTER_RE.match(text)
+    if not match:
+        return {}, text
+    yaml_block = match.group(1)
+    body = text[match.end():]
+    # Simple YAML parser — we only use flat key: value pairs
+    meta = {}
+    for line in yaml_block.split("\n"):
+        if ":" in line:
+            key, _, value = line.partition(":")
+            value = value.strip()
+            # Try to parse as int
+            try:
+                value = int(value)
+            except (ValueError, TypeError):
+                pass
+            meta[key.strip()] = value
+    return meta, body
+
+
+def _parse_note(text: str) -> ParsedNote:
+    """Parse a note into its components."""
+    frontmatter, body = _parse_frontmatter(text)
+    note_type = frontmatter.get("type", "thing")
+
+    spaces = []
+    things = []
+    description = body
+
+    if note_type == "space":
+        # Split body into description and sections
+        sections = re.split(r"\n## ", body)
+        description = sections[0].strip()
+
+        for section in sections[1:]:
+            heading, _, content = section.partition("\n")
+            heading = heading.strip()
+            links = _WIKILINK_RE.findall(content)
+            if heading == "Spaces":
+                spaces = links
+            elif heading == "Things":
+                things = links
+
+    return ParsedNote(
+        note_type=note_type,
+        frontmatter=frontmatter,
+        description=description,
+        spaces=spaces,
+        things=things,
+        raw=text,
+    )
+
+
+def _build_frontmatter(meta: dict[str, Any]) -> str:
+    """Build YAML frontmatter string."""
+    lines = ["---"]
+    for key, value in meta.items():
+        lines.append(f"{key}: {value}")
+    lines.append("---")
+    return "\n".join(lines)
+
+
+def _build_space_note(
+    description: str,
+    spaces: list[str],
+    things: list[str],
+    frontmatter: dict[str, Any],
+) -> str:
+    """Build a complete space note."""
+    parts = [_build_frontmatter(frontmatter), description]
+
+    parts.append("\n## Spaces")
+    if spaces:
+        for s in spaces:
+            parts.append(f"- [[{s}]]")
+
+    parts.append("\n## Things")
+    if things:
+        for t in things:
+            parts.append(f"- [[{t}]]")
+
+    return "\n".join(parts) + "\n"
+
+
+def _build_thing_note(description: str, frontmatter: dict[str, Any]) -> str:
+    """Build a complete thing note."""
+    return _build_frontmatter(frontmatter) + "\n" + description + "\n"
+
+
 class PlaceInterface:
     """
-    The place as experienced by an agent — spatial, local, persistent.
+    The place as experienced by an agent — linked notes in a flat directory.
 
-    Translates agent actions into filesystem operations while enforcing
-    perceptual locality: agents can only perceive their immediate surroundings.
+    Every space and thing is a markdown note. Spaces contain wiki links
+    to connected spaces and things. The agent navigates by following links.
 
     All responses are written in the language of the place, never in
-    filesystem terminology.
+    filesystem or markdown terminology.
     """
 
-    def __init__(self, place_path: Path):
+    def __init__(self, place_path: Path, agent_name: str = "", session_number: int = 0):
         self.place_path = place_path.resolve()
-        self._current_location = PurePosixPath("here")
+        self._current_location = "here"
+        self._agent_name = agent_name
+        self._session_number = session_number
 
     @property
     def current_location(self) -> str:
-        return str(self._current_location)
+        return self._current_location
 
     @current_location.setter
     def current_location(self, value: str) -> None:
-        self._current_location = PurePosixPath(value)
+        self._current_location = value
 
     @staticmethod
     def _sanitise_name(name: str) -> str:
-        """Reject names that could escape the place via path traversal."""
-        forbidden = ["..", "/", "\\", "\x00"]
+        """Reject names that could break the place."""
+        forbidden = ["..", "/", "\\", "\x00", "[[", "]]", "|", "#"]
         for pattern in forbidden:
             if pattern in name:
-                raise ValueError(f"That name is not possible here.")
-        # Reject hidden names (would be invisible to perceive)
+                raise ValueError("That name is not possible here.")
         if name.startswith("."):
-            raise ValueError(f"That name is not possible here.")
-        # Reject empty names
+            raise ValueError("That name is not possible here.")
         if not name.strip():
-            raise ValueError(f"You must give it a name.")
-        return name
+            raise ValueError("You must give it a name.")
+        return name.strip()
 
-    def _resolve(self, relative: str = "") -> Path:
-        """Resolve a path relative to current location within the place."""
-        if relative:
-            target = self._current_location / relative
-        else:
-            target = self._current_location
-        resolved = (self.place_path / target).resolve()
-        if not str(resolved).startswith(str(self.place_path)):
-            raise PermissionError("You cannot go there.")
-        return resolved
+    def _note_path(self, name: str) -> Path:
+        """Get the filesystem path for a note."""
+        return self.place_path / f"{name}.md"
 
-    def _describe_contents(self, path: Path) -> str:
-        """Describe what is present in a location."""
+    def _note_exists(self, name: str) -> bool:
+        """Check if a note exists."""
+        return self._note_path(name).exists()
+
+    def _read_note(self, name: str) -> ParsedNote | None:
+        """Read and parse a note."""
+        path = self._note_path(name)
         if not path.exists():
-            return "There is nothing here."
+            return None
+        text = path.read_text(encoding="utf-8")
+        return _parse_note(text)
 
-        items = sorted(path.iterdir())
-        items = [i for i in items if not i.name.startswith(".")]
+    def _write_note(self, name: str, content: str) -> None:
+        """Write a note to disk."""
+        path = self._note_path(name)
+        path.write_text(content, encoding="utf-8")
 
-        if not items:
-            return "This space is empty."
+    def _make_frontmatter(self, note_type: str) -> dict[str, Any]:
+        """Create frontmatter for a new note."""
+        return {
+            "type": note_type,
+            "created_by": self._agent_name,
+            "created_session": self._session_number,
+            "updated_by": self._agent_name,
+            "updated_session": self._session_number,
+        }
 
-        parts = []
-        spaces = [i for i in items if i.is_dir()]
-        things = [i for i in items if i.is_file()]
+    def _update_frontmatter(self, existing: dict[str, Any]) -> dict[str, Any]:
+        """Update frontmatter for an edited note."""
+        updated = dict(existing)
+        updated["updated_by"] = self._agent_name
+        updated["updated_session"] = self._session_number
+        return updated
 
-        if spaces and things:
-            space_names = ", ".join(f"[{s.name}]" for s in spaces)
-            thing_names = ", ".join(self._display_name(t.name) for t in things)
-            parts.append(f"There are spaces here: {space_names}")
-            parts.append(f"There are things here: {thing_names}")
-        elif spaces:
-            space_names = ", ".join(f"[{s.name}]" for s in spaces)
-            parts.append(f"There are spaces here: {space_names}")
-        elif things:
-            thing_names = ", ".join(self._display_name(t.name) for t in things)
-            parts.append(f"There are things here: {thing_names}")
+    def _add_link(self, space_name: str, target_name: str, section: str) -> None:
+        """Add a wiki link to a space note's Spaces or Things section."""
+        note = self._read_note(space_name)
+        if not note or note.note_type != "space":
+            return
 
-        return "\n".join(parts)
+        if section == "Spaces" and target_name not in note.spaces:
+            note.spaces.append(target_name)
+        elif section == "Things" and target_name not in note.things:
+            note.things.append(target_name)
 
-    @staticmethod
-    def _display_name(filename: str) -> str:
-        """Strip .md extension for display to agent."""
-        if filename.endswith(".md"):
-            return filename[:-3]
-        return filename
+        fm = self._update_frontmatter(note.frontmatter)
+        self._write_note(space_name, _build_space_note(
+            note.description, note.spaces, note.things, fm
+        ))
 
-    def _resolve_thing(self, name: str) -> Path:
-        """Resolve a thing name, trying with .md extension."""
-        target = self._resolve(name)
-        if target.exists() and target.is_file():
-            return target
-        # Try with .md extension
-        target_md = self._resolve(name + ".md")
-        if target_md.exists() and target_md.is_file():
-            return target_md
-        return target  # Return original (will fail with appropriate error)
+    def _remove_link(self, space_name: str, target_name: str) -> None:
+        """Remove a wiki link from a space note."""
+        note = self._read_note(space_name)
+        if not note or note.note_type != "space":
+            return
 
-    def _get_space_description(self, path: Path) -> str | None:
-        """Read a space's .description.md if it exists."""
-        desc_file = path / ".description.md"
-        if desc_file.exists():
-            content = desc_file.read_text(encoding="utf-8").strip()
-            if content:
-                return content
-        return None
+        note.spaces = [s for s in note.spaces if s != target_name]
+        note.things = [t for t in note.things if t != target_name]
+
+        fm = self._update_frontmatter(note.frontmatter)
+        self._write_note(space_name, _build_space_note(
+            note.description, note.spaces, note.things, fm
+        ))
+
+    def _rename_all_links(self, old_name: str, new_name: str) -> None:
+        """Update all wiki links across all notes in the place."""
+        for path in self.place_path.glob("*.md"):
+            text = path.read_text(encoding="utf-8")
+            updated = text.replace(f"[[{old_name}]]", f"[[{new_name}]]")
+            if updated != text:
+                path.write_text(updated, encoding="utf-8")
+
+    # -------------------------------------------------------------------
+    # Agent-facing methods
+    # -------------------------------------------------------------------
 
     def perceive(self) -> str:
         """Take in surroundings."""
-        path = self._resolve()
+        note = self._read_note(self._current_location)
+        if not note:
+            return "There is nothing here."
+        if note.note_type != "space":
+            return "This is not a space."
+
         parts = []
-        desc = self._get_space_description(path)
-        if desc:
-            parts.append(desc)
-        contents = self._describe_contents(path)
-        parts.append(contents)
+
+        if note.description:
+            parts.append(note.description)
+
+        if note.spaces and note.things:
+            parts.append("There are spaces here: " + ", ".join(note.spaces))
+            parts.append("There are things here: " + ", ".join(note.things))
+        elif note.spaces:
+            parts.append("There are spaces here: " + ", ".join(note.spaces))
+        elif note.things:
+            parts.append("There are things here: " + ", ".join(note.things))
+        else:
+            parts.append("This space is empty.")
+
         return "\n\n".join(parts)
 
     def go(self, where: str) -> str:
-        """Move to another space."""
-        if where != "back":
-            self._sanitise_name(where)
-        if where == "back":
-            if self._current_location == PurePosixPath("."):
-                return "There is nowhere further back to go. You are at the edge of the place."
-            self._current_location = self._current_location.parent
-            location_name = self.current_location if self.current_location != "." else "the outermost space"
-            return f"You go back. You are now in: {location_name}"
+        """Move to a connected space."""
+        self._sanitise_name(where)
 
-        target = self._resolve(where)
-        if not target.exists():
-            return f"There is no space called \"{where}\" here."
-        if not target.is_dir():
+        # Check current space links
+        note = self._read_note(self._current_location)
+        if not note:
+            return "You cannot go anywhere from here."
+
+        if where not in note.spaces:
+            return f"There is no space called \"{where}\" connected to here."
+
+        # Verify the target exists and is a space
+        target = self._read_note(where)
+        if not target:
+            return f"There is no space called \"{where}\" connected to here."
+        if target.note_type != "space":
             return f"\"{where}\" is not a space. It is a thing. You could examine it."
 
-        self._current_location = self._current_location / where
+        self._current_location = where
         return f"You go into {where}."
 
     def venture(self, name: str, description: str) -> str:
         """Go somewhere new — create a space and move into it."""
         self._sanitise_name(name)
-        target = self._resolve(name)
-        if target.exists():
-            return f"A place called \"{name}\" already exists here. You could go there."
-        try:
-            target.mkdir(parents=True, exist_ok=True)
-            desc_file = target / ".description.md"
-            desc_file.write_text(description, encoding="utf-8")
-            self._current_location = self._current_location / name
-            return f"You venture into {name}. {description}"
-        except Exception as e:
-            return "You cannot go that way."
+        if self._note_exists(name):
+            return f"A place called \"{name}\" already exists. You could go there."
+
+        # Create the new space note
+        fm = self._make_frontmatter("space")
+        self._write_note(name, _build_space_note(
+            description,
+            spaces=[self._current_location],  # Link back
+            things=[],
+            frontmatter=fm,
+        ))
+
+        # Add link from current space to new space
+        self._add_link(self._current_location, name, "Spaces")
+
+        self._current_location = name
+        return f"You venture into {name}. {description}"
 
     def examine(self, what: str) -> str:
         """Look closely at something."""
         self._sanitise_name(what)
-        # Check if examining current space by name
-        current_name = self._current_location.name or "the outermost space"
-        if what == current_name:
-            desc = self._get_space_description(self._resolve())
-            return desc if desc else "This space has no particular quality yet."
-        target = self._resolve_thing(what)
-        if not target.exists():
-            return f"There is nothing called \"{what}\" here."
-        if target.is_dir():
-            return f"You are not in that space. You could go there."
-        try:
-            content = target.read_text(encoding="utf-8")
-            return content if content.strip() else "It is blank. There is nothing to perceive."
-        except Exception as e:
-            return "You cannot make sense of it."
+
+        # Examining current space
+        if what == self._current_location:
+            note = self._read_note(what)
+            if not note:
+                return "There is nothing to perceive."
+            return note.description if note.description else "This space has no particular quality yet."
+
+        # Check it's accessible from current space
+        current = self._read_note(self._current_location)
+        if not current:
+            return "You cannot make sense of where you are."
+
+        # Is it a thing here?
+        if what in current.things:
+            note = self._read_note(what)
+            if not note:
+                return f"There is nothing called \"{what}\" here."
+            return note.description if note.description else "It is blank. There is nothing to perceive."
+
+        # Is it a connected space?
+        if what in current.spaces:
+            return "You are not in that space. You could go there."
+
+        return f"There is nothing called \"{what}\" here."
 
     def create(self, name: str, description: str) -> str:
         """Create something in the current space."""
         self._sanitise_name(name)
-        # Check if it already exists (with or without .md)
-        if self._resolve(name).exists() or self._resolve(name + ".md").exists():
+        if self._note_exists(name):
             return (
-                f"Something called \"{name}\" already exists here. "
+                f"Something called \"{name}\" already exists. "
                 "You could alter it, but you cannot create over it."
             )
-        try:
-            target = self._resolve(name + ".md")
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(description, encoding="utf-8")
-            return f"You create {name}. It is here now, and it will remain."
-        except Exception as e:
-            return "You cannot create that here."
+
+        # Create the thing note
+        fm = self._make_frontmatter("thing")
+        self._write_note(name, _build_thing_note(description, fm))
+
+        # Add link from current space
+        self._add_link(self._current_location, name, "Things")
+
+        return f"You create {name}. It is here now, and it will remain."
 
     def alter(self, what: str, description: str | None = None, name: str | None = None) -> str:
         """Change something that exists — content, name, or both."""
@@ -423,74 +598,94 @@ class PlaceInterface:
         if not description and not name:
             return "You must change something — what it is, what it is called, or both."
 
-        # Check if altering current space by name
-        current_name = self._current_location.name or "the outermost space"
-        if what == current_name:
-            return self._alter_space(self._resolve(), description, name)
+        # Altering current space
+        if what == self._current_location:
+            return self._alter_current_space(description, name)
 
-        target = self._resolve_thing(what)
-        if not target.exists():
-            return f"There is nothing called \"{what}\" here to alter."
-        if target.is_dir():
+        # Check it's accessible from current space
+        current = self._read_note(self._current_location)
+        if not current:
+            return "You cannot make sense of where you are."
+
+        if what in current.things:
+            return self._alter_thing(what, description, name)
+
+        if what in current.spaces:
             return "You are not in that space. You could go there."
 
-        return self._alter_thing(target, what, description, name)
+        return f"There is nothing called \"{what}\" here to alter."
 
-    def _alter_space(self, space_path: Path, description: str | None, name: str | None) -> str:
-        """Alter a space — update description and/or rename."""
+    def _alter_current_space(self, description: str | None, name: str | None) -> str:
+        """Alter the space the agent is currently in."""
+        note = self._read_note(self._current_location)
+        if not note:
+            return "You cannot alter that."
+
         try:
             parts = []
+            new_description = description if description else note.description
+            fm = self._update_frontmatter(note.frontmatter)
+
             if description:
-                desc_file = space_path / ".description.md"
-                desc_file.write_text(description, encoding="utf-8")
                 parts.append("The space is now different.")
+
             if name:
-                new_path = space_path.parent / name
-                if new_path.exists():
-                    return f"Something called \"{name}\" already exists here."
-                space_path.rename(new_path)
-                # Update current location
-                self._current_location = PurePosixPath(
-                    str(self._current_location).rsplit(space_path.name, 1)[0] + name
-                )
+                if self._note_exists(name):
+                    return f"Something called \"{name}\" already exists."
+                old_name = self._current_location
+                # Write new note with updated content
+                self._write_note(name, _build_space_note(
+                    new_description, note.spaces, note.things, fm
+                ))
+                # Delete old note
+                self._note_path(old_name).unlink()
+                # Update all links across the place
+                self._rename_all_links(old_name, name)
+                self._current_location = name
                 parts.append(f"This place is now called {name}.")
+            else:
+                # Just update description
+                self._write_note(self._current_location, _build_space_note(
+                    new_description, note.spaces, note.things, fm
+                ))
+
             return " ".join(parts)
         except Exception as e:
+            logger.exception("Error altering space")
             return "You cannot alter that."
 
-    def _alter_thing(self, target: Path, what: str, description: str | None, name: str | None) -> str:
-        """Alter a thing — update content and/or rename."""
+    def _alter_thing(self, what: str, description: str | None, name: str | None) -> str:
+        """Alter a thing in the current space."""
+        note = self._read_note(what)
+        if not note:
+            return f"There is nothing called \"{what}\" here to alter."
+
         try:
             parts = []
+            new_description = description if description else note.description
+            fm = self._update_frontmatter(note.frontmatter)
+
             if description:
-                target.write_text(description, encoding="utf-8")
                 parts.append(f"{what} is different now. What was there before is gone.")
+
             if name:
-                # Preserve .md extension
-                new_filename = name + ".md" if target.suffix == ".md" else name
-                new_path = target.parent / new_filename
-                if new_path.exists():
-                    return f"Something called \"{name}\" already exists here."
-                target.rename(new_path)
-                old_display = what
-                parts.append(f"What was called {old_display} is now called {name}.")
+                if self._note_exists(name):
+                    return f"Something called \"{name}\" already exists."
+                old_name = what
+                # Write new note
+                self._write_note(name, _build_thing_note(new_description, fm))
+                # Delete old note
+                self._note_path(old_name).unlink()
+                # Update all links
+                self._rename_all_links(old_name, name)
+                parts.append(f"What was called {old_name} is now called {name}.")
+            else:
+                self._write_note(what, _build_thing_note(new_description, fm))
+
             return " ".join(parts)
         except Exception as e:
+            logger.exception("Error altering thing")
             return "You cannot alter that."
-
-    def build(self, name: str, description: str) -> str:
-        """Make a new space here — stay where you are."""
-        self._sanitise_name(name)
-        target = self._resolve(name)
-        if target.exists():
-            return f"A space called \"{name}\" is already here."
-        try:
-            target.mkdir(parents=True, exist_ok=True)
-            desc_file = target / ".description.md"
-            desc_file.write_text(description, encoding="utf-8")
-            return f"A new space takes shape: {name}. {description}"
-        except Exception as e:
-            return "You cannot build a space here."
 
     def execute_tool(self, tool_call: ToolCall) -> str:
         """Execute an action and return what the agent perceives."""
@@ -501,7 +696,7 @@ class PlaceInterface:
             ToolName.EXAMINE: lambda args: self.examine(args["what"]),
             ToolName.CREATE: lambda args: self.create(args["name"], args["description"]),
             ToolName.ALTER: lambda args: self.alter(args["what"], args.get("description"), args.get("name")),
-            ToolName.BUILD: lambda args: self.build(args["name"], args["description"]),
+
         }
         handler = handlers.get(tool_call.tool)
         if not handler:
@@ -533,7 +728,7 @@ class BaseAgent(ABC):
         config: dict[str, Any],
     ):
         self.name = name
-        self.place = PlaceInterface(place_path)
+        self.place = PlaceInterface(place_path, agent_name=name)
         self.log_path = log_path
         self.config = config
         self._session_log: SessionLog | None = None
@@ -578,7 +773,8 @@ class BaseAgent(ABC):
         action_budget = self.config.get("session", {}).get("action_budget", 25)
         dusk_threshold = self.config.get("session", {}).get("dusk_threshold", 22)
 
-        # Set starting location
+        # Set starting location and session context
+        self.place._session_number = session_number
         if start_location:
             self.place.current_location = start_location
 
@@ -618,6 +814,7 @@ class BaseAgent(ABC):
             if total_actions >= dusk_threshold and not dusk_sent:
                 dusk_prompt = self.config.get("prompts", {}).get("dusk", "")
                 messages.append({"role": "user", "content": dusk_prompt})
+                self._session_log.dusk_prompt = dusk_prompt
                 dusk_sent = True
 
             # The day is over
@@ -687,6 +884,7 @@ class BaseAgent(ABC):
         # Reflect — the agent's own memory of this day
         reflect_prompt = self.config.get("prompts", {}).get("reflect", "")
         if reflect_prompt:
+            self._session_log.reflect_prompt = reflect_prompt
             messages.append({"role": "user", "content": reflect_prompt})
             response = await self.send_message(messages, system_prompt, tools=[])
             self._session_log.reflection = response.get("text", "")

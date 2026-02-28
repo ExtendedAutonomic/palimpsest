@@ -26,7 +26,7 @@ class ClaudeAgent(BaseAgent):
         place_path: Path,
         log_path: Path,
         config: dict[str, Any],
-        model: str = "claude-opus-4-6",
+        model: str = "claude-sonnet-4-5-20250929",
     ):
         super().__init__("claude", place_path, log_path, config)
         self.client = anthropic.AsyncAnthropic()
@@ -77,10 +77,11 @@ class ClaudeAgent(BaseAgent):
         if tools:
             kwargs["tools"] = self._convert_tools_to_anthropic()
 
-        # Add extended thinking
-        kwargs["thinking"] = {
-            "type": "adaptive",
-        }
+        # Add extended thinking (only supported on Opus models)
+        if "opus" in self.model:
+            kwargs["thinking"] = {
+                "type": "adaptive",
+            }
 
         try:
             response = await self.client.messages.create(**kwargs)

@@ -1,1 +1,0 @@
-A smooth, dark stone, warm as if it has been sitting in sunlight. It fits perfectly in the palm of a hand. On one side, a single word is carved — not by a tool, but as if the stone grew around the letters: "Here."
