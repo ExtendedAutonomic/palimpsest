@@ -14,20 +14,17 @@ pip install -e .
 cp .env.example .env
 # Edit .env with your keys
 
+# Initialise the place
+palimpsest init
+
 # Run a single test session (Claude, Phase 1)
 palimpsest run --agent claude --once
 
-# Run the daily schedule
-palimpsest run --schedule
-
-# View vault state
-palimpsest vault --tree
+# View the place
+palimpsest place --tree
 
 # View session logs
 palimpsest logs --agent claude --last 3
-
-# Run the narrator
-palimpsest narrate
 
 # Check costs
 palimpsest costs
@@ -37,7 +34,10 @@ palimpsest costs
 
 ```
 palimpsest/
-├── vault/              # The shared place (Obsidian vault + git repo)
+├── place/              # The shared place (its own git repo)
+│   ├── _/              # Unnamed space
+│   ├── here/           # Starting location
+│   └── __/             # Unnamed space
 ├── orchestrator/       # Python orchestration
 │   ├── agents/         # Agent API integrations
 │   ├── memory/         # Memory compression + context building
@@ -47,9 +47,23 @@ palimpsest/
 └── analysis/           # Post-hoc analysis tools
 ```
 
+## The Agent's Tools
+
+Agents interact with the place through seven tools. No filesystem language — only the language of the place.
+
+| Tool | What it does |
+|------|-------------|
+| `perceive` | Take in your surroundings |
+| `go` | Move to a known space, or go back |
+| `venture` | Go somewhere new — into the unknown |
+| `examine` | Look closely at something |
+| `create` | Make a thing (with content) |
+| `alter` | Change an existing thing |
+| `build` | Make a new space (stays where you are) |
+
 ## Phases
 
-1. **The Solitary** (Weeks 1–2) — Claude alone in an empty vault
+1. **The Solitary** (Weeks 1–2) — Claude alone in an empty place
 2. **The Other** (Weeks 3–4) — Gemini enters, neither told about the other
 3. **Contact** (Weeks 5–6) — The agents discover each other
 4. **The Third** (Weeks 7–8) — DeepSeek arrives

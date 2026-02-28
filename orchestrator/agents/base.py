@@ -233,6 +233,21 @@ class PlaceInterface:
     def current_location(self, value: str) -> None:
         self._current_location = PurePosixPath(value)
 
+    @staticmethod
+    def _sanitise_name(name: str) -> str:
+        """Reject names that could escape the place via path traversal."""
+        forbidden = ["..", "/", "\\", "\x00"]
+        for pattern in forbidden:
+            if pattern in name:
+                raise ValueError(f"That name is not possible here.")
+        # Reject hidden names (would be invisible to perceive)
+        if name.startswith("."):
+            raise ValueError(f"That name is not possible here.")
+        # Reject empty names
+        if not name.strip():
+            raise ValueError(f"You must give it a name.")
+        return name
+
     def _resolve(self, relative: str = "") -> Path:
         """Resolve a path relative to current location within the place."""
         if relative:
@@ -280,6 +295,8 @@ class PlaceInterface:
 
     def go(self, where: str) -> str:
         """Move to another space."""
+        if where != "back":
+            self._sanitise_name(where)
         if where == "back":
             if self._current_location == PurePosixPath("."):
                 return "There is nowhere further back to go. You are at the edge of the place."
@@ -300,6 +317,7 @@ class PlaceInterface:
 
     def venture(self, name: str) -> str:
         """Go somewhere new — create a space and move into it."""
+        self._sanitise_name(name)
         target = self._resolve(name)
         if target.exists():
             return f"A place called \"{name}\" already exists here. You could go there."
@@ -312,6 +330,7 @@ class PlaceInterface:
 
     def examine(self, what: str) -> str:
         """Look closely at something."""
+        self._sanitise_name(what)
         target = self._resolve(what)
         if not target.exists():
             return f"There is nothing called \"{what}\" here."
@@ -325,6 +344,7 @@ class PlaceInterface:
 
     def create(self, name: str, description: str) -> str:
         """Create something in the current space."""
+        self._sanitise_name(name)
         target = self._resolve(name)
         if target.exists():
             return (
@@ -340,11 +360,12 @@ class PlaceInterface:
 
     def alter(self, what: str, description: str) -> str:
         """Change something that exists."""
+        self._sanitise_name(what)
         target = self._resolve(what)
         if not target.exists():
             return f"There is nothing called \"{what}\" here to alter."
         if target.is_dir():
-            return f"\"{what}\" is a space. You cannot alter a space this way."
+            return f"\"{what}\" is a space. You cannot alter a space."
         try:
             target.write_text(description, encoding="utf-8")
             return f"You alter {what}. It is different now. What was there before is gone."
@@ -353,6 +374,7 @@ class PlaceInterface:
 
     def build(self, name: str) -> str:
         """Make a new space here — stay where you are."""
+        self._sanitise_name(name)
         target = self._resolve(name)
         if target.exists():
             return f"A space called \"{name}\" is already here."
@@ -467,8 +489,8 @@ class BaseAgent(ABC):
             identity_template = self.config.get("prompts", {}).get("identity", "")
             surroundings = self.place.perceive()
             opening = identity_template.format(
-                memory=memory or "(You remember nothing specific.)",
-                diff=diff or "(Nothing seems to have changed.)",
+                memory=memory or "You remember nothing specific.",
+                diff=diff or "Nothing seems to have changed.",
                 location=self.place.current_location,
                 surroundings=surroundings,
             )
