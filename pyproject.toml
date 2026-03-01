@@ -29,3 +29,8 @@ palimpsest = "orchestrator.cli:cli"
 
 [tool.setuptools.packages.find]
 include = ["orchestrator*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-v --tb=short"
