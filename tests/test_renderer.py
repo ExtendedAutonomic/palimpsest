@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 
 from orchestrator.renderer import render_session_markdown, save_readable_log
-from conftest import make_session_log
+from tests.helpers import make_session_log
 
 
 class TestRenderSessionMarkdown:

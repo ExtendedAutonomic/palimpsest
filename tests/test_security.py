@@ -3,6 +3,11 @@ Integration tests for security — path traversal and name sanitisation.
 
 These tests verify that agents cannot escape the place directory,
 regardless of what names they try to use.
+
+Note: the raw place methods (venture, create, go) raise ValueError
+for bad names. The execute_tool dispatch catches these and returns
+"Something prevented you." — so in practice agents see a gentle
+failure, not an exception.
 """
 
 from __future__ import annotations
@@ -30,8 +35,8 @@ class TestNameSanitisation:
         "   ",
     ])
     def test_venture_rejects_bad_names(self, place: PlaceInterface, bad_name: str):
-        result = place.venture(bad_name, "Bad place.")
-        # Should either raise ValueError (caught by execute_tool) or return error
+        with pytest.raises(ValueError):
+            place.venture(bad_name, "Bad place.")
         assert place.current_location == "here"
 
     @pytest.mark.parametrize("bad_name", [
@@ -41,11 +46,8 @@ class TestNameSanitisation:
         ".hidden",
     ])
     def test_create_rejects_bad_names(self, place: PlaceInterface, bad_name: str):
-        result = place.create(bad_name, "Bad thing.")
-        # The create method calls _sanitise_name which raises ValueError
-        # execute_tool catches this — direct calls will raise
         with pytest.raises(ValueError):
-            place._sanitise_name(bad_name)
+            place.create(bad_name, "Bad thing.")
 
     @pytest.mark.parametrize("bad_name", [
         "../escape",
@@ -54,7 +56,18 @@ class TestNameSanitisation:
     ])
     def test_go_rejects_bad_names(self, place: PlaceInterface, bad_name: str):
         with pytest.raises(ValueError):
-            place._sanitise_name(bad_name)
+            place.go(bad_name)
+
+    def test_execute_tool_catches_bad_names(self, place: PlaceInterface):
+        """execute_tool wraps the ValueError into a gentle string response."""
+        from orchestrator.place.tools import ToolCall, ToolName
+        tc = ToolCall(
+            tool=ToolName.VENTURE,
+            arguments={"name": "../escape", "description": "Bad."},
+        )
+        result = place.execute_tool(tc)
+        assert "prevented" in result.lower() or "not possible" in result.lower()
+        assert tc.error is not None
 
 
 class TestResolvedPathSecurity:

@@ -17,7 +17,7 @@ from orchestrator.memory.summariser import build_agent_memory
 from orchestrator.memory.context_builder import build_session_context
 from orchestrator.session_runner import get_next_session_number, get_last_location
 
-from conftest import write_session_log
+from tests.helpers import write_session_log
 
 
 class TestBuildAgentMemory:
