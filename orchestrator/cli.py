@@ -276,9 +276,57 @@ def costs() -> None:
 
 
 @cli.command()
-def narrate() -> None:
-    """Run the narrator agent."""
-    click.echo("Narrator not yet implemented.")
+@click.option("--day", "-d", type=str, default=None,
+              help="Date to narrate (YYYY-MM-DD). Defaults to today.")
+@click.option("--prompt", "-p", type=click.Path(exists=True), default=None,
+              help="Path to narrator prompt markdown file.")
+def narrate(day: str | None, prompt: str | None) -> None:
+    """Run the narrator agent to chronicle the day's events."""
+    asyncio.run(_run_narrator(day, prompt))
+
+
+async def _run_narrator(day_str: str | None, prompt_path_str: str | None) -> None:
+    """CLI wrapper for running the narrator."""
+    from datetime import datetime, timezone
+    from .narrator.narrator import run_narrator
+
+    # Parse day
+    day = None
+    if day_str:
+        day = datetime.strptime(day_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+
+    # Resolve narrator prompt path
+    if prompt_path_str:
+        narrator_prompt_path = Path(prompt_path_str)
+    else:
+        # Default: look in vault, then fall back to config
+        vault_prompt = Path("D:/Vault/Projects/Active/Palimpsest/Narrator Prompt.md")
+        if vault_prompt.exists():
+            narrator_prompt_path = vault_prompt
+        else:
+            narrator_prompt_path = CONFIG_PATH / "narrator_prompt.md"
+
+    click.echo(f"Running narrator...")
+    click.echo(f"  Prompt: {narrator_prompt_path}")
+    if day:
+        click.echo(f"  Day: {day.strftime('%Y-%m-%d')}")
+
+    try:
+        output_file = await run_narrator(
+            place_path=PLACE_PATH,
+            log_path=LOG_PATH,
+            narrator_prompt_path=narrator_prompt_path,
+            day=day,
+        )
+        click.echo(f"\nChapter saved: {output_file}")
+        click.echo()
+        # Print the chapter
+        content = output_file.read_text(encoding="utf-8")
+        click.echo(content)
+    except ValueError as e:
+        click.echo(f"Error: {e}", err=True)
+    except FileNotFoundError as e:
+        click.echo(f"Error: {e}", err=True)
 
 
 if __name__ == "__main__":
