@@ -18,11 +18,9 @@ venv/
 .DS_Store
 Thumbs.db
 
-# Experimental data — local only, keep directory structure
-place/*
-!place/.gitkeep
-logs/*
-!logs/.gitkeep
+# Experimental data — created by palimpsest init/run
+place/
+logs/
 
 # Observatory (local Obsidian symlinks)
 observatory/
