@@ -435,15 +435,15 @@ class PlaceInterface:
         """Pick up a thing and carry it with you."""
         self._sanitise_name(what)
 
+        if what in self._carrying:
+            return f"You are already carrying {what}."
+
         current = self._read_note(self._current_location)
         if not current:
             return "You cannot make sense of where you are."
 
         if what not in current.things:
             return f"There is nothing called \"{what}\" here to take."
-
-        if what in self._carrying:
-            return f"You are already carrying {what}."
 
         # Remove from current space, link to Inventory
         self._remove_link(self._current_location, what)

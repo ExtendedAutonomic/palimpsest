@@ -168,12 +168,12 @@ class TestExamine:
         assert "go there" in result.lower()
 
     def test_examine_thing_in_other_space_not_visible(self, place: PlaceInterface):
-        """Things in other spaces aren't visible from the current space."""
+        """Things in other spaces aren't examinable from here, but the place knows they exist."""
         place.venture("the garden", "A quiet place.")
         place.create("a flower", "Red.")
         place.go("here")
         result = place.examine("a flower")
-        assert "nothing called" in result.lower()
+        assert "left it behind" in result.lower()
 
 
 class TestGo:
