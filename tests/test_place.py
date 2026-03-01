@@ -261,6 +261,7 @@ class TestPerceive:
         place.venture("the garden", "A quiet place.")
         place.go("here")
         result = place.perceive()
+        assert "connected to" in result
         assert "the garden" in result
 
     def test_perceive_shows_things(self, place: PlaceInterface):
