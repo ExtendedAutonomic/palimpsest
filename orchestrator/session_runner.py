@@ -34,11 +34,18 @@ class SessionResult:
     memory_compressed: bool
 
 
+# Test model overrides — cheaper models for development
+TEST_MODELS = {
+    "claude": "claude-sonnet-4-5-20250929",
+}
+
+
 def create_agent(
     agent_name: str,
     place_path: Path,
     log_path: Path,
     config: dict,
+    test: bool = False,
 ) -> BaseAgent:
     """Create an agent instance by name."""
     from .agents.claude_agent import ClaudeAgent
@@ -55,7 +62,11 @@ def create_agent(
     if not agent_class:
         raise ValueError(f"Unknown agent: {agent_name}")
 
-    return agent_class(place_path, log_path, config)
+    kwargs: dict = {"place_path": place_path, "log_path": log_path, "config": config}
+    if test and agent_name in TEST_MODELS:
+        kwargs["model"] = TEST_MODELS[agent_name]
+
+    return agent_class(**kwargs)
 
 
 def get_next_session_number(agent_name: str, log_path: Path) -> int:
@@ -108,6 +119,7 @@ async def run_session(
     config: dict,
     session_override: int | None = None,
     phase: int = 1,
+    test: bool = False,
 ) -> SessionResult:
     """
     Run a complete agent session.
@@ -136,7 +148,7 @@ async def run_session(
     logger.info(f"Starting session {session_num} for {agent_name} (Phase {phase})")
 
     # Create agent
-    agent = create_agent(agent_name, place_path, log_path, config)
+    agent = create_agent(agent_name, place_path, log_path, config, test=test)
 
     # Build context (memory) for non-first sessions
     memory = None

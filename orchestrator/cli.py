@@ -131,12 +131,13 @@ def init() -> None:
 @click.option("--phase", "-p", type=int, default=1,
               help="Current experiment phase")
 @click.option("--schedule", is_flag=True, help="Run on the configured schedule")
-def run(agent: str, once: bool, session: int | None, phase: int, schedule: bool) -> None:
+@click.option("--test", is_flag=True, help="Use cheaper test model (Sonnet) instead of production (Opus)")
+def run(agent: str, once: bool, session: int | None, phase: int, schedule: bool, test: bool) -> None:
     """Run an agent session."""
     config = load_config()
 
     if once:
-        asyncio.run(_run_once(agent, config, session_override=session, phase=phase))
+        asyncio.run(_run_once(agent, config, session_override=session, phase=phase, test=test))
     elif schedule:
         click.echo("Scheduled mode not yet implemented. Use --once for now.")
     else:
@@ -148,11 +149,13 @@ async def _run_once(
     config: dict,
     session_override: int | None = None,
     phase: int = 1,
+    test: bool = False,
 ) -> None:
     """CLI wrapper for running a single session."""
     from .session_runner import run_session
 
-    click.echo(f"Starting session for {agent_name} (Phase {phase})")
+    model_label = "test (Sonnet)" if test else "production (Opus)"
+    click.echo(f"Starting session for {agent_name} (Phase {phase}, {model_label})")
 
     result = await run_session(
         agent_name=agent_name,
@@ -161,6 +164,7 @@ async def _run_once(
         config=config,
         session_override=session_override,
         phase=phase,
+        test=test,
     )
 
     click.echo(f"\nSession {result.session_number} complete.")
