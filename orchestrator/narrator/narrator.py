@@ -52,6 +52,7 @@ def load_narrator_prompt(prompt_path: Path | None = None) -> str:
 def gather_session_logs(
     log_path: Path,
     day: datetime | None = None,
+    sessions: tuple[int, ...] | None = None,
 ) -> list[dict]:
     """
     Gather all session logs for a given day.
@@ -76,6 +77,8 @@ def gather_session_logs(
                 data = json.loads(log_file.read_text(encoding="utf-8"))
                 log_date = data.get("start_time", "")[:10]
                 if log_date == target_date:
+                    if sessions and data.get("session_number") not in sessions:
+                        continue
                     logs.append(data)
             except Exception as e:
                 logger.warning(f"Failed to load {log_file}: {e}")
@@ -86,6 +89,7 @@ def gather_session_logs(
 def gather_readable_logs(
     log_path: Path,
     day: datetime | None = None,
+    sessions: tuple[int, ...] | None = None,
 ) -> list[str]:
     """
     Gather readable markdown logs for a given day.
@@ -111,6 +115,8 @@ def gather_readable_logs(
                 data = json.loads(log_file.read_text(encoding="utf-8"))
                 log_date = data.get("start_time", "")[:10]
                 if log_date != target_date:
+                    continue
+                if sessions and data.get("session_number") not in sessions:
                     continue
 
                 # Try readable version first
@@ -231,6 +237,7 @@ async def run_narrator(
     narrator_output_path: Path | None = None,
     day: datetime | None = None,
     model: str = NARRATOR_MODEL,
+    sessions: tuple[int, ...] | None = None,
 ) -> Path:
     """
     Run the narrator for a given day.
@@ -251,7 +258,7 @@ async def run_narrator(
     system_prompt = load_narrator_prompt(narrator_prompt_path)
 
     # Gather the day's readable logs
-    readable_logs = gather_readable_logs(log_path, day)
+    readable_logs = gather_readable_logs(log_path, day, sessions)
     if not readable_logs:
         raise ValueError(
             f"No session logs found for {day.strftime('%Y-%m-%d')}. "
