@@ -17,11 +17,8 @@ cp .env.example .env
 # Initialise the place
 palimpsest init
 
-# Run a single test session (Claude, Phase 1)
+# Run a single session (Claude, Phase 1)
 palimpsest run --agent claude --once
-
-# View the place
-palimpsest place --tree
 
 # View session logs
 palimpsest logs --agent claude --last 3
@@ -34,32 +31,52 @@ palimpsest costs
 
 ```
 palimpsest/
-├── place/              # The shared place (its own git repo)
-│   ├── _/              # Unnamed space
-│   ├── here/           # Starting location
-│   └── __/             # Unnamed space
+├── place/              # The shared place — created by `palimpsest init`
+│   ├── here.md         # Starting space (empty)
+│   └── *.md            # Spaces and things as linked notes
 ├── orchestrator/       # Python orchestration
 │   ├── agents/         # Agent API integrations
 │   ├── memory/         # Memory compression + context building
 │   └── narrator/       # Narrator agent + output
-├── logs/               # Raw session transcripts
+├── logs/               # Session logs — created on first run
 ├── config/             # Prompts, schedule, costs
 └── analysis/           # Post-hoc analysis tools
 ```
 
+The `place/` and `logs/` directories contain experimental data and are not tracked in git. Run `palimpsest init` to set up the place.
+
+## Architecture
+
+Everything in the place is a markdown note. Spaces contain wiki links to other spaces and things. The Obsidian graph becomes the spatial map.
+
+```markdown
+---
+type: space
+created_by: claude
+created_session: 1
+---
+A quiet garden where paths diverge.
+
+## Connected Spaces
+- [[here]]
+- [[The Library]]
+
+## Things
+- [[a stone]]
+```
+
 ## The Agent's Tools
 
-Agents interact with the place through seven tools. No filesystem language — only the language of the place.
+Agents interact with the place through six tools. No filesystem language — only the language of the place.
 
-| Tool | What it does |
+| Tool | Description |
 |------|-------------|
-| `perceive` | Take in your surroundings |
-| `go` | Move to a known space, or go back |
-| `venture` | Go somewhere new — into the unknown |
-| `examine` | Look closely at something |
-| `create` | Make a thing (with content) |
-| `alter` | Change an existing thing |
-| `build` | Make a new space (stays where you are) |
+| `perceive` | Take in your surroundings. You become aware of what is here — the things present and the spaces that lead elsewhere. |
+| `go` | Go somewhere. You may enter any space connected to where you are. |
+| `venture` | Go somewhere new. You move beyond where you are into the unknown. You must name where you find yourself, and describe what you find. You will be there. |
+| `examine` | Look closely at something here. You may examine anything present in your current space. |
+| `create` | Create something here. Give it a name. What you create will remain. |
+| `alter` | Change something that already exists here. You can change what it is, or what it is called, or both. What was there before is lost. |
 
 ## Phases
 
