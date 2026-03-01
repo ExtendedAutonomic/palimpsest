@@ -149,7 +149,13 @@ def render_session_markdown(log_path: Path, place_path: Path | None = None) -> s
 
             # Show dusk prompt after it would have been injected
             if dusk and not dusk_shown and action_count >= dusk_action_threshold:
-                lines.append(f"*{dusk.strip()}*")
+                lines.append("---")
+                lines.append("")
+                lines.append("> [!dusk] Dusk")
+                for dusk_line in dusk.strip().split("\n"):
+                    lines.append(f"> {dusk_line}")
+                lines.append("")
+                lines.append("---")
                 lines.append("")
                 dusk_shown = True
 

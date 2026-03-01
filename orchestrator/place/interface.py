@@ -155,10 +155,10 @@ class PlaceInterface:
             parts.append(note.description)
 
         if note.spaces and note.things:
-            parts.append("There are spaces here: " + ", ".join(note.spaces))
+            parts.append("This space is connected to: " + ", ".join(note.spaces))
             parts.append("There are things here: " + ", ".join(note.things))
         elif note.spaces:
-            parts.append("There are spaces here: " + ", ".join(note.spaces))
+            parts.append("This space is connected to: " + ", ".join(note.spaces))
         elif note.things:
             parts.append("There are things here: " + ", ".join(note.things))
         else:
