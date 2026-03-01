@@ -18,9 +18,11 @@ venv/
 .DS_Store
 Thumbs.db
 
-# Experimental data — local only
-place/
-logs/
+# Experimental data — local only, keep directory structure
+place/*
+!place/.gitkeep
+logs/*
+!logs/.gitkeep
 
 # Observatory (local Obsidian symlinks)
 observatory/
