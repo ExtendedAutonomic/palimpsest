@@ -198,10 +198,19 @@ class PlaceInterface:
                 self._add_link(self._current_location, name, "Spaces")
                 self._add_link(name, self._current_location, "Spaces")
                 self._current_location = name
-                return (
-                    f"This space already exists. It was here before you. "
-                    f"Your path from {origin} now leads here."
-                )
+
+                # The message depends on who created this space
+                created_by = existing.frontmatter.get("created_by", "")
+                if created_by == self._agent_name:
+                    return (
+                        f"This space already exists. You have been here before. "
+                        f"Your path from {origin} now leads here."
+                    )
+                else:
+                    return (
+                        f"This space already exists. You did not create this place. "
+                        f"Your path from {origin} now leads here."
+                    )
             else:
                 # A thing with this name exists — can't create a space over it
                 return (

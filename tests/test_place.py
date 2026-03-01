@@ -63,15 +63,35 @@ class TestVenture:
         assert note.frontmatter["created_by"] == "test-agent"
         assert note.frontmatter["created_session"] == 1
 
-    def test_venture_into_existing_space_connects(self, place: PlaceInterface):
-        """If a space already exists, venture connects to it instead of failing."""
+    def test_venture_into_own_space_reconnects(self, place: PlaceInterface):
+        """Venturing into a space you created gives the 'been here before' message."""
         place.venture("the garden", "A quiet place.")
         place.go("here")
-        # Now venture to a second space, then back to the garden from here
         place.venture("the library", "Shelves of dust.")
         result = place.venture("the garden", "Something different.")
         assert "already exists" in result
+        assert "You have been here before" in result
         assert place.current_location == "the garden"
+
+    def test_venture_into_others_space_signals_otherness(self, place: PlaceInterface, place_path: Path):
+        """Venturing into a space created by another agent gives the 'did not create' message."""
+        # Simulate another agent having created a space
+        from orchestrator.place.notes import build_space_note
+        fm = {
+            "type": "space",
+            "created_by": "other-agent",
+            "created_session": 1,
+            "updated_by": "other-agent",
+            "updated_session": 1,
+        }
+        (place_path / "the quiet room.md").write_text(
+            build_space_note("A room you did not make.", [], [], fm),
+            encoding="utf-8",
+        )
+        result = place.venture("the quiet room", "Something.")
+        assert "already exists" in result
+        assert "You did not create this place" in result
+        assert place.current_location == "the quiet room"
 
     def test_venture_into_existing_thing_fails(self, place: PlaceInterface):
         """Can't create a space with the same name as an existing thing."""
