@@ -27,7 +27,7 @@ class ClaudeAgent(BaseAgent):
         place_path: Path,
         log_path: Path,
         config: dict[str, Any],
-        model: str = "claude-sonnet-4-5-20250929",
+        model: str = "claude-opus-4-6",
     ):
         super().__init__("claude", place_path, log_path, config)
         self.client = anthropic.AsyncAnthropic()

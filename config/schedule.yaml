@@ -1,4 +1,4 @@
 session:
-  action_budget: 10
-  dusk_threshold: 8
+  action_budget: 20
+  dusk_threshold: 17
   max_output_tokens: 4096
