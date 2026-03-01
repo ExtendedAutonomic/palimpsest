@@ -280,12 +280,14 @@ def costs() -> None:
               help="Date to narrate (YYYY-MM-DD). Defaults to today.")
 @click.option("--prompt", "-p", type=click.Path(exists=True), default=None,
               help="Path to narrator prompt markdown file.")
-def narrate(day: str | None, prompt: str | None) -> None:
+@click.option("--session", "-s", type=int, multiple=True,
+              help="Session number(s) to include. Can be repeated. Defaults to all.")
+def narrate(day: str | None, prompt: str | None, session: tuple[int, ...]) -> None:
     """Run the narrator agent to chronicle the day's events."""
-    asyncio.run(_run_narrator(day, prompt))
+    asyncio.run(_run_narrator(day, prompt, session or None))
 
 
-async def _run_narrator(day_str: str | None, prompt_path_str: str | None) -> None:
+async def _run_narrator(day_str: str | None, prompt_path_str: str | None, sessions: tuple[int, ...] | None = None) -> None:
     """CLI wrapper for running the narrator."""
     from datetime import datetime, timezone
     from .narrator.narrator import run_narrator
@@ -317,6 +319,7 @@ async def _run_narrator(day_str: str | None, prompt_path_str: str | None) -> Non
             log_path=LOG_PATH,
             narrator_prompt_path=narrator_prompt_path,
             day=day,
+            sessions=sessions,
         )
         click.echo(f"\nChapter saved: {output_file}")
         click.echo()
