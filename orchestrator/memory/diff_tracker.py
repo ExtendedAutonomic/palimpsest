@@ -94,7 +94,7 @@ def format_diff_for_agent(changes: list[VaultChange]) -> str:
     happened in a place, not file operations.
     """
     if not changes:
-        return "Nothing seems to have changed while you were away."
+        return "Nothing has changed since you were last here."
 
     parts = []
     appeared = [c for c in changes if c.change_type == "appeared"]

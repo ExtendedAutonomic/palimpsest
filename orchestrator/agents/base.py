@@ -305,7 +305,7 @@ def _parse_note(text: str) -> ParsedNote:
             heading, _, content = section.partition("\n")
             heading = heading.strip()
             links = _WIKILINK_RE.findall(content)
-            if heading == "Spaces":
+            if heading in ("Spaces", "Connected Spaces"):
                 spaces = links
             elif heading == "Things":
                 things = links
@@ -338,7 +338,7 @@ def _build_space_note(
     """Build a complete space note."""
     parts = [_build_frontmatter(frontmatter), description]
 
-    parts.append("\n## Spaces")
+    parts.append("\n## Connected Spaces")
     if spaces:
         for s in spaces:
             parts.append(f"- [[{s}]]")
@@ -761,7 +761,6 @@ class BaseAgent(ABC):
         session_number: int,
         phase: int,
         memory: str | None = None,
-        diff: str | None = None,
         start_location: str | None = None,
     ) -> SessionLog:
         """
@@ -791,12 +790,9 @@ class BaseAgent(ABC):
             opening = self.config.get("prompts", {}).get("founding", "You are here.")
         else:
             identity_template = self.config.get("prompts", {}).get("identity", "")
-            surroundings = self.place.perceive()
             opening = identity_template.format(
-                memory=memory or "You remember nothing specific.",
-                diff=diff or "Nothing seems to have changed.",
+                memory=memory or "",
                 location=self.place.current_location,
-                surroundings=surroundings,
             )
 
         system_prompt = self.config.get("prompts", {}).get("system", "")

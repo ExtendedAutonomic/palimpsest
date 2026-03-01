@@ -173,21 +173,17 @@ async def _run_single_session(
     }
     agent = agents[agent_name]()
 
-    # Build context (memory + diff) for non-first sessions
+    # Build context (memory) for non-first sessions
     memory = None
-    diff = None
     start_location = None
 
     if session_num > 1:
         context = build_session_context(
             agent_name=agent_name,
-            place_path=PLACE_PATH,
             log_path=LOG_PATH,
-            last_commit=_get_last_commit(agent_name),
             last_location=_get_last_location(agent_name),
         )
         memory = context["memory"]
-        diff = context["diff"]
         start_location = context["location"]
 
     # Run session
@@ -195,12 +191,17 @@ async def _run_single_session(
         session_number=session_num,
         phase=phase,
         memory=memory,
-        diff=diff,
         start_location=start_location,
     )
 
     # Commit changes to the place
     _commit_place_changes(agent_name, session_num)
+
+    # Run memory compression if needed
+    from .memory.summariser import run_memory_compression
+    compressed = await run_memory_compression(agent_name, LOG_PATH)
+    if compressed:
+        click.echo("  Memory compressed.")
 
     # Generate readable log
     from .renderer import save_readable_log
@@ -225,12 +226,6 @@ def _get_next_session_number(agent_name: str) -> int:
         return 1
     numbers = [int(f.stem.split("_")[1]) for f in existing]
     return max(numbers) + 1
-
-
-def _get_last_commit(agent_name: str) -> str | None:
-    """Get the git commit hash from the agent's last session."""
-    # TODO: store commit hash in session metadata
-    return None
 
 
 def _get_last_location(agent_name: str) -> str | None:

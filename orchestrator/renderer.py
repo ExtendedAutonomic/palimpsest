@@ -76,12 +76,19 @@ def render_session_markdown(log_path: Path, place_path: Path | None = None) -> s
             lines.append(f"> {line}")
         lines.append("")
 
+    # Dusk prompt (if it was sent)
+    dusk = data.get("dusk_prompt")
+    dusk_action_threshold = 8  # TODO: read from config
+
     lines.append("---")
     lines.append("")
 
     # Turns
     lines.append("## The Session")
     lines.append("")
+
+    action_count = 0
+    dusk_shown = False
 
     for turn in data.get("turns", []):
         # Thinking (inline, as callout)
@@ -131,12 +138,20 @@ def render_session_markdown(log_path: Path, place_path: Path | None = None) -> s
             else:
                 lines.append(f"> **{tool}**")
 
-            # Format the result (first line only for brevity)
+            # Format the result
             if result:
-                first_line = result.split("\n")[0]
-                lines.append(f"> *{first_line}*")
+                result_lines = result.strip().split("\n")
+                for rl in result_lines:
+                    lines.append(f"> *{rl}*")
 
             lines.append("")
+            action_count += 1
+
+            # Show dusk prompt after it would have been injected
+            if dusk and not dusk_shown and action_count >= dusk_action_threshold:
+                lines.append(f"*{dusk.strip()}*")
+                lines.append("")
+                dusk_shown = True
 
     # Reflection
     reflection = data.get("reflection", "")

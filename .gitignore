@@ -18,8 +18,9 @@ venv/
 .DS_Store
 Thumbs.db
 
-# The place has its own git repo
-place/.git/
+# Experimental data — local only
+place/
+logs/
 
 # Observatory (local Obsidian symlinks)
 observatory/
