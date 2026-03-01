@@ -3,6 +3,7 @@ DeepSeek agent for Palimpsest — the Third.
 
 Uses the OpenAI-compatible API. Enters during Phase 4.
 The wildcard — terse, sober, potentially drawing on different philosophical traditions.
+Tool conversion is handled by the centralised convert_tools_openai().
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ from typing import Any
 from openai import AsyncOpenAI
 
 from .base import BaseAgent
+from ..place.tools import convert_tools_openai
 
 logger = logging.getLogger(__name__)
 
@@ -37,33 +39,6 @@ class DeepSeekAgent(BaseAgent):
         )
         self.model = model
 
-    def _convert_tools_to_openai(self) -> list[dict]:
-        """Convert our tool definitions to OpenAI-compatible format."""
-        tools = []
-        for tool in self.get_tool_definitions():
-            properties = {}
-            required = []
-            for param_name, param_def in tool.get("parameters", {}).items():
-                properties[param_name] = {
-                    "type": param_def.get("type", "string"),
-                    "description": param_def.get("description", ""),
-                }
-                required.append(param_name)
-
-            tools.append({
-                "type": "function",
-                "function": {
-                    "name": tool["name"],
-                    "description": tool["description"],
-                    "parameters": {
-                        "type": "object",
-                        "properties": properties,
-                        "required": required,
-                    } if properties else {"type": "object", "properties": {}},
-                },
-            })
-        return tools
-
     async def send_message(
         self,
         messages: list[dict],
@@ -84,7 +59,7 @@ class DeepSeekAgent(BaseAgent):
         }
 
         if tools:
-            kwargs["tools"] = self._convert_tools_to_openai()
+            kwargs["tools"] = convert_tools_openai()
 
         try:
             response = await self.client.chat.completions.create(**kwargs)

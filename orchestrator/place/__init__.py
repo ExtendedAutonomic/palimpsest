@@ -2,7 +2,14 @@
 
 from .interface import PlaceInterface
 from .notes import ParsedNote, parse_note, build_space_note, build_thing_note
-from .tools import ToolName, ToolCall, AGENT_TOOLS
+from .tools import (
+    ToolName,
+    ToolCall,
+    AGENT_TOOLS,
+    convert_tools_anthropic,
+    convert_tools_openai,
+    convert_tools_gemini,
+)
 
 __all__ = [
     "PlaceInterface",
@@ -13,4 +20,7 @@ __all__ = [
     "ToolName",
     "ToolCall",
     "AGENT_TOOLS",
+    "convert_tools_anthropic",
+    "convert_tools_openai",
+    "convert_tools_gemini",
 ]

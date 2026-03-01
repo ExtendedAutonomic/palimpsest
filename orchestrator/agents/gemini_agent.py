@@ -2,6 +2,7 @@
 Gemini agent for Palimpsest — the Other.
 
 Uses the Google GenAI SDK. Enters during Phase 2.
+Tool conversion is handled by the centralised convert_tools_gemini().
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ from google import genai
 from google.genai import types
 
 from .base import BaseAgent
+from ..place.tools import convert_tools_gemini
 
 logger = logging.getLogger(__name__)
 
@@ -32,32 +34,6 @@ class GeminiAgent(BaseAgent):
         self.client = genai.Client()
         self.model = model
 
-    def _convert_tools_to_gemini(self) -> list[types.Tool]:
-        """Convert our tool definitions to Gemini's format."""
-        function_declarations = []
-        for tool in self.get_tool_definitions():
-            properties = {}
-            required = []
-            for param_name, param_def in tool.get("parameters", {}).items():
-                properties[param_name] = types.Schema(
-                    type=types.Type.STRING,
-                    description=param_def.get("description", ""),
-                )
-                required.append(param_name)
-
-            fd = types.FunctionDeclaration(
-                name=tool["name"],
-                description=tool["description"],
-                parameters=types.Schema(
-                    type=types.Type.OBJECT,
-                    properties=properties,
-                    required=required,
-                ) if properties else None,
-            )
-            function_declarations.append(fd)
-
-        return [types.Tool(function_declarations=function_declarations)]
-
     async def send_message(
         self,
         messages: list[dict],
@@ -73,7 +49,7 @@ class GeminiAgent(BaseAgent):
         config = types.GenerateContentConfig(
             system_instruction=system,
             max_output_tokens=max_tokens,
-            tools=self._convert_tools_to_gemini() if tools else None,
+            tools=convert_tools_gemini() if tools else None,
         )
 
         try:

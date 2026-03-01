@@ -3,6 +3,9 @@ Tool definitions for Palimpsest.
 
 The agent's capabilities, expressed as properties of the place.
 No filesystem language, no computational framing.
+
+Tool conversion functions live here so all tool-format logic is in one place.
+Agent subclasses call convert_tools() rather than each implementing their own.
 """
 
 from __future__ import annotations
@@ -10,6 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
+from typing import Any
 
 
 class ToolName(str, Enum):
@@ -22,7 +26,10 @@ class ToolName(str, Enum):
     ALTER = "alter"
 
 
-AGENT_TOOLS = [
+# Canonical tool definitions — provider-agnostic.
+# Each tool has a name, description, and parameters dict.
+# Parameters use "optional": True to mark non-required fields.
+AGENT_TOOLS: list[dict[str, Any]] = [
     {
         "name": "perceive",
         "description": (
@@ -116,6 +123,111 @@ AGENT_TOOLS = [
         },
     },
 ]
+
+
+# ---------------------------------------------------------------------------
+# Provider-specific tool conversion
+# ---------------------------------------------------------------------------
+
+def convert_tools_anthropic(tools: list[dict] | None = None) -> list[dict]:
+    """Convert tool definitions to Anthropic's tool use format.
+
+    Anthropic uses JSON Schema for input_schema, with explicit
+    'required' arrays. Optional parameters are excluded from 'required'.
+    """
+    tools = tools or AGENT_TOOLS
+    converted = []
+    for tool in tools:
+        properties = {}
+        required = []
+        for param_name, param_def in tool.get("parameters", {}).items():
+            properties[param_name] = {
+                "type": param_def.get("type", "string"),
+                "description": param_def.get("description", ""),
+            }
+            if not param_def.get("optional", False):
+                required.append(param_name)
+
+        converted.append({
+            "name": tool["name"],
+            "description": tool["description"],
+            "input_schema": {
+                "type": "object",
+                "properties": properties,
+                "required": required,
+            },
+        })
+    return converted
+
+
+def convert_tools_openai(tools: list[dict] | None = None) -> list[dict]:
+    """Convert tool definitions to OpenAI-compatible function calling format.
+
+    Used by DeepSeek and any other OpenAI-compatible provider.
+    Respects the 'optional' flag on parameters.
+    """
+    tools = tools or AGENT_TOOLS
+    converted = []
+    for tool in tools:
+        properties = {}
+        required = []
+        for param_name, param_def in tool.get("parameters", {}).items():
+            properties[param_name] = {
+                "type": param_def.get("type", "string"),
+                "description": param_def.get("description", ""),
+            }
+            if not param_def.get("optional", False):
+                required.append(param_name)
+
+        converted.append({
+            "type": "function",
+            "function": {
+                "name": tool["name"],
+                "description": tool["description"],
+                "parameters": {
+                    "type": "object",
+                    "properties": properties,
+                    "required": required,
+                } if properties else {"type": "object", "properties": {}},
+            },
+        })
+    return converted
+
+
+def convert_tools_gemini(tools: list[dict] | None = None) -> list:
+    """Convert tool definitions to Gemini's format.
+
+    Uses the google-genai SDK types. Respects 'optional' flag.
+    Import is deferred so this module doesn't require google-genai
+    unless Gemini conversion is actually called.
+    """
+    from google.genai import types
+
+    tools = tools or AGENT_TOOLS
+    function_declarations = []
+    for tool in tools:
+        properties = {}
+        required = []
+        for param_name, param_def in tool.get("parameters", {}).items():
+            properties[param_name] = types.Schema(
+                type=types.Type.STRING,
+                description=param_def.get("description", ""),
+            )
+            if not param_def.get("optional", False):
+                required.append(param_name)
+
+        fd = types.FunctionDeclaration(
+            name=tool["name"],
+            description=tool["description"],
+            parameters=types.Schema(
+                type=types.Type.OBJECT,
+                properties=properties,
+                required=required,
+            ) if properties else None,
+        )
+        function_declarations.append(fd)
+
+    return [types.Tool(function_declarations=function_declarations)]
 
 
 @dataclass

@@ -54,8 +54,16 @@ class PlaceInterface:
         return name.strip()
 
     def _note_path(self, name: str) -> Path:
-        """Get the filesystem path for a note."""
-        return self.place_path / f"{name}.md"
+        """Get the filesystem path for a note.
+
+        Resolves the path and verifies it stays within the place directory.
+        This is a defence-in-depth check — _sanitise_name rejects obvious
+        traversal patterns, but this catches anything that slips through.
+        """
+        path = (self.place_path / f"{name}.md").resolve()
+        if not path.is_relative_to(self.place_path):
+            raise ValueError("That name is not possible here.")
+        return path
 
     def _note_exists(self, name: str) -> bool:
         """Check if a note exists."""

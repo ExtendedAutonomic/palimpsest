@@ -16,8 +16,6 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import os
-import sys
 from pathlib import Path
 
 import click
@@ -138,121 +136,41 @@ def run(agent: str, once: bool, session: int | None, phase: int, schedule: bool)
     config = load_config()
 
     if once:
-        asyncio.run(_run_single_session(agent, config, session_override=session, phase=phase))
+        asyncio.run(_run_once(agent, config, session_override=session, phase=phase))
     elif schedule:
         click.echo("Scheduled mode not yet implemented. Use --once for now.")
     else:
         click.echo("Specify --once for a single session or --schedule for recurring.")
 
 
-async def _run_single_session(
+async def _run_once(
     agent_name: str,
     config: dict,
     session_override: int | None = None,
     phase: int = 1,
 ) -> None:
-    """Run a single agent session."""
-    from .agents.claude_agent import ClaudeAgent
-    from .agents.gemini_agent import GeminiAgent
-    from .agents.deepseek_agent import DeepSeekAgent
-    from .memory.context_builder import build_session_context
+    """CLI wrapper for running a single session."""
+    from .session_runner import run_session
 
-    # Determine session number
-    if session_override is not None:
-        session_num = session_override
-    else:
-        session_num = _get_next_session_number(agent_name)
+    click.echo(f"Starting session for {agent_name} (Phase {phase})")
 
-    click.echo(f"Starting session {session_num} for {agent_name} (Phase {phase})")
-
-    # Create agent
-    agents = {
-        "claude": lambda: ClaudeAgent(PLACE_PATH, LOG_PATH, config),
-        "gemini": lambda: GeminiAgent(PLACE_PATH, LOG_PATH, config),
-        "deepseek": lambda: DeepSeekAgent(PLACE_PATH, LOG_PATH, config),
-    }
-    agent = agents[agent_name]()
-
-    # Build context (memory) for non-first sessions
-    memory = None
-    start_location = None
-
-    if session_num > 1:
-        context = build_session_context(
-            agent_name=agent_name,
-            log_path=LOG_PATH,
-            last_location=_get_last_location(agent_name),
-        )
-        memory = context["memory"]
-        start_location = context["location"]
-
-    # Run session
-    log = await agent.run_session(
-        session_number=session_num,
+    result = await run_session(
+        agent_name=agent_name,
+        place_path=PLACE_PATH,
+        log_path=LOG_PATH,
+        config=config,
+        session_override=session_override,
         phase=phase,
-        memory=memory,
-        start_location=start_location,
     )
 
-    # Commit changes to the place
-    _commit_place_changes(agent_name, session_num)
-
-    # Run memory compression if needed
-    from .memory.summariser import run_memory_compression
-    compressed = await run_memory_compression(agent_name, LOG_PATH)
-    if compressed:
+    click.echo(f"\nSession {result.session_number} complete.")
+    click.echo(f"  Actions: {result.action_count}")
+    click.echo(f"  Tokens: {result.total_tokens:,}")
+    click.echo(f"  Final location: {result.location_end}")
+    if result.memory_compressed:
         click.echo("  Memory compressed.")
-
-    # Generate readable log
-    from .renderer import save_readable_log
-    log_file = LOG_PATH / agent_name / f"session_{session_num:04d}.json"
-    readable = save_readable_log(log_file)
-
-    click.echo(f"\nSession complete.")
-    click.echo(f"  Actions: {log.action_count}")
-    click.echo(f"  Tokens: {log.total_input_tokens + log.total_output_tokens}")
-    click.echo(f"  Final location: {log.location_end}")
-    if log.reflection:
-        click.echo(f"\nReflection:\n{log.reflection[:500]}")
-
-
-def _get_next_session_number(agent_name: str) -> int:
-    """Get the next session number for an agent."""
-    agent_log_dir = LOG_PATH / agent_name
-    if not agent_log_dir.exists():
-        return 1
-    existing = list(agent_log_dir.glob("session_*.json"))
-    if not existing:
-        return 1
-    numbers = [int(f.stem.split("_")[1]) for f in existing]
-    return max(numbers) + 1
-
-
-def _get_last_location(agent_name: str) -> str | None:
-    """Get the agent's last known location."""
-    agent_log_dir = LOG_PATH / agent_name
-    if not agent_log_dir.exists():
-        return None
-    logs = sorted(agent_log_dir.glob("session_*.json"))
-    if not logs:
-        return None
-    try:
-        data = json.loads(logs[-1].read_text(encoding="utf-8"))
-        return data.get("location_end")
-    except Exception:
-        return None
-
-
-def _commit_place_changes(agent_name: str, session_num: int) -> None:
-    """Commit any changes to the place to git."""
-    try:
-        import git
-        repo = git.Repo(PLACE_PATH)
-        if repo.is_dirty(untracked_files=True):
-            repo.git.add(A=True)
-            repo.index.commit(f"{agent_name} session {session_num}")
-    except Exception as e:
-        logging.getLogger(__name__).warning(f"Failed to commit: {e}")
+    if result.reflection:
+        click.echo(f"\nReflection:\n{result.reflection[:500]}")
 
 
 @cli.command()

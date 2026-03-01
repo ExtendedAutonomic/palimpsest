@@ -2,7 +2,7 @@
 Claude agent for Palimpsest — the first inhabitant.
 
 Uses the Anthropic API with extended thinking for deep deliberation.
-Tool calls are mapped from our spatial vocabulary to Anthropic's tool use format.
+Tool conversion is handled by the centralised convert_tools_anthropic().
 """
 
 from __future__ import annotations
@@ -14,6 +14,7 @@ from typing import Any
 import anthropic
 
 from .base import BaseAgent
+from ..place.tools import convert_tools_anthropic
 
 logger = logging.getLogger(__name__)
 
@@ -32,29 +33,6 @@ class ClaudeAgent(BaseAgent):
         self.client = anthropic.AsyncAnthropic()
         self.model = model
 
-    def _convert_tools_to_anthropic(self) -> list[dict]:
-        """Convert our tool definitions to Anthropic's format."""
-        tools = []
-        for tool in self.get_tool_definitions():
-            anthropic_tool = {
-                "name": tool["name"],
-                "description": tool["description"],
-                "input_schema": {
-                    "type": "object",
-                    "properties": {},
-                    "required": [],
-                },
-            }
-            for param_name, param_def in tool.get("parameters", {}).items():
-                anthropic_tool["input_schema"]["properties"][param_name] = {
-                    "type": param_def.get("type", "string"),
-                    "description": param_def.get("description", ""),
-                }
-                if not param_def.get("optional", False):
-                    anthropic_tool["input_schema"]["required"].append(param_name)
-            tools.append(anthropic_tool)
-        return tools
-
     async def send_message(
         self,
         messages: list[dict],
@@ -62,7 +40,6 @@ class ClaudeAgent(BaseAgent):
         tools: list[dict],
     ) -> dict:
         """Send a message to Claude and return the parsed response."""
-        thinking_budget = self.config.get("session", {}).get("thinking_budget", 16384)
         max_tokens = self.config.get("session", {}).get("max_output_tokens", 4096)
 
         # Build API call kwargs
@@ -75,7 +52,7 @@ class ClaudeAgent(BaseAgent):
 
         # Add tools if provided
         if tools:
-            kwargs["tools"] = self._convert_tools_to_anthropic()
+            kwargs["tools"] = convert_tools_anthropic()
 
         # Add extended thinking (only supported on Opus models)
         if "opus" in self.model:
