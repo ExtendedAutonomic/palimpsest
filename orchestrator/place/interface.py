@@ -31,6 +31,9 @@ class PlaceInterface:
         self._current_location = "here"
         self._agent_name = agent_name
         self._session_number = session_number
+        self._carrying: list[str] = []  # Things the agent is carrying
+        self._unlocked_tools: set[str] = set()  # Newly unlocked this turn (consumed by session loop)
+        self._load_unlocked_tools()
 
     @property
     def current_location(self) -> str:
@@ -39,6 +42,39 @@ class PlaceInterface:
     @current_location.setter
     def current_location(self, value: str) -> None:
         self._current_location = value
+
+    def _unlocked_tools_path(self) -> Path:
+        return self.place_path / ".unlocked_tools.json"
+
+    def _load_unlocked_tools(self) -> None:
+        """Load previously unlocked tools from disk."""
+        import json
+        path = self._unlocked_tools_path()
+        if path.exists():
+            data = json.loads(path.read_text(encoding="utf-8"))
+            self._permanently_unlocked: set[str] = set(data.get("tools", []))
+        else:
+            self._permanently_unlocked: set[str] = set()
+
+    def _save_unlocked_tools(self) -> None:
+        """Persist unlocked tools to disk."""
+        import json
+        path = self._unlocked_tools_path()
+        path.write_text(
+            json.dumps({"tools": sorted(self._permanently_unlocked)}),
+            encoding="utf-8",
+        )
+
+    def unlock_tool(self, tool_name: str) -> None:
+        """Unlock a hidden tool permanently."""
+        if tool_name not in self._permanently_unlocked:
+            self._permanently_unlocked.add(tool_name)
+            self._unlocked_tools.add(tool_name)  # Signal to session loop
+            self._save_unlocked_tools()
+
+    @property
+    def permanently_unlocked_tools(self) -> set[str]:
+        return self._permanently_unlocked
 
     @staticmethod
     def _sanitise_name(name: str) -> str:
@@ -164,6 +200,9 @@ class PlaceInterface:
         else:
             parts.append("This space is empty.")
 
+        if self._carrying:
+            parts.append("You are carrying: " + ", ".join(self._carrying))
+
         return "\n\n".join(parts)
 
     def go(self, where: str) -> str:
@@ -255,6 +294,21 @@ class PlaceInterface:
 
         if what in current.spaces:
             return "You are not in that space. You could go there."
+
+        # Check carried things
+        if what in self._carrying:
+            note = self._read_note(what)
+            if not note:
+                return f"There is nothing called \"{what}\" here."
+            return note.description if note.description else "It is blank. There is nothing to perceive."
+
+        # Check if it exists elsewhere in the place — unlocks take
+        if self._note_exists(what):
+            note = self._read_note(what)
+            if note and note.note_type == "thing":
+                self.unlock_tool("take")
+                self.unlock_tool("drop")
+                return "That is not here. You left it behind."
 
         return f"There is nothing called \"{what}\" here."
 
@@ -362,6 +416,56 @@ class PlaceInterface:
             logger.exception("Error altering thing")
             return "You cannot alter that."
 
+    def _ensure_inventory_note(self) -> None:
+        """Create the Inventory space note if it doesn't exist."""
+        if not self._note_exists("Inventory"):
+            fm = {
+                "type": "space",
+                "created_by": "place",
+                "created_session": 0,
+                "updated_by": "place",
+                "updated_session": 0,
+            }
+            self._write_note("Inventory", build_space_note(
+                description="Things you carry with you.",
+                spaces=[], things=[], frontmatter=fm,
+            ))
+
+    def take(self, what: str) -> str:
+        """Pick up a thing and carry it with you."""
+        self._sanitise_name(what)
+
+        current = self._read_note(self._current_location)
+        if not current:
+            return "You cannot make sense of where you are."
+
+        if what not in current.things:
+            return f"There is nothing called \"{what}\" here to take."
+
+        if what in self._carrying:
+            return f"You are already carrying {what}."
+
+        # Remove from current space, link to Inventory
+        self._remove_link(self._current_location, what)
+        self._ensure_inventory_note()
+        self._add_link("Inventory", what, "Things")
+        self._carrying.append(what)
+
+        return f"You take {what}. It is with you now."
+
+    def drop(self, what: str) -> str:
+        """Put down something you are carrying."""
+        self._sanitise_name(what)
+
+        if what not in self._carrying:
+            return f"You are not carrying anything called \"{what}\"."
+
+        self._carrying.remove(what)
+        self._remove_link("Inventory", what)
+        self._add_link(self._current_location, what, "Things")
+
+        return f"You set down {what}. It is here now."
+
     def execute_tool(self, tool_call: ToolCall) -> str:
         """Execute an action and return what the agent perceives."""
         handlers = {
@@ -371,6 +475,9 @@ class PlaceInterface:
             ToolName.EXAMINE: lambda args: self.examine(args["what"]),
             ToolName.CREATE: lambda args: self.create(args["name"], args["description"]),
             ToolName.ALTER: lambda args: self.alter(args["what"], args.get("description"), args.get("name")),
+            # Hidden tools — unlocked through play
+            ToolName.TAKE: lambda args: self.take(args["what"]),
+            ToolName.DROP: lambda args: self.drop(args["what"]),
         }
         handler = handlers.get(tool_call.tool)
         if not handler:

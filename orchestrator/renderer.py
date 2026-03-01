@@ -78,7 +78,7 @@ def render_session_markdown(log_path: Path, place_path: Path | None = None) -> s
 
     # Dusk prompt (if it was sent)
     dusk = data.get("dusk_prompt")
-    dusk_action_threshold = 8  # TODO: read from config
+    dusk_action_threshold = data.get("dusk_action", 17)  # Future logs store this; fallback for older logs
 
     lines.append("---")
     lines.append("")
@@ -94,7 +94,7 @@ def render_session_markdown(log_path: Path, place_path: Path | None = None) -> s
         # Thinking (inline, as callout)
         thinking = turn.get("thinking")
         if thinking:
-            lines.append("> [!thought]+ Thinking")
+            lines.append("> [!tip]+ Thinking")
             for think_line in thinking.strip().split("\n"):
                 lines.append(f"> {think_line}")
             lines.append("")

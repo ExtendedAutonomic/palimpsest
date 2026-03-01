@@ -371,3 +371,146 @@ class TestExecuteTool:
         result = place.execute_tool(tc)
         assert "prevented" in result.lower() or "not possible" in result.lower()
         assert tc.error is not None
+
+
+class TestTakeAndDrop:
+    """Hidden tools unlocked when an agent tries to examine something left behind."""
+
+    def _setup_two_spaces_with_thing(self, place: PlaceInterface):
+        """Create a thing in here, then venture to a new space."""
+        place.create("a stone", "A smooth dark stone.")
+        place.venture("the shore", "A grey shore.")
+        return place
+
+    def test_examine_thing_in_other_space_unlocks_take(self, place: PlaceInterface):
+        self._setup_two_spaces_with_thing(place)
+        result = place.examine("a stone")
+        assert "left it behind" in result.lower()
+        assert "take" in place._unlocked_tools
+        assert "drop" in place._unlocked_tools
+
+    def test_examine_nonexistent_thing_does_not_unlock(self, place: PlaceInterface):
+        self._setup_two_spaces_with_thing(place)
+        result = place.examine("a fish")
+        assert "nothing called" in result.lower()
+        assert len(place._unlocked_tools) == 0
+
+    def test_examine_space_in_other_location_does_not_unlock(self, place: PlaceInterface):
+        """Only things trigger the unlock, not spaces."""
+        self._setup_two_spaces_with_thing(place)
+        # "here" exists but is a space, not a thing
+        result = place.examine("here")
+        assert "take" not in place._unlocked_tools
+
+    def test_take_thing_from_current_space(self, place: PlaceInterface):
+        place.create("a stone", "A smooth dark stone.")
+        result = place.take("a stone")
+        assert "with you" in result.lower()
+        assert "a stone" in place._carrying
+        # Thing should be removed from space
+        note = place._read_note("here")
+        assert "a stone" not in note.things
+
+    def test_take_thing_not_here(self, place: PlaceInterface):
+        result = place.take("a stone")
+        assert "nothing" in result.lower()
+
+    def test_take_already_carrying(self, place: PlaceInterface):
+        place.create("a stone", "A smooth dark stone.")
+        place.take("a stone")
+        result = place.take("a stone")
+        assert "already carrying" in result.lower()
+
+    def test_drop_thing(self, place: PlaceInterface):
+        place.create("a stone", "A smooth dark stone.")
+        place.take("a stone")
+        place.venture("the shore", "A grey shore.")
+        result = place.drop("a stone")
+        assert "here now" in result.lower()
+        assert "a stone" not in place._carrying
+        # Thing should be linked in the new space
+        note = place._read_note("the shore")
+        assert "a stone" in note.things
+
+    def test_drop_not_carrying(self, place: PlaceInterface):
+        result = place.drop("a stone")
+        assert "not carrying" in result.lower()
+
+    def test_perceive_shows_carried_things(self, place: PlaceInterface):
+        place.create("a stone", "A smooth dark stone.")
+        place.take("a stone")
+        result = place.perceive()
+        assert "carrying" in result.lower()
+        assert "a stone" in result
+
+    def test_perceive_without_carried_things(self, place: PlaceInterface):
+        result = place.perceive()
+        assert "carrying" not in result.lower()
+
+    def test_examine_carried_thing_in_different_space(self, place: PlaceInterface):
+        place.create("a stone", "A smooth dark stone.")
+        place.take("a stone")
+        place.venture("the shore", "A grey shore.")
+        result = place.examine("a stone")
+        assert "smooth dark stone" in result.lower()
+
+    def test_take_links_to_inventory(self, place: PlaceInterface, place_path: Path):
+        """When taken, thing moves from space to Inventory node."""
+        place.create("a stone", "A smooth dark stone.")
+        place.take("a stone")
+        # Note file should still exist
+        assert (place_path / "a stone.md").exists()
+        # Not linked from original space
+        here_note = place._read_note("here")
+        assert "a stone" not in here_note.things
+        # Linked from Inventory
+        inv_note = place._read_note("Inventory")
+        assert inv_note is not None
+        assert "a stone" in inv_note.things
+
+    def test_drop_moves_from_inventory_to_space(self, place: PlaceInterface):
+        """When dropped, thing moves from Inventory to new space."""
+        place.create("a stone", "A smooth dark stone.")
+        place.take("a stone")
+        place.venture("the shore", "A grey shore.")
+        place.drop("a stone")
+        shore_note = place._read_note("the shore")
+        assert "a stone" in shore_note.things
+        here_note = place._read_note("here")
+        assert "a stone" not in here_note.things
+        # No longer in Inventory
+        inv_note = place._read_note("Inventory")
+        assert "a stone" not in inv_note.things
+
+    def test_full_journey_take_carry_drop(self, place: PlaceInterface):
+        """End-to-end: create, take, travel, examine while carrying, drop elsewhere."""
+        place.create("the compass", "A black glass compass.")
+        place.take("the compass")
+        place.venture("the island", "A dark island.")
+        # Can examine while carrying
+        result = place.examine("the compass")
+        assert "black glass" in result.lower()
+        # Perceive shows it
+        result = place.perceive()
+        assert "the compass" in result
+        assert "carrying" in result.lower()
+        # Drop it here
+        place.drop("the compass")
+        # Now it's in the island
+        island = place._read_note("the island")
+        assert "the compass" in island.things
+        # And not carried
+        assert "the compass" not in place._carrying
+
+    def test_unlock_persists_across_sessions(self, place_path: Path):
+        """Unlocked tools survive PlaceInterface recreation (new session)."""
+        place1 = PlaceInterface(place_path, agent_name="test-agent", session_number=1)
+        place1.create("a stone", "A smooth dark stone.")
+        place1.venture("the shore", "A grey shore.")
+        place1.examine("a stone")  # triggers unlock
+        assert "take" in place1.permanently_unlocked_tools
+
+        # New session — fresh PlaceInterface
+        place2 = PlaceInterface(place_path, agent_name="test-agent", session_number=2)
+        assert "take" in place2.permanently_unlocked_tools
+        assert "drop" in place2.permanently_unlocked_tools

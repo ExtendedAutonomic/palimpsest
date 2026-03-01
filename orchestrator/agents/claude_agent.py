@@ -52,7 +52,7 @@ class ClaudeAgent(BaseAgent):
 
         # Add tools if provided
         if tools:
-            kwargs["tools"] = convert_tools_anthropic()
+            kwargs["tools"] = convert_tools_anthropic(tools)
 
         # Add extended thinking (only supported on Opus models)
         if "opus" in self.model:

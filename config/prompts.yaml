@@ -16,11 +16,9 @@ founding_v1: |
 
   Begin.
 
-# v2: minimal — three facts, no philosophy
+# v2: minimal — two facts, no instruction
 founding: |
   There is a place. You are here.
-
-  Begin.
 
 # Sent at session start (after first session) to re-establish identity
 # Placeholders are filled by the context builder

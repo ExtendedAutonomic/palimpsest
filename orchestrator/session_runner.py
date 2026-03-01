@@ -145,6 +145,12 @@ async def run_session(
     else:
         session_num = get_next_session_number(agent_name, log_path)
 
+    # Check the place exists
+    if not place_path.exists() or not any(place_path.glob("*.md")):
+        raise FileNotFoundError(
+            f"The place has not been initialised. Run 'palimpsest init' first."
+        )
+
     logger.info(f"Starting session {session_num} for {agent_name} (Phase {phase})")
 
     # Create agent

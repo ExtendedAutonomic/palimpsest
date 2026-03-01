@@ -47,6 +47,7 @@ class SessionLog:
     turns: list[Turn] = field(default_factory=list)
     reflection: str | None = None
     dusk_prompt: str | None = None
+    dusk_action: int | None = None  # Action count when dusk was sent
     reflect_prompt: str | None = None
     total_input_tokens: int = 0
     total_output_tokens: int = 0
@@ -71,6 +72,7 @@ class SessionLog:
             "action_count": self.action_count,
             "reflection": self.reflection,
             "dusk_prompt": self.dusk_prompt,
+            "dusk_action": self.dusk_action,
             "reflect_prompt": self.reflect_prompt,
             "tokens": {
                 "input": self.total_input_tokens,
@@ -187,6 +189,16 @@ class BaseAgent(ABC):
         messages = [{"role": "user", "content": opening}]
         tools = self.get_tool_definitions()
 
+        # Add any previously unlocked hidden tools
+        if self.place.permanently_unlocked_tools:
+            from ..place.tools import HIDDEN_TOOLS
+            for tool_name in self.place.permanently_unlocked_tools:
+                if tool_name in HIDDEN_TOOLS:
+                    tool_def = HIDDEN_TOOLS[tool_name]
+                    if tool_def not in tools:
+                        tools.append(tool_def)
+                        logger.info(f"Loaded unlocked tool: {tool_name}")
+
         total_actions = 0
         dusk_sent = False
         max_turns = 50  # Safety limit
@@ -197,6 +209,7 @@ class BaseAgent(ABC):
                 dusk_prompt = self.config.get("prompts", {}).get("dusk", "")
                 messages.append({"role": "user", "content": dusk_prompt})
                 self._session_log.dusk_prompt = dusk_prompt
+                self._session_log.dusk_action = total_actions
                 dusk_sent = True
 
             # The day is over
@@ -252,6 +265,17 @@ class BaseAgent(ABC):
                 total_actions += 1
 
             self._session_log.turns.append(turn)
+
+            # Check for newly unlocked tools (e.g. examine triggered take)
+            if self.place._unlocked_tools:
+                from ..place.tools import HIDDEN_TOOLS
+                for tool_name in list(self.place._unlocked_tools):
+                    if tool_name in HIDDEN_TOOLS:
+                        tool_def = HIDDEN_TOOLS[tool_name]
+                        if tool_def not in tools:
+                            tools.append(tool_def)
+                            logger.info(f"Tool unlocked: {tool_name}")
+                self.place._unlocked_tools.clear()
 
             # Continue the conversation
             messages.append({
