@@ -333,7 +333,7 @@ class PlaceInterface:
         self._write_note(name, build_thing_note(description, fm))
         self._add_link(self._current_location, name, "Things")
 
-        return f"You create {name}. It is here now, and it will remain."
+        return f"You create {name}. {description}"
 
     def alter(self, what: str, description: str | None = None, name: str | None = None) -> str:
         """Change something that exists — content, name, or both."""

@@ -45,12 +45,15 @@ class TestBuildAgentMemory:
         assert "Day one was still." in result
         assert "Day three I built." in result
 
-    def test_session_without_reflection_skipped(self, log_path: Path):
+    def test_session_without_reflection_still_included(self, log_path: Path):
+        """Sessions without reflections are still included — they have turns."""
         write_session_log(log_path, "claude", 1, reflection="")
         write_session_log(log_path, "claude", 2, reflection="I noticed something.")
         result = build_agent_memory("claude", log_path)
-        assert "Day 1" not in result
+        assert "Day 1" in result
         assert "Day 2" in result
+        assert "I look around." in result  # From the turn in session 1
+        assert "I noticed something." in result
 
     def test_different_agents_separate(self, log_path: Path):
         """Each agent only sees its own memory."""

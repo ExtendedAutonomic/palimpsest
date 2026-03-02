@@ -107,7 +107,7 @@ class TestCreate:
     def test_create_thing(self, place: PlaceInterface):
         result = place.create("a stone", "Grey and smooth, cold to the touch.")
         assert "a stone" in result
-        assert "remain" in result
+        assert "Grey and smooth" in result
 
     def test_create_makes_file(self, place: PlaceInterface, place_path: Path):
         place.create("a stone", "Grey and smooth.")
