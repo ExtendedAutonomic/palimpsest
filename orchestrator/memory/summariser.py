@@ -30,8 +30,8 @@ logger = logging.getLogger(__name__)
 # Constants
 # ---------------------------------------------------------------------------
 
-RECENT_WINDOW = 10  # Number of recent sessions kept in full
-BATCH_SIZE = 5  # Number of sessions per compression batch
+RECENT_WINDOW = 3  # Number of recent sessions kept in full
+BATCH_SIZE = 3  # Number of sessions per compression batch
 
 # Models — Opus for production, Sonnet for testing
 COMPRESSOR_MODEL = "claude-sonnet-4-5-20250929"  # TODO: switch to opus for production
