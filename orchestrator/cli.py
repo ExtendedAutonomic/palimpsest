@@ -8,6 +8,7 @@ Usage:
     palimpsest place --tree                  # View the place
     palimpsest logs --agent claude --last 3  # View recent logs
     palimpsest narrate                       # Run narrator
+    palimpsest blog                          # Write a blog post
     palimpsest costs                         # Check spend
 """
 
@@ -328,6 +329,116 @@ async def _run_narrator(day_str: str | None, prompt_path_str: str | None, sessio
         click.echo(f"\nChapter saved: {output_file}")
         click.echo()
         # Print the chapter
+        content = output_file.read_text(encoding="utf-8")
+        click.echo(content)
+    except ValueError as e:
+        click.echo(f"Error: {e}", err=True)
+    except FileNotFoundError as e:
+        click.echo(f"Error: {e}", err=True)
+
+
+@cli.command()
+@click.option("--topic", "-t", type=str, default=None,
+              help="What the post should be about. If omitted, writes about whatever is most interesting.")
+@click.option("--since", type=str, default=None,
+              help="Include sessions from this date (YYYY-MM-DD).")
+@click.option("--until", type=str, default=None,
+              help="Include sessions up to this date (YYYY-MM-DD).")
+@click.option("--session", "-s", type=int, multiple=True,
+              help="Session number(s) to include. Can be repeated.")
+@click.option("--agent", "-a", type=str, default=None,
+              help="Filter sessions by agent name.")
+@click.option("--chapter", "-c", type=int, multiple=True,
+              help="Narrator chapter(s) to include. Can be repeated.")
+@click.option("--prompt", "-p", type=click.Path(exists=True), default=None,
+              help="Path to experimenter blog prompt markdown file.")
+def blog(
+    topic: str | None,
+    since: str | None,
+    until: str | None,
+    session: tuple[int, ...],
+    agent: str | None,
+    chapter: tuple[int, ...],
+    prompt: str | None,
+) -> None:
+    """Write an experimenter blog post about the experiment."""
+    asyncio.run(_run_blog(
+        topic=topic,
+        since_str=since,
+        until_str=until,
+        sessions=session or None,
+        agent=agent,
+        chapters=chapter or None,
+        prompt_path_str=prompt,
+    ))
+
+
+async def _run_blog(
+    topic: str | None = None,
+    since_str: str | None = None,
+    until_str: str | None = None,
+    sessions: tuple[int, ...] | None = None,
+    agent: str | None = None,
+    chapters: tuple[int, ...] | None = None,
+    prompt_path_str: str | None = None,
+) -> None:
+    """CLI wrapper for running the experimenter."""
+    from datetime import datetime, timezone
+    from .experimenter.experimenter import run_experimenter
+
+    config = load_config()
+
+    # Parse dates
+    since = None
+    if since_str:
+        since = datetime.strptime(since_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+    until = None
+    if until_str:
+        until = datetime.strptime(until_str, "%Y-%m-%d").replace(
+            hour=23, minute=59, second=59, tzinfo=timezone.utc
+        )
+
+    # Resolve prompt path
+    if prompt_path_str:
+        experimenter_prompt_path = Path(prompt_path_str)
+    else:
+        vault_prompt = Path("D:/Vault/Projects/Active/Palimpsest/Experimenter Blog Prompt.md")
+        if vault_prompt.exists():
+            experimenter_prompt_path = vault_prompt
+        else:
+            experimenter_prompt_path = CONFIG_PATH / "experimenter_prompt.md"
+
+    click.echo(f"Writing blog post...")
+    click.echo(f"  Prompt: {experimenter_prompt_path}")
+    if topic:
+        click.echo(f"  Topic: {topic}")
+    if since:
+        click.echo(f"  Since: {since.strftime('%Y-%m-%d')}")
+    if until:
+        click.echo(f"  Until: {until.strftime('%Y-%m-%d')}")
+    if sessions:
+        click.echo(f"  Sessions: {', '.join(str(s) for s in sessions)}")
+    if agent:
+        click.echo(f"  Agent: {agent}")
+    if chapters:
+        click.echo(f"  Narrator chapters: {', '.join(str(c) for c in chapters)}")
+
+    try:
+        output_file = await run_experimenter(
+            place_path=PLACE_PATH,
+            log_path=LOG_PATH,
+            experimenter_prompt_path=experimenter_prompt_path,
+            config=config,
+            topic=topic,
+            since=since,
+            until=until,
+            sessions=sessions,
+            agent=agent,
+            narrator_chapters=chapters,
+        )
+        click.echo(f"\nPost saved: {output_file}")
+        click.echo()
+        # Print the post
         content = output_file.read_text(encoding="utf-8")
         click.echo(content)
     except ValueError as e:
