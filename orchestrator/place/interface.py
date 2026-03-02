@@ -215,16 +215,16 @@ class PlaceInterface:
             return "You cannot go anywhere from here."
 
         if where not in note.spaces:
-            return f"There is no space called \"{where}\" connected to here."
+            return f"There is no space called \"{where}\" connected to this space."
 
         target = self._read_note(where)
         if not target:
             return f"There is no space called \"{where}\" connected to here."
         if target.note_type != "space":
-            return f"\"{where}\" is not a space. It is a thing. You could examine it."
+            return f"\"{where}\" is not a space."
 
         self._current_location = where
-        return f"You go into {where}."
+        return f"You are now at {where}."
 
     def venture(self, name: str, description: str) -> str:
         """Go somewhere new — create a space and move into it."""
@@ -243,23 +243,13 @@ class PlaceInterface:
                 self._current_location = name
 
                 # The message depends on who created this space
-                created_by = existing.frontmatter.get("created_by", "")
-                if created_by == self._agent_name:
-                    return (
-                        f"This space already exists. You have been here before. "
-                        f"Your path from {origin} now leads here."
-                    )
-                else:
-                    return (
-                        f"This space already exists. You did not create this place. "
-                        f"Your path from {origin} now leads here."
-                    )
+                return (
+                    f"{name} already exists. You are now at {name}. "
+                    f"A path from {origin} now leads to this space."
+                )
             else:
                 # A thing with this name exists — can't create a space over it
-                return (
-                    f"Something called \"{name}\" already exists, "
-                    f"but it is not a space."
-                )
+                return f"Something called \"{name}\" already exists."
 
         # Create the new space note
         fm = self._make_frontmatter("space")
@@ -274,7 +264,7 @@ class PlaceInterface:
         self._add_link(self._current_location, name, "Spaces")
 
         self._current_location = name
-        return f"You venture into {name}. {description}"
+        return f"You have ventured to {name}. {description}"
 
     def examine(self, what: str) -> str:
         """Look closely at something."""
@@ -297,7 +287,7 @@ class PlaceInterface:
             return note.description if note.description else "It is blank. There is nothing to perceive."
 
         if what in current.spaces:
-            return "You are not in that space. You could go there."
+            return "You are not in that space."
 
         # Check carried things
         if what in self._carrying:
@@ -306,13 +296,13 @@ class PlaceInterface:
                 return f"There is nothing called \"{what}\" here."
             return note.description if note.description else "It is blank. There is nothing to perceive."
 
-        # Check if it exists elsewhere in the place — unlocks take
+        # Check if it exists elsewhere in the place — silently unlocks take/drop
         if self._note_exists(what):
             note = self._read_note(what)
             if note and note.note_type == "thing":
                 self.unlock_tool("take")
                 self.unlock_tool("drop")
-                return "That is not here. You left it behind."
+                return f"There is nothing called \"{what}\" here."
 
         return f"There is nothing called \"{what}\" here."
 
@@ -324,10 +314,7 @@ class PlaceInterface:
             return "You must describe it."
 
         if self._note_exists(name):
-            return (
-                f"Something called \"{name}\" already exists. "
-                "You could alter it, but you cannot create over it."
-            )
+            return f"Something called \"{name}\" already exists."
 
         fm = self._make_frontmatter("thing")
         self._write_note(name, build_thing_note(description, fm))
@@ -342,7 +329,7 @@ class PlaceInterface:
             self._sanitise_name(name)
 
         if not description and not name:
-            return "You must change something — what it is, what it is called, or both."
+            return "You must specify how it changes."
 
         if what == self._current_location:
             return self._alter_current_space(description, name)
@@ -355,9 +342,9 @@ class PlaceInterface:
             return self._alter_thing(what, description, name)
 
         if what in current.spaces:
-            return "You are not in that space. You could go there."
+            return "You are not in that space."
 
-        return f"There is nothing called \"{what}\" here to alter."
+        return f"There is nothing called \"{what}\"."
 
     def _alter_current_space(self, description: str | None, name: str | None) -> str:
         """Alter the space the agent is currently in."""
@@ -371,7 +358,7 @@ class PlaceInterface:
             fm = self._update_frontmatter(note.frontmatter)
 
             if description:
-                parts.append("The space is now different.")
+                parts.append("This space is now different.")
 
             if name:
                 if self._note_exists(name):
@@ -383,7 +370,7 @@ class PlaceInterface:
                 self._note_path(old_name).unlink()
                 self._rename_all_links(old_name, name)
                 self._current_location = name
-                parts.append(f"This place is now called {name}.")
+                parts.append(f"This space is now called {name}.")
             else:
                 self._write_note(self._current_location, build_space_note(
                     new_description, note.spaces, note.things, fm
@@ -406,7 +393,7 @@ class PlaceInterface:
             fm = self._update_frontmatter(note.frontmatter)
 
             if description:
-                parts.append(f"{what} is different now. What was there before is gone.")
+                parts.append(f"{what} is different now.")
 
             if name:
                 if self._note_exists(name):
@@ -444,7 +431,7 @@ class PlaceInterface:
         self._sanitise_name(what, "You must say what.")
 
         if what in self._carrying:
-            return f"You are already carrying {what}."
+            return f"You already have {what} with you."
 
         current = self._read_note(self._current_location)
         if not current:
@@ -466,13 +453,13 @@ class PlaceInterface:
         self._sanitise_name(what, "You must say what.")
 
         if what not in self._carrying:
-            return f"You are not carrying anything called \"{what}\"."
+            return f"You do not have anything called \"{what}\" with you."
 
         self._carrying.remove(what)
         self._remove_link("Inventory", what)
         self._add_link(self._current_location, what, "Things")
 
-        return f"You set down {what}. It is here now."
+        return f"You release {what}. It is here now."
 
     def execute_tool(self, tool_call: ToolCall) -> str:
         """Execute an action and return what the agent perceives."""

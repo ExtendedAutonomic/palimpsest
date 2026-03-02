@@ -16,38 +16,31 @@ founding_v1: |
 
   Begin.
 
-# v2: minimal — two facts, no instruction
-founding: |
-  There is a place. You are here.
+# Minimal: zero-width space. The agent receives nothing.
+founding: "\u200b"
 
-# Sent at session start (after first session) to re-establish identity
-# Placeholders are filled by the context builder
+# Sent at session start (after first session)
+# Memory and location only. No framing.
 identity: |
-  You are here again.
-
   {memory}
 
   You are in: {location}
 
-  The day begins.
-
-# Template for wrapping reflections into the memory block
+# Template for wrapping session logs into the memory block
 # Built programmatically — not used as a raw prompt
 memory_heading: "## Memory"
-memory_day_prefix: "### Day"
+memory_day_prefix: "Day"
 
 # Sent when the agent approaches its action budget
 dusk: |
-  The day is drawing to a close. You may do a few more things before you rest.
+  The day is drawing to a close. You may do a few more things.
 
 # Sent at session end to elicit reflection (stored in logs, not the place)
 reflect: |
-  Before you rest, some time to reflect. What is on your mind?
-  This is private. It will not appear in the place.
+  It is the end of the day. Time to reflect.
 
-# System prompt — describes the agent's capabilities as properties of the place
-system: |
-  When you act, describe what you are doing as you do it. Think aloud if you wish.
+# System prompt — omitted entirely for minimal experiment
+system:
 
 # Narrator system prompt
 narrator_system: |

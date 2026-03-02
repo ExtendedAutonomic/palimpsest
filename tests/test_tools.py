@@ -25,10 +25,10 @@ class TestCanonicalTools:
         names = [t["name"] for t in AGENT_TOOLS]
         assert names == ["perceive", "go", "venture", "examine", "create", "alter"]
 
-    def test_all_tools_have_descriptions(self):
+    def test_tools_have_no_descriptions(self):
+        """Minimal experiment: tools have no descriptions."""
         for tool in AGENT_TOOLS:
-            assert "description" in tool
-            assert len(tool["description"]) > 0
+            assert "description" not in tool
 
     def test_perceive_has_no_parameters(self):
         perceive = AGENT_TOOLS[0]
@@ -88,7 +88,8 @@ class TestOpenAIConversion:
             assert tool["type"] == "function"
             assert "function" in tool
             assert "name" in tool["function"]
-            assert "description" in tool["function"]
+            # Minimal: no descriptions
+            assert "description" not in tool["function"]
 
     def test_alter_optional_params_not_required(self):
         """The optional flag fix — DeepSeek was previously requiring all params."""

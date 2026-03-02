@@ -46,9 +46,12 @@ class ClaudeAgent(BaseAgent):
         kwargs: dict[str, Any] = {
             "model": self.model,
             "max_tokens": max_tokens,
-            "system": system,
             "messages": self._prepare_messages(messages),
         }
+
+        # Only include system prompt if provided
+        if system:
+            kwargs["system"] = system
 
         # Add tools if provided
         if tools:

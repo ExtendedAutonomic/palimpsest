@@ -229,7 +229,7 @@ async def run_memory_compression(
         )
         compressed = await compress_session_batch(rendered)
         new_sections.append(
-            f"### Days {first_session}\u2013{last_session}\n\n{compressed}"
+            f"Days {first_session}\u2013{last_session}\n\n{compressed}"
         )
 
     # Append to compressed memory file
@@ -308,13 +308,13 @@ def build_agent_memory(
         session_num = log["session_number"]
         rendered = render_session_log(log)
         if rendered.strip():
-            memory_parts.append(f"### Day {session_num}\n\n{rendered}")
+            memory_parts.append(f"Day {session_num}\n\n{rendered}")
 
     # Return empty string if no memories
     if len(memory_parts) <= 1:
         return ""
 
-    return "\n\n".join(memory_parts)
+    return "\n\n---\n\n".join(memory_parts)
 
 
 # ---------------------------------------------------------------------------
