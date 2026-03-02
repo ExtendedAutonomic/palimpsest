@@ -77,7 +77,7 @@ class PlaceInterface:
         return self._permanently_unlocked
 
     @staticmethod
-    def _sanitise_name(name: str) -> str:
+    def _sanitise_name(name: str, empty_message: str = "You must give it a name.") -> str:
         """Reject names that could break the place."""
         forbidden = ["..", "/", "\\", "\x00", "[[", "]]", "|", "#"]
         for pattern in forbidden:
@@ -86,7 +86,7 @@ class PlaceInterface:
         if name.startswith("."):
             raise ValueError("That name is not possible here.")
         if not name.strip():
-            raise ValueError("You must give it a name.")
+            raise ValueError(empty_message)
         return name.strip()
 
     def _note_path(self, name: str) -> Path:
@@ -208,7 +208,7 @@ class PlaceInterface:
 
     def go(self, where: str) -> str:
         """Move to a connected space."""
-        self._sanitise_name(where)
+        self._sanitise_name(where, "You must say where.")
 
         note = self._read_note(self._current_location)
         if not note:
@@ -229,6 +229,9 @@ class PlaceInterface:
     def venture(self, name: str, description: str) -> str:
         """Go somewhere new — create a space and move into it."""
         self._sanitise_name(name)
+
+        if not description or not description.strip():
+            return "You must describe it."
 
         if self._note_exists(name):
             existing = self._read_note(name)
@@ -275,7 +278,7 @@ class PlaceInterface:
 
     def examine(self, what: str) -> str:
         """Look closely at something."""
-        self._sanitise_name(what)
+        self._sanitise_name(what, "You must say what.")
 
         if what == self._current_location:
             note = self._read_note(what)
@@ -316,6 +319,10 @@ class PlaceInterface:
     def create(self, name: str, description: str) -> str:
         """Create something in the current space."""
         self._sanitise_name(name)
+
+        if not description or not description.strip():
+            return "You must describe it."
+
         if self._note_exists(name):
             return (
                 f"Something called \"{name}\" already exists. "
@@ -330,7 +337,7 @@ class PlaceInterface:
 
     def alter(self, what: str, description: str | None = None, name: str | None = None) -> str:
         """Change something that exists — content, name, or both."""
-        self._sanitise_name(what)
+        self._sanitise_name(what, "You must say what.")
         if name:
             self._sanitise_name(name)
 
@@ -434,7 +441,7 @@ class PlaceInterface:
 
     def take(self, what: str) -> str:
         """Pick up a thing and carry it with you."""
-        self._sanitise_name(what)
+        self._sanitise_name(what, "You must say what.")
 
         if what in self._carrying:
             return f"You are already carrying {what}."
@@ -456,7 +463,7 @@ class PlaceInterface:
 
     def drop(self, what: str) -> str:
         """Put down something you are carrying."""
-        self._sanitise_name(what)
+        self._sanitise_name(what, "You must say what.")
 
         if what not in self._carrying:
             return f"You are not carrying anything called \"{what}\"."
