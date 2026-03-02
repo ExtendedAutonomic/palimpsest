@@ -187,6 +187,9 @@ class PlaceInterface:
 
         parts = []
 
+        # Space name always comes first
+        parts.append(self._current_location)
+
         if note.description:
             parts.append(note.description)
 
@@ -197,8 +200,6 @@ class PlaceInterface:
             parts.append("This space is connected to: " + ", ".join(note.spaces))
         elif note.things:
             parts.append("There are things here: " + ", ".join(note.things))
-        else:
-            parts.append("This space is empty.")
 
         if self._carrying:
             parts.append("You are carrying: " + ", ".join(self._carrying))
