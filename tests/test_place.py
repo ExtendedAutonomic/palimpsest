@@ -24,7 +24,7 @@ class TestFoundingSpace:
 
     def test_perceive_empty_here(self, place: PlaceInterface):
         result = place.perceive()
-        assert "empty" in result.lower()
+        assert result == "here"
 
     def test_here_md_exists(self, place_path: Path):
         assert (place_path / "here.md").exists()
@@ -268,6 +268,11 @@ class TestPerceive:
         place.create("a stone", "Grey.")
         result = place.perceive()
         assert "a stone" in result
+
+    def test_perceive_shows_space_name(self, place: PlaceInterface):
+        place.venture("the garden", "Tall grass and wildflowers.")
+        result = place.perceive()
+        assert result.startswith("the garden")
 
     def test_perceive_shows_description(self, place: PlaceInterface):
         place.venture("the garden", "Tall grass and wildflowers.")
