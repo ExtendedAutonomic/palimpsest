@@ -159,6 +159,7 @@ class BaseAgent(ABC):
         now = datetime.now(timezone.utc)
         action_budget = self.config.get("session", {}).get("action_budget", 25)
         dusk_threshold = self.config.get("session", {}).get("dusk_threshold", 22)
+        max_turns = action_budget  # Each turn has equal weight
 
         # Set starting location and session context
         self.place._session_number = session_number
@@ -201,8 +202,6 @@ class BaseAgent(ABC):
 
         total_actions = 0
         dusk_sent = False
-        max_turns = 50  # Safety limit
-
         for turn_idx in range(max_turns):
             # Dusk approaches
             if total_actions >= dusk_threshold and not dusk_sent:
@@ -240,11 +239,11 @@ class BaseAgent(ABC):
                 })
 
                 if response.get("stop_reason") == "end_turn":
-                    if dusk_sent:
-                        break
+                    # The agent spoke without acting — that's fine.
+                    # Keep the session open without directing.
                     messages.append({
                         "role": "user",
-                        "content": "The day continues. You may act.",
+                        "content": "...",
                     })
                 continue
 
