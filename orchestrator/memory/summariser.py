@@ -56,13 +56,12 @@ def render_session_log(session_data: dict) -> str:
     """
     parts = []
 
-    # Track action count to insert dusk at the right point
+    # Track turn index to insert dusk at the right point
     dusk_prompt = (session_data.get("dusk_prompt") or "").strip()
-    dusk_action = session_data.get("dusk_action")
+    dusk_turn = session_data.get("dusk_action")  # Now stores turn index
     dusk_inserted = False
-    action_count = 0
 
-    for turn in session_data.get("turns", []):
+    for turn_idx, turn in enumerate(session_data.get("turns", [])):
         # Thinking
         thinking = turn.get("thinking", "").strip() if turn.get("thinking") else ""
         if thinking:
@@ -72,6 +71,11 @@ def render_session_log(session_data: dict) -> str:
         agent_text = turn.get("agent_text", "").strip()
         if agent_text:
             parts.append(agent_text)
+
+        # Nudge (injected user message after no-tool-call turns)
+        nudge = turn.get("nudge")
+        if nudge:
+            parts.append(nudge)
 
         # Tool calls and results
         for tc in turn.get("tool_calls", []):
@@ -94,12 +98,10 @@ def render_session_log(session_data: dict) -> str:
             elif result:
                 parts.append(result)
 
-            action_count += 1
-
-            # Insert dusk prompt after the action that triggered it
-            if dusk_prompt and not dusk_inserted and dusk_action is not None and action_count >= dusk_action:
-                parts.append(dusk_prompt)
-                dusk_inserted = True
+        # Insert dusk prompt after the turn that triggered it
+        if dusk_prompt and not dusk_inserted and dusk_turn is not None and turn_idx >= dusk_turn:
+            parts.append(dusk_prompt)
+            dusk_inserted = True
 
     # Reflect prompt and reflection at the end
     reflect_prompt = (session_data.get("reflect_prompt") or "").strip()

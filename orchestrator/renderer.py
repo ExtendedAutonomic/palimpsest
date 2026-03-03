@@ -78,7 +78,7 @@ def render_session_markdown(log_path: Path, place_path: Path | None = None) -> s
 
     # Dusk prompt (if it was sent)
     dusk = data.get("dusk_prompt")
-    dusk_action_threshold = data.get("dusk_action", 17)  # Future logs store this; fallback for older logs
+    dusk_turn_threshold = data.get("dusk_action", 14)  # Turn index when dusk was sent
 
     lines.append("---")
     lines.append("")
@@ -87,10 +87,9 @@ def render_session_markdown(log_path: Path, place_path: Path | None = None) -> s
     lines.append("## The Session")
     lines.append("")
 
-    action_count = 0
     dusk_shown = False
 
-    for turn in data.get("turns", []):
+    for turn_idx, turn in enumerate(data.get("turns", [])):
         # Thinking (inline, as callout)
         thinking = turn.get("thinking")
         if thinking:
@@ -103,6 +102,12 @@ def render_session_markdown(log_path: Path, place_path: Path | None = None) -> s
         text = turn.get("agent_text", "").strip()
         if text:
             lines.append(text)
+            lines.append("")
+
+        # Show nudge if one was sent after this turn
+        nudge = turn.get("nudge")
+        if nudge:
+            lines.append(f"> *{nudge}*")
             lines.append("")
 
         # Tool calls
@@ -145,19 +150,18 @@ def render_session_markdown(log_path: Path, place_path: Path | None = None) -> s
                     lines.append(f"> *{rl}*")
 
             lines.append("")
-            action_count += 1
 
-            # Show dusk prompt after it would have been injected
-            if dusk and not dusk_shown and action_count >= dusk_action_threshold:
-                lines.append("---")
-                lines.append("")
-                lines.append("> [!dusk] Dusk")
-                for dusk_line in dusk.strip().split("\n"):
-                    lines.append(f"> {dusk_line}")
-                lines.append("")
-                lines.append("---")
-                lines.append("")
-                dusk_shown = True
+        # Show dusk prompt after the turn that triggered it
+        if dusk and not dusk_shown and turn_idx >= dusk_turn_threshold:
+            lines.append("---")
+            lines.append("")
+            lines.append("> [!dusk] Dusk")
+            for dusk_line in dusk.strip().split("\n"):
+                lines.append(f"> {dusk_line}")
+            lines.append("")
+            lines.append("---")
+            lines.append("")
+            dusk_shown = True
 
     # Reflection
     reflection = data.get("reflection", "")

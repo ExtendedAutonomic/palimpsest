@@ -29,6 +29,7 @@ class Turn:
     agent_text: str
     tool_calls: list[ToolCall] = field(default_factory=list)
     thinking: str | None = None  # Extended thinking (Claude only)
+    nudge: str | None = None  # Injected user message after this turn (e.g. "...")
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -83,6 +84,7 @@ class SessionLog:
                 {
                     "agent_text": t.agent_text,
                     "thinking": t.thinking,
+                    "nudge": t.nudge,
                     "tool_calls": [
                         {
                             "tool": tc.tool,
@@ -203,17 +205,13 @@ class BaseAgent(ABC):
         total_actions = 0
         dusk_sent = False
         for turn_idx in range(max_turns):
-            # Dusk approaches
-            if total_actions >= dusk_threshold and not dusk_sent:
+            # Dusk approaches — counted by turns, not actions
+            if turn_idx >= dusk_threshold and not dusk_sent:
                 dusk_prompt = self.config.get("prompts", {}).get("dusk", "")
                 messages.append({"role": "user", "content": dusk_prompt})
                 self._session_log.dusk_prompt = dusk_prompt
-                self._session_log.dusk_action = total_actions
+                self._session_log.dusk_action = turn_idx
                 dusk_sent = True
-
-            # The day is over
-            if total_actions >= action_budget:
-                break
 
             # Agent responds
             response = await self.send_message(messages, system_prompt, tools)
@@ -232,33 +230,42 @@ class BaseAgent(ABC):
             # Process actions
             tool_calls = response.get("tool_calls", [])
             if not tool_calls:
-                self._session_log.turns.append(turn)
-                messages.append({
-                    "role": "assistant",
-                    "content": self._format_assistant_message(response),
-                })
-
                 if response.get("stop_reason") == "end_turn":
-                    # The agent spoke without acting — that's fine.
-                    # Keep the session open without directing.
+                    # The agent spoke without acting — nudge it.
+                    turn.nudge = "..."
+                    messages.append({
+                        "role": "assistant",
+                        "content": self._format_assistant_message(response),
+                    })
                     messages.append({
                         "role": "user",
                         "content": "...",
                     })
+                else:
+                    messages.append({
+                        "role": "assistant",
+                        "content": self._format_assistant_message(response),
+                    })
+                self._session_log.turns.append(turn)
                 continue
 
             # Execute each action
             tool_results = []
             for tc_data in tool_calls:
-                tc = ToolCall(
-                    tool=ToolName(tc_data["name"]),
-                    arguments=tc_data.get("arguments", {}),
-                )
-                result = self.place.execute_tool(tc)
-                turn.tool_calls.append(tc)
+                try:
+                    tc = ToolCall(
+                        tool=ToolName(tc_data["name"]),
+                        arguments=tc_data.get("arguments", {}),
+                    )
+                    result = self.place.execute_tool(tc)
+                    turn.tool_calls.append(tc)
+                except (ValueError, KeyError) as e:
+                    # Model returned a garbled or unknown tool name
+                    logger.warning(f"Invalid tool call: {tc_data.get('name', '?')} — {e}")
+                    result = "You do not know how to do that."
                 tool_results.append({
                     "tool_call_id": tc_data.get("id", ""),
-                    "name": tc_data["name"],
+                    "name": tc_data.get("name", "unknown"),
                     "result": result,
                 })
                 total_actions += 1
