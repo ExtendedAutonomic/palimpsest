@@ -17,14 +17,13 @@ founding_v1: |
   Begin.
 
 # Minimal: zero-width space. The agent receives nothing.
-founding: "\u200b"
+founding: "You are: here"
 
 # Sent at session start (after first session)
 # Memory and location only. No framing.
 identity: |
   {memory}
-
-  You are in: {location}
+  You are at: {location}
 
 # Template for wrapping session logs into the memory block
 # Built programmatically — not used as a raw prompt
