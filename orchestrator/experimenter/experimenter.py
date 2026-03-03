@@ -6,9 +6,9 @@ sharing what's surprising, being honest about what breaks. Published
 alongside the narrator's chronicles but serving a different function:
 the narrator writes from inside, the blog writes from outside.
 
-The experimenter sees everything: session logs, thinking tokens,
-reflections, the narrator's chapters, the place, the git history,
-cost data, and the full experimental design.
+The experimenter sees everything: session logs (including thinking
+and reflections), the narrator's chapters, the full place contents,
+the git diff, the experiment design docs, and cost data.
 
 Unlike the narrator (which runs daily), the experimenter writes
 when there's something worth writing about.
@@ -22,6 +22,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import anthropic
+
+from ..memory.diff_tracker import get_place_diff, format_diff_for_agent
 
 logger = logging.getLogger(__name__)
 
@@ -219,7 +221,7 @@ def gather_cost_summary(log_path: Path, config: dict) -> str:
                 data = json.loads(log_file.read_text(encoding="utf-8"))
                 tokens = data.get("tokens", {})
                 agent_input += tokens.get("input", 0)
-                agent_output += tokens.get("output", 0) + tokens.get("thinking", 0)
+                agent_output += tokens.get("output", 0)
                 session_count += 1
             except Exception:
                 continue
@@ -286,32 +288,69 @@ def get_next_post_number(experimenter_output_path: Path) -> int:
     return max(numbers) + 1 if numbers else 1
 
 
-def list_place_notes(place_path: Path) -> str:
+def read_place_notes(place_path: Path) -> str:
     """
-    List all notes in the place with their types — gives the
-    experimenter a snapshot of what exists.
-    """
-    from ..place.notes import parse_note
+    Read the full contents of every note in the place.
 
-    lines = []
-    for note_file in sorted(place_path.glob("*.md")):
+    The experimenter sees the place as the agents built it:
+    descriptions, connections, things, frontmatter and all.
+    """
+    parts = []
+    notes = sorted(place_path.glob("*.md"))
+
+    if not notes:
+        return "(The place is empty.)"
+
+    for note_file in notes:
         try:
-            text = note_file.read_text(encoding="utf-8")
-            parsed = parse_note(text)
-            note_type = parsed.note_type or "unknown"
-            created_by = parsed.frontmatter.get("created_by", "?")
-            lines.append(f"- {note_file.stem} ({note_type}, by {created_by})")
-        except Exception:
-            lines.append(f"- {note_file.stem} (unparseable)")
+            content = note_file.read_text(encoding="utf-8")
+            parts.append(f"### {note_file.stem}\n")
+            parts.append(content)
+            parts.append("")
+        except Exception as e:
+            parts.append(f"### {note_file.stem}\n")
+            parts.append(f"(Could not read: {e})")
+            parts.append("")
 
-    return "\n".join(lines) if lines else "(The place is empty.)"
+    return "\n".join(parts)
+
+
+def load_design_docs(design_doc_paths: list[Path]) -> str:
+    """
+    Load the experiment design documents from the vault.
+
+    These give the experimenter full context for what the experiment
+    is and how it works, so it can write about it.
+    """
+    parts = []
+
+    for doc_path in design_doc_paths:
+        if not doc_path.exists():
+            logger.warning(f"Design doc not found: {doc_path}")
+            continue
+        try:
+            content = doc_path.read_text(encoding="utf-8")
+            # Strip YAML frontmatter
+            if content.startswith("---"):
+                fm_parts = content.split("---", 2)
+                if len(fm_parts) >= 3:
+                    content = fm_parts[2].strip()
+            parts.append(f"### {doc_path.stem}\n")
+            parts.append(content)
+            parts.append("")
+        except Exception as e:
+            logger.warning(f"Failed to load design doc {doc_path}: {e}")
+
+    return "\n".join(parts) if parts else ""
 
 
 def build_experimenter_input(
     readable_logs: list[str],
     narrator_chapters: list[dict],
     previous_posts: list[dict],
-    place_snapshot: str,
+    place_contents: str,
+    diff_text: str,
+    design_docs: str,
     cost_summary: str,
     post_number: int,
     topic: str | None = None,
@@ -320,10 +359,16 @@ def build_experimenter_input(
     Build the user message for the experimenter.
 
     Assembles everything the experimenter has access to:
-    session logs, narrator chapters, previous posts, the place state,
-    and cost data.
+    design docs, session logs, narrator chapters, the place,
+    the diff, previous posts, and cost data.
     """
     parts = []
+
+    # Design docs (experiment context)
+    if design_docs:
+        parts.append("## Experiment design\n")
+        parts.append(design_docs)
+        parts.append("")
 
     # Previous posts for continuity
     if previous_posts:
@@ -333,10 +378,16 @@ def build_experimenter_input(
             parts.append(post["content"])
             parts.append("")
 
-    # The place as it stands
-    parts.append("## Current state of the place\n")
-    parts.append(place_snapshot)
+    # The place — full note contents
+    parts.append("## The place (full note contents)\n")
+    parts.append(place_contents)
     parts.append("")
+
+    # What changed
+    if diff_text and diff_text != "Nothing has changed since you were last here.":
+        parts.append("## What changed in the place\n")
+        parts.append(diff_text)
+        parts.append("")
 
     # Narrator chapters (if any)
     if narrator_chapters:
@@ -360,7 +411,20 @@ def build_experimenter_input(
         parts.append("")
 
     # Instruction
-    if topic:
+    if post_number == 1 and not previous_posts:
+        intro = (
+            f"Write Post {post_number}. "
+            "This is the first post. Introduce the experiment to readers: "
+            "what Palimpsest is, why it exists, how it works. "
+            "Use the design docs above for context. "
+            "Then cover what happened in the session(s) provided. "
+            "The reader should finish understanding both the experiment "
+            "and what has happened so far."
+        )
+        if topic:
+            intro += f" The experimenter also wants to cover: {topic}"
+        parts.append(intro)
+    elif topic:
         parts.append(
             f"Write Post {post_number}. "
             f"The experimenter wants to write about: {topic}"
@@ -374,6 +438,15 @@ def build_experimenter_input(
     return "\n".join(parts)
 
 
+# Default design doc paths in the vault
+DEFAULT_DESIGN_DOC_NAMES = [
+    "Palimpsest",
+    "Palimpsest - Technical Architecture",
+    "Palimpsest - Experimental Design",
+    "Palimpsest - Minimal Agent Inputs",
+]
+
+
 async def run_experimenter(
     place_path: Path,
     log_path: Path,
@@ -381,6 +454,7 @@ async def run_experimenter(
     config: dict,
     experimenter_output_path: Path | None = None,
     narrator_output_path: Path | None = None,
+    design_docs_path: Path | None = None,
     topic: str | None = None,
     since: datetime | None = None,
     until: datetime | None = None,
@@ -393,7 +467,8 @@ async def run_experimenter(
     Run the experimenter to produce a blog post.
 
     Gathers all available material — session logs, narrator chapters,
-    place state, cost data — and produces a post.
+    place contents, git diff, design docs, cost data — and produces
+    a post.
 
     Returns the path to the saved post file.
     """
@@ -403,6 +478,9 @@ async def run_experimenter(
 
     if narrator_output_path is None:
         narrator_output_path = log_path / "narrator"
+
+    if design_docs_path is None:
+        design_docs_path = Path("D:/Vault/Projects/Active/Palimpsest")
 
     # Load the experimenter system prompt
     system_prompt = load_experimenter_prompt(experimenter_prompt_path)
@@ -420,8 +498,19 @@ async def run_experimenter(
     # Previous posts
     previous_posts = get_previous_posts(experimenter_output_path)
 
-    # Place snapshot
-    place_snapshot = list_place_notes(place_path)
+    # Full place contents
+    place_contents = read_place_notes(place_path)
+
+    # Git diff
+    diff_changes = get_place_diff(place_path)
+    diff_text = format_diff_for_agent(diff_changes)
+
+    # Design docs
+    design_doc_paths = [
+        design_docs_path / f"{name}.md"
+        for name in DEFAULT_DESIGN_DOC_NAMES
+    ]
+    design_docs = load_design_docs(design_doc_paths)
 
     # Cost summary
     cost_summary = gather_cost_summary(log_path, config)
@@ -434,7 +523,9 @@ async def run_experimenter(
         readable_logs=readable_logs,
         narrator_chapters=chapters,
         previous_posts=previous_posts,
-        place_snapshot=place_snapshot,
+        place_contents=place_contents,
+        diff_text=diff_text,
+        design_docs=design_docs,
         cost_summary=cost_summary,
         post_number=post_number,
         topic=topic,

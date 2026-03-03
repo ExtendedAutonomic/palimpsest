@@ -2,8 +2,8 @@
 Tests for the experimenter blog system.
 
 Tests everything except the actual API call: prompt loading,
-log gathering, narrator chapter loading, place snapshots,
-input assembly, post numbering, and output handling.
+log gathering, narrator chapter loading, place contents,
+design docs, input assembly, post numbering, and output handling.
 """
 
 from __future__ import annotations
@@ -22,7 +22,8 @@ from orchestrator.experimenter.experimenter import (
     gather_cost_summary,
     get_previous_posts,
     get_next_post_number,
-    list_place_notes,
+    read_place_notes,
+    load_design_docs,
     build_experimenter_input,
 )
 from orchestrator.place.notes import build_space_note, build_thing_note
@@ -322,29 +323,63 @@ class TestNextPostNumber:
 
 
 # ---------------------------------------------------------------------------
-# list_place_notes
+# read_place_notes
 # ---------------------------------------------------------------------------
 
-class TestListPlaceNotes:
+class TestReadPlaceNotes:
 
-    def test_lists_notes_with_types(self, populated_place: Path):
-        result = list_place_notes(populated_place)
-        assert "here" in result
-        assert "The Threshold" in result
-        assert "Listening Stone" in result
-        assert "space" in result
-        assert "thing" in result
+    def test_reads_full_note_contents(self, populated_place: Path):
+        result = read_place_notes(populated_place)
+        assert "### here" in result
+        assert "### The Threshold" in result
+        assert "### Listening Stone" in result
+        # Full contents should be present
+        assert "A liminal space." in result
+        assert "A stone that hums." in result
 
-    def test_shows_creator(self, populated_place: Path):
-        result = list_place_notes(populated_place)
-        assert "claude" in result
-        assert "place" in result  # here.md is created_by: place
+    def test_includes_frontmatter(self, populated_place: Path):
+        result = read_place_notes(populated_place)
+        assert "created_by: claude" in result
+        assert "type: space" in result
 
     def test_empty_place(self, tmp_path: Path):
         empty = tmp_path / "empty_place"
         empty.mkdir()
-        result = list_place_notes(empty)
+        result = read_place_notes(empty)
         assert "empty" in result.lower()
+
+
+# ---------------------------------------------------------------------------
+# load_design_docs
+# ---------------------------------------------------------------------------
+
+class TestLoadDesignDocs:
+
+    def test_loads_docs_stripping_frontmatter(self, tmp_path: Path):
+        doc = tmp_path / "Palimpsest.md"
+        doc.write_text(
+            "---\ncreated: 2026-01-01\n---\n### Premise\n\nThe experiment.",
+            encoding="utf-8",
+        )
+        result = load_design_docs([doc])
+        assert "### Palimpsest" in result
+        assert "The experiment." in result
+        assert "created: 2026" not in result
+
+    def test_skips_missing_docs(self, tmp_path: Path):
+        result = load_design_docs([tmp_path / "nope.md"])
+        assert result == ""
+
+    def test_loads_multiple(self, tmp_path: Path):
+        for name in ("Doc A", "Doc B"):
+            (tmp_path / f"{name}.md").write_text(
+                f"Content of {name}", encoding="utf-8"
+            )
+        result = load_design_docs([
+            tmp_path / "Doc A.md", tmp_path / "Doc B.md"
+        ])
+        assert "Doc A" in result
+        assert "Doc B" in result
 
 
 # ---------------------------------------------------------------------------
@@ -381,105 +416,118 @@ class TestGatherCostSummary:
 
 class TestBuildExperimenterInput:
 
-    def test_includes_session_logs(self):
-        result = build_experimenter_input(
-            readable_logs=["# Session 1\n\nThe agent explored."],
+    def _build(self, **kwargs):
+        """Helper with sensible defaults for all required params."""
+        defaults = dict(
+            readable_logs=["log"],
             narrator_chapters=[],
             previous_posts=[],
-            place_snapshot="- here (space, by place)",
-            cost_summary="Total: $0.50 / $200.00",
+            place_contents="",
+            diff_text="",
+            design_docs="",
+            cost_summary="",
             post_number=1,
+        )
+        defaults.update(kwargs)
+        return build_experimenter_input(**defaults)
+
+    def test_includes_session_logs(self):
+        result = self._build(
+            readable_logs=["# Session 1\n\nThe agent explored."],
+            cost_summary="Total: $0.50 / $200.00",
         )
         assert "# Session 1" in result
         assert "Write Post 1." in result
 
     def test_includes_topic_when_provided(self):
-        result = build_experimenter_input(
-            readable_logs=["log"],
-            narrator_chapters=[],
-            previous_posts=[],
-            place_snapshot="",
-            cost_summary="",
-            post_number=1,
-            topic="the founding prompt evolution",
-        )
+        result = self._build(topic="the founding prompt evolution")
         assert "the founding prompt evolution" in result
 
     def test_default_topic_when_none(self):
-        result = build_experimenter_input(
-            readable_logs=["log"],
-            narrator_chapters=[],
-            previous_posts=[],
-            place_snapshot="",
-            cost_summary="",
-            post_number=1,
+        # Post 2 with previous posts avoids first-post logic
+        result = self._build(
+            post_number=2,
+            previous_posts=[{"number": 1, "title": "x", "content": "x"}],
         )
         assert "whatever is most interesting" in result
 
+    def test_first_post_includes_intro_instruction(self):
+        result = self._build(post_number=1)
+        assert "Introduce the experiment" in result
+
+    def test_first_post_with_topic(self):
+        result = self._build(post_number=1, topic="the founding prompt")
+        assert "Introduce the experiment" in result
+        assert "the founding prompt" in result
+
+    def test_subsequent_post_no_intro(self):
+        result = self._build(
+            post_number=2,
+            previous_posts=[{"number": 1, "title": "x", "content": "x"}],
+        )
+        assert "Introduce the experiment" not in result
+
     def test_includes_narrator_chapters(self):
-        result = build_experimenter_input(
-            readable_logs=["log"],
+        result = self._build(
             narrator_chapters=[{
                 "chapter": 1,
                 "title": "The Compass Points Down",
                 "content": "I watch them perceive the emptiness.",
             }],
-            previous_posts=[],
-            place_snapshot="",
-            cost_summary="",
-            post_number=1,
         )
         assert "Narrator's chapters" in result
         assert "The Compass Points Down" in result
 
     def test_includes_previous_posts(self):
-        result = build_experimenter_input(
-            readable_logs=["log"],
-            narrator_chapters=[],
+        result = self._build(
             previous_posts=[{
                 "number": 1,
                 "title": "What Happens When You Tell an AI",
                 "content": "So I built a thing.",
             }],
-            place_snapshot="",
-            cost_summary="",
             post_number=2,
         )
         assert "Your previous posts" in result
         assert "What Happens" in result
         assert "Write Post 2." in result
 
-    def test_includes_place_snapshot(self):
-        result = build_experimenter_input(
-            readable_logs=["log"],
-            narrator_chapters=[],
-            previous_posts=[],
-            place_snapshot="- here (space, by place)\n- The Threshold (space, by claude)",
-            cost_summary="",
-            post_number=1,
+    def test_includes_place_contents(self):
+        result = self._build(
+            place_contents="### The Threshold\n\nA liminal space.",
         )
-        assert "Current state of the place" in result
-        assert "The Threshold" in result
+        assert "The place (full note contents)" in result
+        assert "A liminal space." in result
+
+    def test_includes_diff(self):
+        result = self._build(
+            diff_text="Modified: here.md\n+ A sky appears overhead.",
+        )
+        assert "What changed in the place" in result
+        assert "A sky appears" in result
+
+    def test_excludes_empty_diff(self):
+        result = self._build(
+            diff_text="Nothing has changed since you were last here.",
+        )
+        assert "What changed" not in result
+
+    def test_includes_design_docs(self):
+        result = self._build(
+            design_docs="### Palimpsest\n\nThe experiment.",
+        )
+        assert "Experiment design" in result
+        assert "The experiment." in result
 
     def test_includes_cost_summary(self):
-        result = build_experimenter_input(
-            readable_logs=["log"],
-            narrator_chapters=[],
-            previous_posts=[],
-            place_snapshot="",
+        result = self._build(
             cost_summary="claude: 3 sessions, 5,100 tokens, $0.50",
-            post_number=1,
         )
         assert "Cost summary" in result
         assert "$0.50" in result
 
     def test_post_number_in_instruction(self):
-        result = build_experimenter_input(
-            readable_logs=["log"],
-            narrator_chapters=[],
-            previous_posts=[],
-            place_snapshot="",
-            cost_summary="",
+        result = self._build(
             post_number=4,
+            previous_posts=[{"number": 3, "title": "x", "content": "x"}],
         )
         assert "Write Post 4." in result
