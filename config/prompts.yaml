@@ -23,6 +23,9 @@ founding: "You are: here"
 # Memory and location only. No framing.
 identity: |
   {memory}
+
+  ---
+
   You are at: {location}
 
 # Template for wrapping session logs into the memory block

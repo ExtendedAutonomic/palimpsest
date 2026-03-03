@@ -9,6 +9,53 @@ from datetime import datetime
 from pathlib import Path
 
 
+import re
+
+
+def _render_opening_with_memory(opening: str, agent: str) -> list[str]:
+    """
+    Replace the full memory dump with compact wiki-linked references.
+
+    Instead of embedding the entire memory in the rendered log,
+    list which sessions were provided as memory with links.
+    """
+    lines = []
+    agent_title = agent.title()
+
+    # Extract the location line from the end
+    location_match = re.search(r"You are at: (.+)", opening)
+    location = location_match.group(1).strip() if location_match else None
+
+    # Find compressed batch references: "Days 1–3" or "Days 1-3"
+    compressed = re.findall(r"Days\s+(\d+)[–\-](\d+)", opening)
+
+    # Find individual day references: "Day 1", "Day 2" etc.
+    individual = [int(m) for m in re.findall(r"(?:^|\n)Day\s+(\d+)", opening)]
+
+    # Remove any individual days that fall within compressed ranges
+    compressed_sessions = set()
+    for start, end in compressed:
+        for s in range(int(start), int(end) + 1):
+            compressed_sessions.add(s)
+    individual = [d for d in individual if d not in compressed_sessions]
+
+    # Build the memory reference line
+    parts = []
+    for start, end in compressed:
+        parts.append(f"Days {start}\u2013{end} (compressed)")
+    for day_num in sorted(set(individual)):
+        parts.append(
+            f"[[{agent_title} \u2014 Session {day_num}|Day {day_num}]]"
+        )
+
+    if parts:
+        lines.append(f"> Memory: {', '.join(parts)}")
+    if location:
+        lines.append(f"> You are at: {location}")
+
+    return lines
+
+
 def render_session_markdown(log_path: Path, place_path: Path | None = None) -> str:
     """Render a session JSON log as readable markdown."""
     data = json.loads(log_path.read_text(encoding="utf-8"))
@@ -72,8 +119,13 @@ def render_session_markdown(log_path: Path, place_path: Path | None = None) -> s
     if opening:
         lines.append("## Opening")
         lines.append("")
-        for line in opening.strip().split("\n"):
-            lines.append(f"> {line}")
+        if opening.strip().startswith("## Memory"):
+            # Session 2+: replace full memory with compact references
+            lines.extend(_render_opening_with_memory(opening, agent))
+        else:
+            # Session 1: just show the founding prompt
+            for line in opening.strip().split("\n"):
+                lines.append(f"> {line}")
         lines.append("")
 
     # Dusk prompt (if it was sent)
