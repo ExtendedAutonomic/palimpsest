@@ -222,36 +222,15 @@ class TestBuildNarratorInput:
     def test_includes_session_logs(self):
         result = build_narrator_input(
             readable_logs=["# Session 1\n\nSomething happened."],
-            diff_text="Nothing has changed since you were last here.",
             previous_entries=[],
             chapter_number=1,
         )
         assert "# Session 1" in result
         assert "Write Chapter 1." in result
 
-    def test_includes_diff_when_present(self):
-        result = build_narrator_input(
-            readable_logs=["# Session 1"],
-            diff_text="Something new has appeared: The Garden.md",
-            previous_entries=[],
-            chapter_number=1,
-        )
-        assert "What changed in the place today" in result
-        assert "The Garden.md" in result
-
-    def test_excludes_diff_when_nothing_changed(self):
-        result = build_narrator_input(
-            readable_logs=["# Session 1"],
-            diff_text="Nothing has changed since you were last here.",
-            previous_entries=[],
-            chapter_number=1,
-        )
-        assert "What changed in the place today" not in result
-
     def test_includes_previous_entries(self):
         result = build_narrator_input(
             readable_logs=["# Session 1"],
-            diff_text="",
             previous_entries=[{
                 "chapter": 1,
                 "title": "The Beginning",
@@ -266,7 +245,6 @@ class TestBuildNarratorInput:
     def test_chapter_number_in_instruction(self):
         result = build_narrator_input(
             readable_logs=["log"],
-            diff_text="",
             previous_entries=[],
             chapter_number=7,
         )

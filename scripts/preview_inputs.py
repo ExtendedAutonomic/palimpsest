@@ -19,7 +19,6 @@ from pathlib import Path
 
 # Project paths
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-PLACE_PATH = PROJECT_ROOT / "place"
 LOG_PATH = PROJECT_ROOT / "logs"
 CONFIG_PATH = PROJECT_ROOT / "config"
 VAULT_PATH = Path("D:/Vault/Projects/Active/Palimpsest")
@@ -52,7 +51,6 @@ def build_narrator_preview(sessions: tuple[int, ...] | None) -> str:
         build_narrator_input,
     )
     from orchestrator.renderer import render_session_markdown
-    from orchestrator.memory.diff_tracker import get_place_diff, format_diff_for_agent
 
     narrator_prompt_path = VAULT_PATH / "Narrator Prompt.md"
     narrator_output_path = LOG_PATH / "narrator"
@@ -78,10 +76,6 @@ def build_narrator_preview(sessions: tuple[int, ...] | None) -> str:
             else:
                 readable_logs.append(render_session_markdown(log_file))
 
-    # Diff
-    diff_changes = get_place_diff(PLACE_PATH)
-    diff_text = format_diff_for_agent(diff_changes)
-
     # Previous entries
     previous_entries = get_previous_entries(narrator_output_path)
 
@@ -91,7 +85,6 @@ def build_narrator_preview(sessions: tuple[int, ...] | None) -> str:
     # Build user message
     user_message = build_narrator_input(
         readable_logs=readable_logs,
-        diff_text=diff_text,
         previous_entries=previous_entries,
         chapter_number=chapter_number,
     )
@@ -127,12 +120,10 @@ def build_experimenter_preview(sessions: tuple[int, ...] | None) -> str:
         gather_cost_summary,
         get_previous_posts,
         get_next_post_number,
-        read_place_notes,
         load_design_docs,
         build_experimenter_input,
         DEFAULT_DESIGN_DOC_NAMES,
     )
-    from orchestrator.memory.diff_tracker import get_place_diff, format_diff_for_agent
 
     config = load_config()
     experimenter_prompt_path = VAULT_PATH / "Experimenter Blog Prompt.md"
@@ -153,13 +144,6 @@ def build_experimenter_preview(sessions: tuple[int, ...] | None) -> str:
     # Previous posts
     previous_posts = get_previous_posts(experimenter_output_path)
 
-    # Place contents
-    place_contents = read_place_notes(PLACE_PATH)
-
-    # Git diff
-    diff_changes = get_place_diff(PLACE_PATH)
-    diff_text = format_diff_for_agent(diff_changes)
-
     # Design docs
     design_doc_paths = [
         VAULT_PATH / f"{name}.md"
@@ -178,8 +162,6 @@ def build_experimenter_preview(sessions: tuple[int, ...] | None) -> str:
         readable_logs=readable_logs,
         narrator_chapters=chapters,
         previous_posts=previous_posts,
-        place_contents=place_contents,
-        diff_text=diff_text,
         design_docs=design_docs,
         cost_summary=cost_summary,
         post_number=post_number,

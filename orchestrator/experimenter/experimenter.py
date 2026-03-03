@@ -7,8 +7,8 @@ alongside the narrator's chronicles but serving a different function:
 the narrator writes from inside, the blog writes from outside.
 
 The experimenter sees everything: session logs (including thinking
-and reflections), the narrator's chapters, the full place contents,
-the git diff, the experiment design docs, and cost data.
+and reflections), the narrator's chapters, the experiment design
+docs, and cost data.
 
 Unlike the narrator (which runs daily), the experimenter writes
 when there's something worth writing about.
@@ -22,8 +22,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import anthropic
-
-from ..memory.diff_tracker import get_place_diff, format_diff_for_agent
 
 logger = logging.getLogger(__name__)
 
@@ -288,33 +286,6 @@ def get_next_post_number(experimenter_output_path: Path) -> int:
     return max(numbers) + 1 if numbers else 1
 
 
-def read_place_notes(place_path: Path) -> str:
-    """
-    Read the full contents of every note in the place.
-
-    The experimenter sees the place as the agents built it:
-    descriptions, connections, things, frontmatter and all.
-    """
-    parts = []
-    notes = sorted(place_path.glob("*.md"))
-
-    if not notes:
-        return "(The place is empty.)"
-
-    for note_file in notes:
-        try:
-            content = note_file.read_text(encoding="utf-8")
-            parts.append(f"### {note_file.stem}\n")
-            parts.append(content)
-            parts.append("")
-        except Exception as e:
-            parts.append(f"### {note_file.stem}\n")
-            parts.append(f"(Could not read: {e})")
-            parts.append("")
-
-    return "\n".join(parts)
-
-
 def load_design_docs(design_doc_paths: list[Path]) -> str:
     """
     Load the experiment design documents from the vault.
@@ -348,8 +319,6 @@ def build_experimenter_input(
     readable_logs: list[str],
     narrator_chapters: list[dict],
     previous_posts: list[dict],
-    place_contents: str,
-    diff_text: str,
     design_docs: str,
     cost_summary: str,
     post_number: int,
@@ -359,8 +328,8 @@ def build_experimenter_input(
     Build the user message for the experimenter.
 
     Assembles everything the experimenter has access to:
-    design docs, session logs, narrator chapters, the place,
-    the diff, previous posts, and cost data.
+    design docs, session logs, narrator chapters, previous
+    posts, and cost data.
     """
     parts = []
 
@@ -377,17 +346,6 @@ def build_experimenter_input(
             parts.append(f"### Post {post['number']}: {post['title']}\n")
             parts.append(post["content"])
             parts.append("")
-
-    # The place — full note contents
-    parts.append("## The place (full note contents)\n")
-    parts.append(place_contents)
-    parts.append("")
-
-    # What changed
-    if diff_text and diff_text != "Nothing has changed since you were last here.":
-        parts.append("## What changed in the place\n")
-        parts.append(diff_text)
-        parts.append("")
 
     # Narrator chapters (if any)
     if narrator_chapters:
@@ -448,7 +406,6 @@ DEFAULT_DESIGN_DOC_NAMES = [
 
 
 async def run_experimenter(
-    place_path: Path,
     log_path: Path,
     experimenter_prompt_path: Path,
     config: dict,
@@ -467,8 +424,7 @@ async def run_experimenter(
     Run the experimenter to produce a blog post.
 
     Gathers all available material — session logs, narrator chapters,
-    place contents, git diff, design docs, cost data — and produces
-    a post.
+    design docs, cost data — and produces a post.
 
     Returns the path to the saved post file.
     """
@@ -498,13 +454,6 @@ async def run_experimenter(
     # Previous posts
     previous_posts = get_previous_posts(experimenter_output_path)
 
-    # Full place contents
-    place_contents = read_place_notes(place_path)
-
-    # Git diff
-    diff_changes = get_place_diff(place_path)
-    diff_text = format_diff_for_agent(diff_changes)
-
     # Design docs
     design_doc_paths = [
         design_docs_path / f"{name}.md"
@@ -523,8 +472,6 @@ async def run_experimenter(
         readable_logs=readable_logs,
         narrator_chapters=chapters,
         previous_posts=previous_posts,
-        place_contents=place_contents,
-        diff_text=diff_text,
         design_docs=design_docs,
         cost_summary=cost_summary,
         post_number=post_number,

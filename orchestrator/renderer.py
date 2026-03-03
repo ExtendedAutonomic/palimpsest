@@ -165,7 +165,10 @@ def render_session_markdown(log_path: Path, place_path: Path | None = None) -> s
             if display_result:
                 result_lines = display_result.strip().split("\n")
                 for rl in result_lines:
-                    lines.append(f"> *{rl}*")
+                    if rl.strip():
+                        lines.append(f"> *{rl}*")
+                    else:
+                        lines.append(">")
 
             lines.append("")
 

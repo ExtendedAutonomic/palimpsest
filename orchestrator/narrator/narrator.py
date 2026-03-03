@@ -2,8 +2,8 @@
 Narrator agent for Palimpsest.
 
 The narrator is not an agent in the place. It cannot act, create, or move.
-It reads the day's session logs — including thinking tokens — and the
-git diff, and writes a chapter of the ongoing chronicle.
+It reads the day's session logs — including thinking — and writes a
+chapter of the ongoing chronicle.
 
 The narrator runs after the last agent session of the day.
 """
@@ -16,8 +16,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import anthropic
-
-from ..memory.diff_tracker import get_place_diff, format_diff_for_agent
 
 logger = logging.getLogger(__name__)
 
@@ -191,15 +189,14 @@ def get_next_chapter_number(narrator_output_path: Path) -> int:
 
 def build_narrator_input(
     readable_logs: list[str],
-    diff_text: str,
     previous_entries: list[dict],
     chapter_number: int,
 ) -> str:
     """
     Build the user message for the narrator.
 
-    Assembles: previous entries (for continuity), the day's diff,
-    the day's session logs, and the chapter number to write.
+    Assembles: previous entries (for continuity), the day's
+    session logs, and the chapter number to write.
     """
     parts = []
 
@@ -211,12 +208,6 @@ def build_narrator_input(
             # Include full content for recent entries, summary for older ones
             parts.append(entry["content"])
             parts.append("")
-
-    # Diff
-    if diff_text and diff_text != "Nothing has changed since you were last here.":
-        parts.append("## What changed in the place today\n")
-        parts.append(diff_text)
-        parts.append("")
 
     # Session logs
     parts.append("## Today's session logs\n")
@@ -231,7 +222,6 @@ def build_narrator_input(
 
 
 async def run_narrator(
-    place_path: Path,
     log_path: Path,
     narrator_prompt_path: Path,
     narrator_output_path: Path | None = None,
@@ -242,8 +232,8 @@ async def run_narrator(
     """
     Run the narrator for a given day.
 
-    Gathers session logs and diff, sends them with the narrator
-    system prompt, and saves the resulting chapter.
+    Gathers session logs, sends them with the narrator system prompt,
+    and saves the resulting chapter.
 
     Returns the path to the saved chapter file.
     """
@@ -265,10 +255,6 @@ async def run_narrator(
             "Nothing to narrate."
         )
 
-    # Get the diff
-    diff_changes = get_place_diff(place_path)
-    diff_text = format_diff_for_agent(diff_changes)
-
     # Get previous entries
     previous_entries = get_previous_entries(narrator_output_path)
 
@@ -278,7 +264,6 @@ async def run_narrator(
     # Build the input
     user_message = build_narrator_input(
         readable_logs=readable_logs,
-        diff_text=diff_text,
         previous_entries=previous_entries,
         chapter_number=chapter_number,
     )

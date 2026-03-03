@@ -320,7 +320,6 @@ async def _run_narrator(day_str: str | None, prompt_path_str: str | None, sessio
 
     try:
         output_file = await run_narrator(
-            place_path=PLACE_PATH,
             log_path=LOG_PATH,
             narrator_prompt_path=narrator_prompt_path,
             day=day,
@@ -425,7 +424,6 @@ async def _run_blog(
 
     try:
         output_file = await run_experimenter(
-            place_path=PLACE_PATH,
             log_path=LOG_PATH,
             experimenter_prompt_path=experimenter_prompt_path,
             config=config,

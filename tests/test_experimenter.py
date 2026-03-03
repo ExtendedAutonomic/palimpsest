@@ -2,8 +2,8 @@
 Tests for the experimenter blog system.
 
 Tests everything except the actual API call: prompt loading,
-log gathering, narrator chapter loading, place contents,
-design docs, input assembly, post numbering, and output handling.
+log gathering, narrator chapter loading, design docs, input
+assembly, post numbering, and output handling.
 """
 
 from __future__ import annotations
@@ -22,11 +22,9 @@ from orchestrator.experimenter.experimenter import (
     gather_cost_summary,
     get_previous_posts,
     get_next_post_number,
-    read_place_notes,
     load_design_docs,
     build_experimenter_input,
 )
-from orchestrator.place.notes import build_space_note, build_thing_note
 from tests.helpers import make_session_log, write_session_log
 
 
@@ -79,34 +77,6 @@ def narrator_output(tmp_path: Path) -> Path:
         encoding="utf-8",
     )
     return output
-
-
-@pytest.fixture
-def populated_place(place_path: Path) -> Path:
-    """A place with a few notes for snapshot testing."""
-    fm_agent = {
-        "type": "space",
-        "created_by": "claude",
-        "created_session": 1,
-        "updated_by": "claude",
-        "updated_session": 1,
-    }
-    (place_path / "The Threshold.md").write_text(
-        build_space_note("A liminal space.", ["here"], [], fm_agent),
-        encoding="utf-8",
-    )
-    fm_thing = {
-        "type": "thing",
-        "created_by": "claude",
-        "created_session": 1,
-        "updated_by": "claude",
-        "updated_session": 1,
-    }
-    (place_path / "Listening Stone.md").write_text(
-        build_thing_note("A stone that hums.", fm_thing),
-        encoding="utf-8",
-    )
-    return place_path
 
 
 @pytest.fixture
@@ -323,33 +293,6 @@ class TestNextPostNumber:
 
 
 # ---------------------------------------------------------------------------
-# read_place_notes
-# ---------------------------------------------------------------------------
-
-class TestReadPlaceNotes:
-
-    def test_reads_full_note_contents(self, populated_place: Path):
-        result = read_place_notes(populated_place)
-        assert "### here" in result
-        assert "### The Threshold" in result
-        assert "### Listening Stone" in result
-        # Full contents should be present
-        assert "A liminal space." in result
-        assert "A stone that hums." in result
-
-    def test_includes_frontmatter(self, populated_place: Path):
-        result = read_place_notes(populated_place)
-        assert "created_by: claude" in result
-        assert "type: space" in result
-
-    def test_empty_place(self, tmp_path: Path):
-        empty = tmp_path / "empty_place"
-        empty.mkdir()
-        result = read_place_notes(empty)
-        assert "empty" in result.lower()
-
-
-# ---------------------------------------------------------------------------
 # load_design_docs
 # ---------------------------------------------------------------------------
 
@@ -422,8 +365,6 @@ class TestBuildExperimenterInput:
             readable_logs=["log"],
             narrator_chapters=[],
             previous_posts=[],
-            place_contents="",
-            diff_text="",
             design_docs="",
             cost_summary="",
             post_number=1,
@@ -490,26 +431,6 @@ class TestBuildExperimenterInput:
         assert "Your previous posts" in result
         assert "What Happens" in result
         assert "Write Post 2." in result
-
-    def test_includes_place_contents(self):
-        result = self._build(
-            place_contents="### The Threshold\n\nA liminal space.",
-        )
-        assert "The place (full note contents)" in result
-        assert "A liminal space." in result
-
-    def test_includes_diff(self):
-        result = self._build(
-            diff_text="Modified: here.md\n+ A sky appears overhead.",
-        )
-        assert "What changed in the place" in result
-        assert "A sky appears" in result
-
-    def test_excludes_empty_diff(self):
-        result = self._build(
-            diff_text="Nothing has changed since you were last here.",
-        )
-        assert "What changed" not in result
 
     def test_includes_design_docs(self):
         result = self._build(

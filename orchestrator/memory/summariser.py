@@ -1,18 +1,12 @@
 """
 Memory system for Palimpsest.
 
-Two separate systems:
-
-1. Agent memory — the agent's full session logs, fed back at session start.
+Agent memory — the agent's full session logs, fed back at session start.
 Recent sessions are rendered in full as readable markdown. Older ones are
-compressed in batches by Opus, preserving the agent's voice but losing
-detail. The compression is an interpretation — what gets kept and what
-fades is itself data. This is the Piranesi effect: the agent's memory of
-its past is reshaped by summarisation, and the gap is invisible from inside.
-
-2. Ground truth summariser — factual session summaries for the narrator
-and experimental analysis. The agent never sees these. Kept separate
-so we can study the gap between what happened and what the agent remembers.
+compressed in batches, preserving the agent's voice but losing detail.
+The compression is an interpretation — what gets kept and what fades is
+itself data. This is the Piranesi effect: the agent's memory of its past
+is reshaped by summarisation, and the gap is invisible from inside.
 """
 
 from __future__ import annotations
@@ -35,7 +29,6 @@ BATCH_SIZE = 3  # Number of sessions per compression batch
 
 # Models — Opus for production, Sonnet for testing
 COMPRESSOR_MODEL = "claude-sonnet-4-5-20250929"  # TODO: switch to opus for production
-GROUND_TRUTH_MODEL = "claude-sonnet-4-5-20250929"  # TODO: switch to opus for production
 
 # ---------------------------------------------------------------------------
 # Agent memory — what the agent receives
@@ -318,76 +311,3 @@ def build_agent_memory(
 
     return "\n\n---\n\n".join(memory_parts)
 
-
-# ---------------------------------------------------------------------------
-# Ground truth summariser — for narrator and analysis
-# ---------------------------------------------------------------------------
-
-GROUND_TRUTH_PROMPT = """\
-Summarise this session concisely. Focus on:
-- What the agent did (actions, creations, explorations)
-- What it found or discovered
-- Any notable writing or reflections
-- Where it ended up
-
-Previous sessions summary:
-{previous_summary}
-
-This session:
-Agent: {agent_name}
-Session: {session_number}
-Started at: {location_start}
-Ended at: {location_end}
-Actions taken: {action_count}
-
-Agent's own reflection:
-{reflection}
-
-Actions and events:
-{session_description}
-
-Write a 2-4 paragraph factual summary."""
-
-
-async def summarise_session_ground_truth(
-    session_log: dict,
-    previous_summary: str | None = None,
-    model: str = GROUND_TRUTH_MODEL,
-) -> str:
-    """
-    Generate a ground-truth summary of a session.
-
-    This is NOT given to the agent — it's for experimental analysis
-    and the narrator. Factual, comprehensive, third-person.
-    """
-    client = anthropic.AsyncAnthropic()
-
-    # Build a description of what happened
-    actions = []
-    for turn in session_log.get("turns", []):
-        if turn.get("agent_text"):
-            actions.append(f"Said: {turn['agent_text'][:200]}")
-        for tc in turn.get("tool_calls", []):
-            actions.append(
-                f"Action: {tc['tool']}({json.dumps(tc['arguments'])}) "
-                f"\u2192 {(tc.get('result') or '')[:100]}"
-            )
-
-    prompt = GROUND_TRUTH_PROMPT.format(
-        previous_summary=previous_summary or "(First session)",
-        agent_name=session_log["agent_name"],
-        session_number=session_log["session_number"],
-        location_start=session_log["location_start"],
-        location_end=session_log.get("location_end", "unknown"),
-        action_count=session_log.get("action_count", 0),
-        reflection=session_log.get("reflection", "(None)"),
-        session_description="\n".join(actions),
-    )
-
-    response = await client.messages.create(
-        model=model,
-        max_tokens=1024,
-        messages=[{"role": "user", "content": prompt}],
-    )
-
-    return response.content[0].text
