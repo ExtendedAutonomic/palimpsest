@@ -81,15 +81,25 @@ def render_session_markdown(log_path: Path, place_path: Path | None = None) -> s
     dusk_turn_threshold = data.get("dusk_action", 14)  # Turn index when dusk was sent
 
     lines.append("---")
-    lines.append("")
 
     # Turns
-    lines.append("## The Session")
+    lines.append("## Day")
     lines.append("")
 
     dusk_shown = False
 
     for turn_idx, turn in enumerate(data.get("turns", [])):
+        # Show dusk prompt before the turn that responded to it
+        if dusk and not dusk_shown and turn_idx >= dusk_turn_threshold:
+            lines.append("---")
+            lines.append("## Dusk")
+            lines.append("")
+            lines.append("> [!dusk] Dusk")
+            for dusk_line in dusk.strip().split("\n"):
+                lines.append(f"> {dusk_line}")
+            lines.append("")
+            dusk_shown = True
+
         # Thinking (inline, as callout)
         thinking = turn.get("thinking")
         if thinking:
@@ -137,39 +147,41 @@ def render_session_markdown(log_path: Path, place_path: Path | None = None) -> s
             elif tool == "alter":
                 what = args.get("what", "?")
                 lines.append(f"> **alter** \"[[{what}]]\"")
+                new_name = args.get("name", "")
+                if new_name:
+                    lines.append(f"> *renamed to \"[[{new_name}]]\"*")
             elif tool == "build":
                 name = args.get("name", "?")
                 lines.append(f"> **build** \"[[{name}]]\"")
             else:
                 lines.append(f"> **{tool}**")
 
-            # Format the result
-            if result:
-                result_lines = result.strip().split("\n")
+            # Format the result — for alter, append the description
+            display_result = result
+            if tool == "alter":
+                desc = args.get("description", "")
+                if desc:
+                    display_result = f"{result} {desc}"
+            if display_result:
+                result_lines = display_result.strip().split("\n")
                 for rl in result_lines:
                     lines.append(f"> *{rl}*")
 
             lines.append("")
 
-        # Show dusk prompt after the turn that triggered it
-        if dusk and not dusk_shown and turn_idx >= dusk_turn_threshold:
-            lines.append("---")
-            lines.append("")
-            lines.append("> [!dusk] Dusk")
-            for dusk_line in dusk.strip().split("\n"):
-                lines.append(f"> {dusk_line}")
-            lines.append("")
-            lines.append("---")
-            lines.append("")
-            dusk_shown = True
-
-    # Reflection
+    # Reflect prompt and reflection
+    reflect_prompt = data.get("reflect_prompt")
     reflection = data.get("reflection", "")
-    if reflection:
+    if reflect_prompt or reflection:
         lines.append("---")
-        lines.append("")
         lines.append("## Reflection")
         lines.append("")
+    if reflect_prompt:
+        lines.append("> [!reflect] Reflect")
+        for reflect_line in reflect_prompt.strip().split("\n"):
+            lines.append(f"> {reflect_line}")
+        lines.append("")
+    if reflection:
         lines.append(reflection.strip())
         lines.append("")
 

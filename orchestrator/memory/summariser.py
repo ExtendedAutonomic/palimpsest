@@ -62,6 +62,11 @@ def render_session_log(session_data: dict) -> str:
     dusk_inserted = False
 
     for turn_idx, turn in enumerate(session_data.get("turns", [])):
+        # Insert dusk prompt before the turn that responded to it
+        if dusk_prompt and not dusk_inserted and dusk_turn is not None and turn_idx >= dusk_turn:
+            parts.append(dusk_prompt)
+            dusk_inserted = True
+
         # Thinking
         thinking = turn.get("thinking", "").strip() if turn.get("thinking") else ""
         if thinking:
@@ -97,11 +102,6 @@ def render_session_log(session_data: dict) -> str:
                 parts.append(error)
             elif result:
                 parts.append(result)
-
-        # Insert dusk prompt after the turn that triggered it
-        if dusk_prompt and not dusk_inserted and dusk_turn is not None and turn_idx >= dusk_turn:
-            parts.append(dusk_prompt)
-            dusk_inserted = True
 
     # Reflect prompt and reflection at the end
     reflect_prompt = (session_data.get("reflect_prompt") or "").strip()
