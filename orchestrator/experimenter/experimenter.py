@@ -401,7 +401,6 @@ DEFAULT_DESIGN_DOC_NAMES = [
     "Palimpsest",
     "Palimpsest - Technical Architecture",
     "Palimpsest - Experimental Design",
-    "Palimpsest - Minimal Agent Inputs",
 ]
 
 
