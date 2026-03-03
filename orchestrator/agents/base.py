@@ -52,7 +52,6 @@ class SessionLog:
     reflect_prompt: str | None = None
     total_input_tokens: int = 0
     total_output_tokens: int = 0
-    total_thinking_tokens: int = 0
 
     @property
     def action_count(self) -> int:
@@ -78,7 +77,6 @@ class SessionLog:
             "tokens": {
                 "input": self.total_input_tokens,
                 "output": self.total_output_tokens,
-                "thinking": self.total_thinking_tokens,
             },
             "turns": [
                 {
@@ -225,7 +223,6 @@ class BaseAgent(ABC):
             usage = response.get("usage", {})
             self._session_log.total_input_tokens += usage.get("input_tokens", 0)
             self._session_log.total_output_tokens += usage.get("output_tokens", 0)
-            self._session_log.total_thinking_tokens += usage.get("thinking_tokens", 0)
 
             # Process actions
             tool_calls = response.get("tool_calls", [])

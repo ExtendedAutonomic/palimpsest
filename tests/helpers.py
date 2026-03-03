@@ -34,7 +34,7 @@ def make_session_log(
         "reflection": reflection,
         "dusk_prompt": None,
         "reflect_prompt": None,
-        "tokens": {"input": 1000, "output": 500, "thinking": 200},
+        "tokens": {"input": 1000, "output": 500},
         "turns": [
             {
                 "agent_text": "I look around.",

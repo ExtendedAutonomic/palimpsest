@@ -99,7 +99,6 @@ class ClaudeAgent(BaseAgent):
             "usage": {
                 "input_tokens": response.usage.input_tokens,
                 "output_tokens": response.usage.output_tokens,
-                "thinking_tokens": 0,
             },
             "stop_reason": response.stop_reason,
         }

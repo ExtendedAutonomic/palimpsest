@@ -262,7 +262,7 @@ def costs() -> None:
                 data = json.loads(log_file.read_text(encoding="utf-8"))
                 tokens = data.get("tokens", {})
                 agent_input += tokens.get("input", 0)
-                agent_output += tokens.get("output", 0) + tokens.get("thinking", 0)
+                agent_output += tokens.get("output", 0)
                 session_count += 1
             except Exception:
                 continue
