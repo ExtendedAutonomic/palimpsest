@@ -41,7 +41,34 @@ class PlaceInterface:
 
     @current_location.setter
     def current_location(self, value: str) -> None:
-        self._current_location = value
+        if value != self._current_location:
+            self._clear_occupant(self._current_location)
+            self._current_location = value
+            self._set_occupant(value)
+        else:
+            self._current_location = value
+
+    def _set_occupant(self, location: str) -> None:
+        """Mark a space as occupied by this agent in its frontmatter."""
+        note = self._read_note(location)
+        if not note or note.note_type != "space":
+            return
+        fm = dict(note.frontmatter)
+        fm["occupant"] = self._agent_name
+        self._write_note(location, build_space_note(
+            note.description, note.spaces, note.things, fm
+        ))
+
+    def _clear_occupant(self, location: str) -> None:
+        """Remove the occupant property from a space."""
+        note = self._read_note(location)
+        if not note or note.note_type != "space":
+            return
+        fm = dict(note.frontmatter)
+        fm.pop("occupant", None)
+        self._write_note(location, build_space_note(
+            note.description, note.spaces, note.things, fm
+        ))
 
     def _unlocked_tools_path(self) -> Path:
         return self.place_path / ".unlocked_tools.json"
