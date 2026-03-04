@@ -110,11 +110,15 @@ def gather_readable_logs(
         for log_file in sorted(agent_dir.glob("session_*.json")):
             try:
                 data = json.loads(log_file.read_text(encoding="utf-8"))
-                log_date = data.get("start_time", "")[:10]
-                if log_date != target_date:
-                    continue
-                if sessions and data.get("session_number") not in sessions:
-                    continue
+                if sessions:
+                    # Explicit session numbers — skip date filter
+                    if data.get("session_number") not in sessions:
+                        continue
+                else:
+                    # No session filter — use date
+                    log_date = data.get("start_time", "")[:10]
+                    if log_date != target_date:
+                        continue
 
                 # Try readable version first
                 readable_file = readable_dir / log_file.name.replace(
