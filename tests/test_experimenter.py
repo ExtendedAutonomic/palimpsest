@@ -408,17 +408,6 @@ class TestBuildExperimenterInput:
         )
         assert "Introduce the experiment" not in result
 
-    def test_includes_narrator_chapters(self):
-        result = self._build(
-            narrator_chapters=[{
-                "chapter": 1,
-                "title": "The Compass Points Down",
-                "content": "I watch them perceive the emptiness.",
-            }],
-        )
-        assert "Narrator's chapters" in result
-        assert "The Compass Points Down" in result
-
     def test_includes_previous_posts(self):
         result = self._build(
             previous_posts=[{

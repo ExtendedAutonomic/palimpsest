@@ -246,6 +246,7 @@ async def run_narrator(
 
     # Load the narrator system prompt
     system_prompt = load_narrator_prompt(narrator_prompt_path)
+    logger.info(f"Narrator system prompt loaded ({len(system_prompt):,} chars) from {narrator_prompt_path}")
 
     # Gather the day's readable logs
     readable_logs = gather_readable_logs(log_path, day, sessions)

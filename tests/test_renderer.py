@@ -74,7 +74,7 @@ class TestRenderSessionMarkdown:
 
 
     def test_renders_memory_as_compact_reference(self, tmp_path: Path):
-        log_data = make_session_log(session_number=2)
+        log_data = make_session_log(session_number=2, reflection="")
         log_data["opening_prompt"] = (
             "## Memory\n\n---\n\nDay 1\n\n"
             "I explored the place.\n\n"

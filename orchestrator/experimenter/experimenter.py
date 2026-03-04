@@ -347,13 +347,10 @@ def build_experimenter_input(
             parts.append(post["content"])
             parts.append("")
 
-    # Narrator chapters (if any)
-    if narrator_chapters:
-        parts.append("## Narrator's chapters\n")
-        for chapter in narrator_chapters:
-            parts.append(f"### Chapter {chapter['chapter']}: {chapter['title']}\n")
-            parts.append(chapter["content"])
-            parts.append("")
+    # Narrator chapters intentionally excluded from experimenter input.
+    # The experimenter writes from outside the experiment and should form
+    # its own perspective from session logs rather than being led by the
+    # narrator's framing.
 
     # Session logs
     if readable_logs:
@@ -401,6 +398,7 @@ DEFAULT_DESIGN_DOC_NAMES = [
     "Palimpsest",
     "Palimpsest - Technical Architecture",
     "Palimpsest - Experimental Design",
+    "Palimpsest - Insights",
 ]
 
 
