@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .agents.base import BaseAgent, SessionLog
+from .pricing import calculate_cost
 
 logger = logging.getLogger(__name__)
 
@@ -176,6 +177,16 @@ async def run_session(
         memory=memory,
         start_location=start_location,
     )
+
+    # Calculate and store cost in the log
+    if log.model:
+        log.cost = calculate_cost(log.model, log.total_input_tokens, log.total_output_tokens)
+        log_file_early = log_path / agent_name / f"session_{session_num:04d}.json"
+        if log_file_early.exists():
+            log_file_early.write_text(
+                json.dumps(log.to_dict(), indent=2, ensure_ascii=False),
+                encoding="utf-8",
+            )
 
     # Commit place changes to git
     commit_place_changes(place_path, agent_name, session_num)

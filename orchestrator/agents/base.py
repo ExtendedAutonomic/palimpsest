@@ -52,6 +52,8 @@ class SessionLog:
     reflect_prompt: str | None = None
     total_input_tokens: int = 0
     total_output_tokens: int = 0
+    model: str | None = None
+    cost: float | None = None
 
     @property
     def action_count(self) -> int:
@@ -74,6 +76,8 @@ class SessionLog:
             "dusk_prompt": self.dusk_prompt,
             "dusk_action": self.dusk_action,
             "reflect_prompt": self.reflect_prompt,
+            "model": self.model,
+            "cost": self.cost,
             "tokens": {
                 "input": self.total_input_tokens,
                 "output": self.total_output_tokens,
@@ -175,6 +179,7 @@ class BaseAgent(ABC):
             phase=phase,
             start_time=now,
             location_start=self.place.current_location,
+            model=getattr(self, "model", None),
         )
 
         # Build the opening message

@@ -240,40 +240,39 @@ def logs(agent: str | None, last: int) -> None:
 @cli.command()
 def costs() -> None:
     """Check experiment costs so far."""
+    from .pricing import calculate_cost
     config = load_config()
-    pricing = config.get("costs", {}).get("pricing", {})
 
     total_cost = 0.0
     for agent_dir in LOG_PATH.iterdir():
         if not agent_dir.is_dir() or agent_dir.name.startswith("."):
             continue
-        agent_name = agent_dir.name
-        model_key = config.get("costs", {}).get("models", {}).get(agent_name)
-        if not model_key or model_key not in pricing:
+        if agent_dir.name in ("narrator", "experimenter"):
             continue
-        model_pricing = pricing[model_key]
 
-        agent_input = 0
-        agent_output = 0
+        agent_name = agent_dir.name
+        agent_cost = 0.0
+        total_tokens = 0
         session_count = 0
 
         for log_file in agent_dir.glob("session_*.json"):
             try:
                 data = json.loads(log_file.read_text(encoding="utf-8"))
                 tokens = data.get("tokens", {})
-                agent_input += tokens.get("input", 0)
-                agent_output += tokens.get("output", 0)
+                input_tokens = tokens.get("input", 0)
+                output_tokens = tokens.get("output", 0)
+                total_tokens += input_tokens + output_tokens
                 session_count += 1
+                if data.get("cost") is not None:
+                    agent_cost += data["cost"]
+                elif data.get("model"):
+                    agent_cost += calculate_cost(data["model"], input_tokens, output_tokens)
             except Exception:
                 continue
 
-        input_cost = (agent_input / 1_000_000) * model_pricing.get("input", 0)
-        output_cost = (agent_output / 1_000_000) * model_pricing.get("output", 0)
-        agent_cost = input_cost + output_cost
         total_cost += agent_cost
-
         click.echo(f"{agent_name}: {session_count} sessions, "
-                    f"{agent_input + agent_output:,} tokens, ${agent_cost:.2f}")
+                    f"{total_tokens:,} tokens, ${agent_cost:.2f}")
 
     budget = config.get("costs", {}).get("budget", {})
     cap = budget.get("total_cap", 200)

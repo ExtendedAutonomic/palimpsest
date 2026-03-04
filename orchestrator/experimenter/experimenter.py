@@ -29,6 +29,8 @@ logger = logging.getLogger(__name__)
 EXPERIMENTER_MODEL = "claude-opus-4-6"
 MAX_OUTPUT_TOKENS = 8192  # Posts can be longer than narrator chapters
 
+from ..pricing import calculate_cost
+
 
 def load_experimenter_prompt(prompt_path: Path | None = None) -> str:
     """
@@ -193,8 +195,11 @@ def gather_narrator_chapters(
 def gather_cost_summary(log_path: Path, config: dict) -> str:
     """
     Build a cost summary the experimenter can reference.
+
+    Prefers stored cost from log files (written by session_runner).
+    Falls back to calculating from token counts if not present.
     """
-    pricing = config.get("costs", {}).get("pricing", {})
+    from ..pricing import calculate_cost as _calculate_cost
     lines = []
     total_cost = 0.0
 
@@ -205,33 +210,30 @@ def gather_cost_summary(log_path: Path, config: dict) -> str:
             continue
 
         agent_name = agent_dir.name
-        model_key = config.get("costs", {}).get("models", {}).get(agent_name)
-        if not model_key or model_key not in pricing:
-            continue
-        model_pricing = pricing[model_key]
-
-        agent_input = 0
-        agent_output = 0
+        agent_cost = 0.0
         session_count = 0
+        total_tokens = 0
 
         for log_file in agent_dir.glob("session_*.json"):
             try:
                 data = json.loads(log_file.read_text(encoding="utf-8"))
                 tokens = data.get("tokens", {})
-                agent_input += tokens.get("input", 0)
-                agent_output += tokens.get("output", 0)
+                input_tokens = tokens.get("input", 0)
+                output_tokens = tokens.get("output", 0)
+                total_tokens += input_tokens + output_tokens
                 session_count += 1
+                # Use stored cost if available, otherwise calculate
+                if data.get("cost") is not None:
+                    agent_cost += data["cost"]
+                elif data.get("model"):
+                    agent_cost += _calculate_cost(data["model"], input_tokens, output_tokens)
             except Exception:
                 continue
 
-        input_cost = (agent_input / 1_000_000) * model_pricing.get("input", 0)
-        output_cost = (agent_output / 1_000_000) * model_pricing.get("output", 0)
-        agent_cost = input_cost + output_cost
         total_cost += agent_cost
-
         lines.append(
             f"{agent_name}: {session_count} sessions, "
-            f"{agent_input + agent_output:,} tokens, ${agent_cost:.2f}"
+            f"{total_tokens:,} tokens, ${agent_cost:.2f}"
         )
 
     budget = config.get("costs", {}).get("budget", {})
@@ -493,9 +495,24 @@ async def run_experimenter(
 
     post_text = response.content[0].text
 
+    # Calculate cost
+    post_cost = calculate_cost(model, usage.input_tokens, usage.output_tokens)
+    total_post_tokens = usage.input_tokens + usage.output_tokens
+
+    # Build session list string
+    session_str = ""
+    if sessions:
+        session_str = f" · Sessions: {', '.join(str(s) for s in sorted(sessions))}"
+
+    # Append session stats footer
+    footer = (
+        f"\n\n---\n"
+        f"Session stats: {model} · {total_post_tokens:,} tokens · ${post_cost:.2f}{session_str}"
+    )
+
     # Save the post
     output_file = experimenter_output_path / f"post_{post_number:04d}.md"
-    output_file.write_text(post_text, encoding="utf-8")
+    output_file.write_text(post_text + footer, encoding="utf-8")
 
     logger.info(f"Post {post_number} saved to {output_file}")
 

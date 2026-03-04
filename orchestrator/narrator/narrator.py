@@ -22,6 +22,8 @@ logger = logging.getLogger(__name__)
 NARRATOR_MODEL = "claude-opus-4-6"
 MAX_OUTPUT_TOKENS = 4096
 
+from ..pricing import calculate_cost
+
 
 def load_narrator_prompt(prompt_path: Path | None = None) -> str:
     """
@@ -289,9 +291,19 @@ async def run_narrator(
 
     narrator_text = response.content[0].text
 
+    # Calculate cost
+    narrator_cost = calculate_cost(model, usage.input_tokens, usage.output_tokens)
+    total_narrator_tokens = usage.input_tokens + usage.output_tokens
+
+    # Append session stats footer
+    footer = (
+        f"\n\n---\n"
+        f"Session stats: {model} · {total_narrator_tokens:,} tokens · ${narrator_cost:.2f}"
+    )
+
     # Save the chapter
     output_file = narrator_output_path / f"chapter_{chapter_number:04d}.md"
-    output_file.write_text(narrator_text, encoding="utf-8")
+    output_file.write_text(narrator_text + footer, encoding="utf-8")
 
     logger.info(f"Chapter {chapter_number} saved to {output_file}")
 

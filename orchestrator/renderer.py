@@ -240,6 +240,23 @@ def render_session_markdown(log_path: Path, place_path: Path | None = None) -> s
         lines.append(reflection.strip())
         lines.append("")
 
+    # Session stats footer
+    total_tokens = tokens.get("input", 0) + tokens.get("output", 0)
+    duration_str = ""
+    if end:
+        duration_secs = int((end - start).total_seconds())
+        duration_str = f" · {duration_secs // 60}m {duration_secs % 60}s"
+    cost_str = ""
+    cost = data.get("cost")
+    if cost is not None:
+        cost_str = f" · ${cost:.2f}"
+    model_str = data.get("model") or ""
+    lines.append("---")
+    lines.append(
+        f"Session stats: {model_str} · {actions} actions · {total_tokens:,} tokens{cost_str}{duration_str}"
+    )
+    lines.append("")
+
     return "\n".join(lines)
 
 
