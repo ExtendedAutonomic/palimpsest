@@ -287,12 +287,13 @@ def costs() -> None:
               help="Path to narrator prompt markdown file.")
 @click.option("--session", "-s", type=int, multiple=True,
               help="Session number(s) to include. Can be repeated. Defaults to all.")
-def narrate(day: str | None, prompt: str | None, session: tuple[int, ...]) -> None:
+@click.option("--test", is_flag=True, help="Use Sonnet instead of Opus.")
+def narrate(day: str | None, prompt: str | None, session: tuple[int, ...], test: bool) -> None:
     """Run the narrator agent to chronicle the day's events."""
-    asyncio.run(_run_narrator(day, prompt, session or None))
+    asyncio.run(_run_narrator(day, prompt, session or None, test=test))
 
 
-async def _run_narrator(day_str: str | None, prompt_path_str: str | None, sessions: tuple[int, ...] | None = None) -> None:
+async def _run_narrator(day_str: str | None, prompt_path_str: str | None, sessions: tuple[int, ...] | None = None, test: bool = False) -> None:
     """CLI wrapper for running the narrator."""
     from datetime import datetime, timezone
     from .narrator.narrator import run_narrator
@@ -313,7 +314,11 @@ async def _run_narrator(day_str: str | None, prompt_path_str: str | None, sessio
         else:
             narrator_prompt_path = CONFIG_PATH / "narrator_prompt.md"
 
-    click.echo(f"Running narrator...")
+    from .narrator.narrator import NARRATOR_MODEL
+    TEST_MODEL = "claude-sonnet-4-5-20250929"
+    model = TEST_MODEL if test else NARRATOR_MODEL
+
+    click.echo(f"Running narrator ({'test/Sonnet' if test else 'Opus'})...")
     click.echo(f"  Prompt: {narrator_prompt_path}")
     if day:
         click.echo(f"  Day: {day.strftime('%Y-%m-%d')}")
@@ -324,6 +329,7 @@ async def _run_narrator(day_str: str | None, prompt_path_str: str | None, sessio
             narrator_prompt_path=narrator_prompt_path,
             day=day,
             sessions=sessions,
+            model=model,
         )
         click.echo(f"\nChapter saved: {output_file}")
         click.echo()
@@ -351,6 +357,7 @@ async def _run_narrator(day_str: str | None, prompt_path_str: str | None, sessio
               help="Narrator chapter(s) to include. Can be repeated.")
 @click.option("--prompt", "-p", type=click.Path(exists=True), default=None,
               help="Path to experimenter blog prompt markdown file.")
+@click.option("--test", is_flag=True, help="Use Sonnet instead of Opus.")
 def blog(
     topic: str | None,
     since: str | None,
@@ -359,6 +366,7 @@ def blog(
     agent: str | None,
     chapter: tuple[int, ...],
     prompt: str | None,
+    test: bool,
 ) -> None:
     """Write an experimenter blog post about the experiment."""
     asyncio.run(_run_blog(
@@ -369,6 +377,7 @@ def blog(
         agent=agent,
         chapters=chapter or None,
         prompt_path_str=prompt,
+        test=test,
     ))
 
 
@@ -380,6 +389,7 @@ async def _run_blog(
     agent: str | None = None,
     chapters: tuple[int, ...] | None = None,
     prompt_path_str: str | None = None,
+    test: bool = False,
 ) -> None:
     """CLI wrapper for running the experimenter."""
     from datetime import datetime, timezone
@@ -407,7 +417,11 @@ async def _run_blog(
         else:
             experimenter_prompt_path = CONFIG_PATH / "experimenter_prompt.md"
 
-    click.echo(f"Writing blog post...")
+    from .experimenter.experimenter import EXPERIMENTER_MODEL
+    TEST_MODEL = "claude-sonnet-4-5-20250929"
+    model = TEST_MODEL if test else EXPERIMENTER_MODEL
+
+    click.echo(f"Writing blog post ({'test/Sonnet' if test else 'Opus'})...")
     click.echo(f"  Prompt: {experimenter_prompt_path}")
     if topic:
         click.echo(f"  Topic: {topic}")
@@ -433,6 +447,7 @@ async def _run_blog(
             sessions=sessions,
             agent=agent,
             narrator_chapters=chapters,
+            model=model,
         )
         click.echo(f"\nPost saved: {output_file}")
         click.echo()

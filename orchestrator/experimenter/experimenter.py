@@ -26,7 +26,7 @@ import anthropic
 logger = logging.getLogger(__name__)
 
 # Model — Opus for production
-EXPERIMENTER_MODEL = "claude-sonnet-4-5-20250929"  # TODO: switch to opus for production
+EXPERIMENTER_MODEL = "claude-opus-4-6"
 MAX_OUTPUT_TOKENS = 8192  # Posts can be longer than narrator chapters
 
 
