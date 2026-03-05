@@ -126,37 +126,31 @@ def init() -> None:
 @cli.command()
 @click.option("--agent", "-a", type=click.Choice(["claude", "gemini", "deepseek"]),
               required=True, help="Which agent to run")
-@click.option("--once", is_flag=True, help="Run a single session then stop")
+@click.option("--once", is_flag=True, help="Run a single session")
 @click.option("--session", "-s", type=int, default=None,
               help="Override session number")
-@click.option("--phase", "-p", type=int, default=1,
-              help="Current experiment phase")
-@click.option("--schedule", is_flag=True, help="Run on the configured schedule")
 @click.option("--test", is_flag=True, help="Use cheaper test model (Sonnet) instead of production (Opus)")
-def run(agent: str, once: bool, session: int | None, phase: int, schedule: bool, test: bool) -> None:
+def run(agent: str, once: bool, session: int | None, test: bool) -> None:
     """Run an agent session."""
     config = load_config()
 
     if once:
-        asyncio.run(_run_once(agent, config, session_override=session, phase=phase, test=test))
-    elif schedule:
-        click.echo("Scheduled mode not yet implemented. Use --once for now.")
+        asyncio.run(_run_once(agent, config, session_override=session, test=test))
     else:
-        click.echo("Specify --once for a single session or --schedule for recurring.")
+        click.echo("Specify --once to run a session.")
 
 
 async def _run_once(
     agent_name: str,
     config: dict,
     session_override: int | None = None,
-    phase: int = 1,
     test: bool = False,
 ) -> None:
     """CLI wrapper for running a single session."""
     from .session_runner import run_session
 
     model_label = "test (Sonnet)" if test else "production (Opus)"
-    click.echo(f"Starting session for {agent_name} (Phase {phase}, {model_label})")
+    click.echo(f"Starting session for {agent_name} ({model_label})")
 
     result = await run_session(
         agent_name=agent_name,
@@ -164,7 +158,6 @@ async def _run_once(
         log_path=LOG_PATH,
         config=config,
         session_override=session_override,
-        phase=phase,
         test=test,
     )
 

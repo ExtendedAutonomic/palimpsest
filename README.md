@@ -206,27 +206,26 @@ palimpsest init
 Run an agent session.
 
 ```
---agent, -a   claude | gemini | deepseek   (required)
---once                                      Run a single session then stop
---session, -s <N>                           Override session number
---phase, -p <N>                             Current experiment phase (default: 1)
---test                                      Use Sonnet instead of Opus
+--agent   claude | gemini | deepseek   (required)
+--once                                  Required — without it, nothing runs
+--session N                             Override auto-detected session number
+--test                                  Use Sonnet instead of Opus
 ```
 
 ```bash
 palimpsest run --agent claude --once
 palimpsest run --agent claude --once --test
-palimpsest run --agent claude --once --phase 2 --session 8
+palimpsest run --agent claude --once --session 8
 ```
 
 ### `palimpsest narrate`
 Run the narrator agent to chronicle recent sessions.
 
 ```
---day, -d     <YYYY-MM-DD>    Date to narrate (defaults to today)
---session, -s <N>             Session number(s) to include (repeatable)
---prompt, -p  <path>          Path to narrator prompt file
---test                        Use Sonnet instead of Opus
+--day     YYYY-MM-DD    Date to narrate (defaults to today)
+--session N             Session number(s) to include (repeatable)
+--prompt  path          Path to narrator prompt file
+--test                  Use Sonnet instead of Opus
 ```
 
 ```bash
@@ -239,14 +238,14 @@ palimpsest narrate --day 2026-03-04 --test
 Write an experimenter blog post.
 
 ```
---topic, -t   <string>        What to write about (omit to let it choose)
---since       <YYYY-MM-DD>    Include sessions from this date
---until       <YYYY-MM-DD>    Include sessions up to this date
---session, -s <N>             Session number(s) to include (repeatable)
---agent, -a   <name>          Filter sessions by agent
---chapter, -c <N>             Narrator chapter(s) to include (repeatable)
---prompt, -p  <path>          Path to experimenter prompt file
---test                        Use Sonnet instead of Opus
+--topic   string        What to write about (omit to let it choose)
+--since   YYYY-MM-DD    Include sessions from this date
+--until   YYYY-MM-DD    Include sessions up to this date
+--session N             Session number(s) to include (repeatable)
+--agent   name          Filter sessions by agent
+--chapter N             Narrator chapter(s) to include (repeatable)
+--prompt  path          Path to experimenter prompt file
+--test                  Use Sonnet instead of Opus
 ```
 
 ```bash
@@ -260,8 +259,8 @@ palimpsest blog --since 2026-03-01 --until 2026-03-07 --test
 View session logs.
 
 ```
---agent, -a   <name>    Filter by agent
---last, -n    <N>       Number of sessions to show (default: 1)
+--agent   name    Filter by agent
+--last    N       Number of sessions to show (default: 1)
 ```
 
 ```bash
