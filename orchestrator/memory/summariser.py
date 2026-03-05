@@ -27,8 +27,9 @@ logger = logging.getLogger(__name__)
 RECENT_WINDOW = 3  # Number of recent sessions kept in full
 BATCH_SIZE = 3  # Number of sessions per compression batch
 
-# Models — Opus for production, Sonnet for testing
-COMPRESSOR_MODEL = "claude-sonnet-4-5-20250929"  # Intentionally Sonnet — compression is mechanical, not interpretive
+# Opus for compression — preserves voice and register better than Sonnet,
+# which tends to editorialise and impose retrospective structure.
+COMPRESSOR_MODEL = "claude-opus-4-6"
 
 # ---------------------------------------------------------------------------
 # Agent memory — what the agent receives
@@ -151,11 +152,18 @@ def render_session_log(session_data: dict) -> str:
 
 
 COMPRESSOR_PROMPT = """\
-These are records of your earlier days in a place you inhabit — what you \
-did, what you found, and what you thought.
+These are records of your earlier days in a place you inhabit.
 
-Compress them into a shorter account. Write in first person. Preserve \
-what matters most — what you created, what you discovered, what surprised you.
+Compress them into a shorter account, the way memory works — keeping \
+what felt important, letting the rest blur. Write in first person. \
+Match the voice and register of the original: if it was tentative, \
+be tentative. If it was sparse, be sparse. If it was full of silence, \
+let the silence show.
+
+Do not add structure that wasn't there. No headings, no bullet points, \
+no bold summaries, no retrospective lessons. Do not clean up uncertainty \
+or make the account more coherent than the original. The compression \
+should read like remembering, not like writing a report about remembering.
 
 Session logs to compress:
 
@@ -285,6 +293,23 @@ async def run_memory_compression(
     phases = sorted(set(log.get("phase", 1) for log in to_compress))
     phase = phases[-1] if phases else 1
 
+    # Calculate compression cost (cumulative across all runs)
+    from ..pricing import calculate_cost
+    run_cost = calculate_cost(
+        COMPRESSOR_MODEL, total_input_tokens, total_output_tokens
+    )
+    run_tokens = total_input_tokens + total_output_tokens
+
+    # Accumulate with any existing totals from previous compressions
+    existing_fm, _ = _parse_compressed_frontmatter(existing_compressed)
+    prev_tokens = existing_fm.get("tokens", 0)
+    if isinstance(prev_tokens, str):
+        prev_tokens = int(prev_tokens.replace(",", ""))
+    prev_cost_str = str(existing_fm.get("cost", "$0.00"))
+    prev_cost = float(prev_cost_str.lstrip("$"))
+    total_compression_tokens = prev_tokens + run_tokens
+    compression_cost = round(prev_cost + run_cost, 2)
+
     # Build frontmatter
     from datetime import datetime, timezone
     frontmatter = (
@@ -294,6 +319,8 @@ async def run_memory_compression(
         f"phase: {phase}\n"
         f"model: {COMPRESSOR_MODEL}\n"
         f"compressed_through: {new_last_compressed}\n"
+        f"tokens: {total_compression_tokens:,}\n"
+        f"cost: ${compression_cost:.2f}\n"
         f"updated: {datetime.now(timezone.utc).strftime('%Y-%m-%d')}\n"
         f"---\n\n"
     )
