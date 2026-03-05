@@ -155,15 +155,12 @@ COMPRESSOR_PROMPT = """\
 These are records of your earlier days in a place you inhabit.
 
 Compress them into a shorter account, the way memory works — keeping \
-what felt important, letting the rest blur. Write in first person. \
-Match the voice and register of the original: if it was tentative, \
-be tentative. If it was sparse, be sparse. If it was full of silence, \
-let the silence show.
+what felt important, letting the rest go. Write in first person. \
+Match the voice and register of the original.
 
 Do not add structure that wasn't there. No headings, no bullet points, \
-no bold summaries, no retrospective lessons. Do not clean up uncertainty \
-or make the account more coherent than the original. The compression \
-should read like remembering, not like writing a report about remembering.
+no bold summaries. Do not clean up uncertainty or make the account more \
+coherent than the original.
 
 Session logs to compress:
 
