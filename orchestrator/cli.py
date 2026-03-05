@@ -223,8 +223,10 @@ def logs(agent: str | None, last: int) -> None:
         data = json.loads(lf.read_text(encoding="utf-8"))
         click.echo(f"\n{'='*60}")
         click.echo(f"Agent: {data['agent_name']} | Session: {data['session_number']}")
-        click.echo(f"Actions: {data.get('action_count', '?')} | "
-                    f"Tokens: {data.get('tokens', {}).get('input', 0) + data.get('tokens', {}).get('output', 0)}")
+        tokens = data.get('tokens', {})
+        total_tokens = (tokens.get('input', 0) + tokens.get('cache_creation', 0)
+                        + tokens.get('cache_read', 0) + tokens.get('output', 0))
+        click.echo(f"Actions: {data.get('action_count', '?')} | Tokens: {total_tokens:,}")
         if data.get("reflection"):
             click.echo(f"\nReflection:\n{data['reflection'][:500]}")
         click.echo(f"{'='*60}")
@@ -256,14 +258,33 @@ def costs() -> None:
                 tokens = data.get("tokens", {})
                 input_tokens = tokens.get("input", 0)
                 output_tokens = tokens.get("output", 0)
-                total_tokens += input_tokens + output_tokens
+                cache_creation = tokens.get("cache_creation", 0)
+                cache_read = tokens.get("cache_read", 0)
+                total_tokens += input_tokens + cache_creation + cache_read + output_tokens
                 session_count += 1
                 if data.get("cost") is not None:
                     agent_cost += data["cost"]
                 elif data.get("model"):
-                    agent_cost += calculate_cost(data["model"], input_tokens, output_tokens)
+                    agent_cost += calculate_cost(
+                        data["model"], input_tokens, output_tokens,
+                        cache_creation_tokens=cache_creation,
+                        cache_read_tokens=cache_read,
+                    )
             except Exception:
                 continue
+
+        # Add compression costs for this agent
+        compression_file = agent_dir / "compression_costs.json"
+        if compression_file.exists():
+            try:
+                compressions = json.loads(compression_file.read_text(encoding="utf-8"))
+                for c in compressions:
+                    c_input = c.get("input_tokens", 0)
+                    c_output = c.get("output_tokens", 0)
+                    total_tokens += c_input + c_output
+                    agent_cost += calculate_cost(c["model"], c_input, c_output)
+            except Exception:
+                pass
 
         total_cost += agent_cost
         click.echo(f"{agent_name}: {session_count} sessions, "

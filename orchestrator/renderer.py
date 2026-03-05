@@ -86,6 +86,12 @@ def render_session_markdown(log_path: Path, place_path: Path | None = None) -> s
     lines.append(f"date: {start.strftime('%Y-%m-%d')}")
     lines.append(f"actions: {actions}")
     lines.append(f"tokens: {total_tokens:,}")
+    cost = data.get("cost")
+    if cost is not None:
+        lines.append(f"cost: ${cost:.2f}")
+    if end:
+        duration_secs = int((end - start).total_seconds())
+        lines.append(f"duration: {duration_secs // 60}m {duration_secs % 60}s")
     lines.append(f"location: {location_start} → {location_end}")
     lines.append("---")
     lines.append("")
@@ -246,7 +252,6 @@ def render_session_markdown(log_path: Path, place_path: Path | None = None) -> s
         lines.append("")
 
     # Session stats footer
-    total_tokens = tokens.get("input", 0) + tokens.get("output", 0)
     duration_str = ""
     if end:
         duration_secs = int((end - start).total_seconds())

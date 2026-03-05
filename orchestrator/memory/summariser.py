@@ -28,7 +28,7 @@ RECENT_WINDOW = 3  # Number of recent sessions kept in full
 BATCH_SIZE = 3  # Number of sessions per compression batch
 
 # Models — Opus for production, Sonnet for testing
-COMPRESSOR_MODEL = "claude-sonnet-4-5-20250929"  # TODO: switch to opus for production
+COMPRESSOR_MODEL = "claude-sonnet-4-5-20250929"  # Intentionally Sonnet — compression is mechanical, not interpretive
 
 # ---------------------------------------------------------------------------
 # Agent memory — what the agent receives
@@ -123,12 +123,14 @@ Session logs to compress:
 async def compress_session_batch(
     rendered_sessions: list[str],
     model: str = COMPRESSOR_MODEL,
-) -> str:
+) -> tuple[str, dict]:
     """
     Compress a batch of rendered session logs into a shorter memory.
 
     Uses the agent's own voice — the compression should read like
     the agent remembering, not a third party summarising.
+
+    Returns (compressed_text, token_counts).
     """
     client = anthropic.AsyncAnthropic()
 
@@ -141,7 +143,11 @@ async def compress_session_batch(
         messages=[{"role": "user", "content": prompt}],
     )
 
-    return response.content[0].text
+    token_counts = {
+        "input": response.usage.input_tokens,
+        "output": response.usage.output_tokens,
+    }
+    return response.content[0].text, token_counts
 
 
 async def run_memory_compression(
@@ -213,6 +219,8 @@ async def run_memory_compression(
 
     # Compress in batches
     new_sections = []
+    total_input_tokens = 0
+    total_output_tokens = 0
     for i in range(0, len(to_compress), BATCH_SIZE):
         batch = to_compress[i:i + BATCH_SIZE]
         first_session = batch[0]["session_number"]
@@ -222,7 +230,9 @@ async def run_memory_compression(
         logger.info(
             f"Compressing sessions {first_session}-{last_session}"
         )
-        compressed = await compress_session_batch(rendered)
+        compressed, token_counts = await compress_session_batch(rendered)
+        total_input_tokens += token_counts["input"]
+        total_output_tokens += token_counts["output"]
         new_sections.append(
             f"Days {first_session}\u2013{last_session}\n\n{compressed}"
         )
@@ -240,7 +250,36 @@ async def run_memory_compression(
         f"Compressed memory updated through session {new_last_compressed}"
     )
 
+    # Persist compression token costs
+    _record_compression_cost(
+        agent_log_dir, COMPRESSOR_MODEL, total_input_tokens, total_output_tokens
+    )
+
     return True
+
+
+def _record_compression_cost(
+    agent_log_dir: Path,
+    model: str,
+    input_tokens: int,
+    output_tokens: int,
+) -> None:
+    """Append compression token usage to the agent's compression_costs.json."""
+    costs_file = agent_log_dir / "compression_costs.json"
+    existing: list[dict] = []
+    if costs_file.exists():
+        try:
+            existing = json.loads(costs_file.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    from datetime import datetime, timezone
+    existing.append({
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "model": model,
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens,
+    })
+    costs_file.write_text(json.dumps(existing, indent=2), encoding="utf-8")
 
 
 def build_agent_memory(

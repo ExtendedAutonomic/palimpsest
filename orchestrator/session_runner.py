@@ -213,7 +213,7 @@ async def run_session(
         agent_name=agent_name,
         session_number=session_num,
         action_count=log.action_count,
-        total_tokens=log.total_input_tokens + log.total_output_tokens,
+        total_tokens=log.total_input_tokens + log.total_cache_creation_tokens + log.total_cache_read_tokens + log.total_output_tokens,
         location_end=log.location_end,
         reflection=log.reflection,
         log_path=log_file,
