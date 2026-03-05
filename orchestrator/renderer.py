@@ -86,6 +86,8 @@ def render_session_markdown(log_path: Path, place_path: Path | None = None) -> s
     lines.append(f"session: {session}")
     lines.append(f"phase: {phase}")
     lines.append(f"date: {start.strftime('%Y-%m-%d')}")
+    if model:
+        lines.append(f"model: {model}")
     lines.append(f"actions: {actions}")
     lines.append(f"tokens: {total_tokens:,}")
     cost = data.get("cost")
@@ -94,12 +96,12 @@ def render_session_markdown(log_path: Path, place_path: Path | None = None) -> s
     if end:
         duration_secs = int((end - start).total_seconds())
         lines.append(f"duration: {duration_secs // 60}m {duration_secs % 60}s")
-    lines.append(f"location: {location_start} → {location_end}")
+    lines.append(f"location: {location_start} \u2192 {location_end}")
     lines.append("---")
     lines.append("")
 
     # Title
-    lines.append(f"# {agent.title()} — Session {session}")
+    lines.append(f"# {agent.title()} \u2014 Session {session}")
     lines.append("")
     phase_names = {
         1: "The Solitary",
@@ -112,7 +114,7 @@ def render_session_markdown(log_path: Path, place_path: Path | None = None) -> s
     lines.append(f"*Phase {phase}: {phase_name}*")
     if end:
         lines.append(
-            f"*{start.strftime('%d %B %Y, %H:%M')}–{end.strftime('%H:%M')} UTC*"
+            f"*{start.strftime('%d %B %Y, %H:%M')}\u2013{end.strftime('%H:%M')} UTC*"
         )
     lines.append("")
     lines.append("---")
@@ -257,15 +259,14 @@ def render_session_markdown(log_path: Path, place_path: Path | None = None) -> s
     duration_str = ""
     if end:
         duration_secs = int((end - start).total_seconds())
-        duration_str = f" · {duration_secs // 60}m {duration_secs % 60}s"
+        duration_str = f" \u00b7 {duration_secs // 60}m {duration_secs % 60}s"
     cost_str = ""
     cost = data.get("cost")
     if cost is not None:
-        cost_str = f" · ${cost:.2f}"
-    model_str = data.get("model") or ""
+        cost_str = f" \u00b7 ${cost:.2f}"
     lines.append("---")
     lines.append(
-        f"Session stats: {model_str} · {actions} actions · {total_tokens:,} tokens{cost_str}{duration_str}"
+        f"Session stats: {model} \u00b7 {actions} actions \u00b7 {total_tokens:,} tokens{cost_str}{duration_str}"
     )
     lines.append("")
 
