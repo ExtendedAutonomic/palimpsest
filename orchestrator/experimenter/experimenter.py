@@ -540,15 +540,19 @@ async def run_experimenter(
         f"output: {usage.output_tokens:,}, cost: ${post_cost:.2f}"
     )
 
-    # Build session list string
-    session_str = ""
-    if sessions:
-        session_str = f" · Sessions: {', '.join(str(s) for s in sorted(sessions))}"
+    # Derive which sessions were actually included
+    session_logs_raw = gather_session_logs_range(
+        log_path, since=since, until=until, sessions=sessions, agent=agent,
+    )
+    included_sessions = sorted(s["session_number"] for s in session_logs_raw if "session_number" in s)
+    sessions_str = ""
+    if included_sessions:
+        sessions_str = " · Sessions: " + ", ".join(str(s) for s in included_sessions)
 
     # Append session stats footer
     footer = (
         f"\n\n---\n"
-        f"Session stats: {model} · {total_post_tokens:,} tokens · ${post_cost:.2f}{session_str}"
+        f"Session stats: {model} · {total_post_tokens:,} tokens · ${post_cost:.2f}{sessions_str}"
     )
 
     # Save the post

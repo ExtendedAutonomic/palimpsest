@@ -261,6 +261,10 @@ async def run_narrator(
             "Nothing to narrate."
         )
 
+    # Track which sessions were included
+    session_logs_raw = gather_session_logs(log_path, day, sessions)
+    included_sessions = sorted(s["session_number"] for s in session_logs_raw if "session_number" in s)
+
     # Get previous entries
     previous_entries = get_previous_entries(narrator_output_path)
 
@@ -302,9 +306,12 @@ async def run_narrator(
     )
 
     # Append session stats footer
+    sessions_str = ""
+    if included_sessions:
+        sessions_str = " · Sessions: " + ", ".join(str(s) for s in included_sessions)
     footer = (
         f"\n\n---\n"
-        f"Session stats: {model} · {total_narrator_tokens:,} tokens · ${narrator_cost:.2f}"
+        f"Session stats: {model} · {total_narrator_tokens:,} tokens · ${narrator_cost:.2f}{sessions_str}"
     )
 
     # Save the chapter

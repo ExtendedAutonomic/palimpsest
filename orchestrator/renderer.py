@@ -62,7 +62,7 @@ def render_session_markdown(log_path: Path, place_path: Path | None = None) -> s
 
     agent = data["agent_name"]
     session = data["session_number"]
-    phase = data["phase"]
+    phase = data.get("phase", 1)
     start = datetime.fromisoformat(data["start_time"])
     end = datetime.fromisoformat(data["end_time"]) if data.get("end_time") else None
     actions = data.get("action_count", 0)

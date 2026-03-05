@@ -38,6 +38,7 @@ class SessionLog:
     """Complete record of a single agent session."""
     agent_name: str
     session_number: int
+    phase: int
     start_time: datetime
     end_time: datetime | None = None
     location_start: str = "here"
@@ -63,6 +64,7 @@ class SessionLog:
         return {
             "agent_name": self.agent_name,
             "session_number": self.session_number,
+            "phase": self.phase,
             "start_time": self.start_time.isoformat(),
             "end_time": self.end_time.isoformat() if self.end_time else None,
             "location_start": self.location_start,
@@ -149,6 +151,7 @@ class BaseAgent(ABC):
     async def run_session(
         self,
         session_number: int,
+        phase: int = 1,
         memory: str | None = None,
         start_location: str | None = None,
     ) -> SessionLog:
@@ -173,6 +176,7 @@ class BaseAgent(ABC):
         self._session_log = SessionLog(
             agent_name=self.name,
             session_number=session_number,
+            phase=phase,
             start_time=now,
             location_start=self.place.current_location,
             model=getattr(self, "model", None),
