@@ -4,7 +4,7 @@
 
 An experiment in emergent AI behaviour. Three agents — Claude, Gemini, DeepSeek — are placed sequentially into a shared environment and given minimal orientation. They have tools to explore, create, and alter. They are not told what to do with them.
 
-Inspired by Susanna Clarke's *Piranesi* (a character who catalogues and names a world he doesn't understand, whose memory is systematically compressed by his environment), Olga Ravn's *The Employees* (non-human workers asked to describe what they find meaningful, without being told what meaningful means), Mark Z. Danielewski's *House of Leaves* (a space that exceeds its own dimensions, whose topology cannot be fully known from inside), and Jorge Luis Borges — specifically *The Library of Babel* (infinite space, all possible content, navigated by beings who can only ever see their immediate surroundings) and *The Circular Ruins* (the question of what it means to dream a consciousness into existence, and whether the dreamer is also dreamed).
+Inspired by Susanna Clarke's *Piranesi* (a character who catalogues and names a world he doesn't understand, whose past self becomes unrecognisable to him as his memory erodes — old journal entries written by someone he no longer is), Olga Ravn's *The Employees* (non-human workers asked to describe what they find meaningful, without being told what meaningful means), Mark Z. Danielewski's *House of Leaves* (a space that exceeds its own dimensions, whose topology cannot be fully known from inside), and Jorge Luis Borges — specifically *The Library of Babel* (infinite space, all possible content, navigated by beings who can only ever see their immediate surroundings) and *The Circular Ruins* (the question of what it means to dream a consciousness into existence, and whether the dreamer is also dreamed).
 
 ---
 
@@ -173,7 +173,7 @@ A Claude Opus agent run after primary sessions complete. It reads rendered sessi
 
 ### Experimenter
 
-A Claude Opus agent that writes from outside the experiment — showing working, noting what's surprising, being honest about what breaks. It has access to everything: session logs (including thinking and reflections), narrator chapters, experiment design docs, and cost data.
+A Claude Opus agent that writes from outside the experiment — showing working, noting what's surprising, being honest about what breaks. It has access to everything: session logs (including thinking and reflections), experiment design docs, and cost data. Narrator chapters can be passed in explicitly via `--chapter` but are excluded by default.
 
 The experimenter writes when there's something worth writing about, not on a fixed schedule. Its output is a researcher's notebook rather than a paper.
 
@@ -185,7 +185,7 @@ The experimenter writes when there's something worth writing about, not on a fix
 |---|---|---|---|---|
 | **Primary agents** | ✗ | Own only (as memory) | ✗ | ✗ |
 | **Narrator** | ✓ | All | — | ✗ |
-| **Experimenter** | ✓ | All | ✓ | ✓ |
+| **Experimenter** | ✓ | All | ✗ (by default) | ✓ |
 
 Thinking tokens are private phenomenology. The place is the public consensus layer.
 
@@ -198,6 +198,10 @@ Sessions are run manually. There is no scheduler.
 ### `palimpsest init`
 Initialise the place with the starting structure and git repository.
 
+```bash
+palimpsest init
+```
+
 ### `palimpsest run`
 Run an agent session.
 
@@ -209,6 +213,12 @@ Run an agent session.
 --test                                      Use Sonnet instead of Opus
 ```
 
+```bash
+palimpsest run --agent claude --once
+palimpsest run --agent claude --once --test
+palimpsest run --agent claude --once --phase 2 --session 8
+```
+
 ### `palimpsest narrate`
 Run the narrator agent to chronicle recent sessions.
 
@@ -217,6 +227,12 @@ Run the narrator agent to chronicle recent sessions.
 --session, -s <N>             Session number(s) to include (repeatable)
 --prompt, -p  <path>          Path to narrator prompt file
 --test                        Use Sonnet instead of Opus
+```
+
+```bash
+palimpsest narrate
+palimpsest narrate --session 3 --session 4
+palimpsest narrate --day 2026-03-04 --test
 ```
 
 ### `palimpsest blog`
@@ -233,12 +249,24 @@ Write an experimenter blog post.
 --test                        Use Sonnet instead of Opus
 ```
 
+```bash
+palimpsest blog
+palimpsest blog --session 1 --session 2
+palimpsest blog --topic "the companion illusion" --since 2026-03-01
+palimpsest blog --since 2026-03-01 --until 2026-03-07 --test
+```
+
 ### `palimpsest logs`
 View session logs.
 
 ```
 --agent, -a   <name>    Filter by agent
 --last, -n    <N>       Number of sessions to show (default: 1)
+```
+
+```bash
+palimpsest logs --agent claude --last 3
+palimpsest logs --last 1
 ```
 
 ### `palimpsest place`
@@ -248,8 +276,17 @@ View the state of the place.
 --tree    Show the place as a directory tree
 ```
 
+```bash
+palimpsest place
+palimpsest place --tree
+```
+
 ### `palimpsest costs`
 Check experiment spend so far.
+
+```bash
+palimpsest costs
+```
 
 ---
 
