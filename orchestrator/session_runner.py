@@ -119,7 +119,6 @@ async def run_session(
     log_path: Path,
     config: dict,
     session_override: int | None = None,
-    phase: int = 1,
     test: bool = False,
 ) -> SessionResult:
     """
@@ -152,7 +151,7 @@ async def run_session(
             f"The place has not been initialised. Run 'palimpsest init' first."
         )
 
-    logger.info(f"Starting session {session_num} for {agent_name} (Phase {phase})")
+    logger.info(f"Starting session {session_num} for {agent_name}")
 
     # Create agent
     agent = create_agent(agent_name, place_path, log_path, config, test=test)
@@ -173,7 +172,6 @@ async def run_session(
     # Run the session
     log = await agent.run_session(
         session_number=session_num,
-        phase=phase,
         memory=memory,
         start_location=start_location,
     )
