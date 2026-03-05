@@ -305,22 +305,34 @@ async def run_narrator(
         f"output: {usage.output_tokens:,}, cost: ${narrator_cost:.2f}"
     )
 
-    # Append session stats footer
-    sessions_str = ""
-    if included_sessions:
-        sessions_str = " · Sessions: " + ", ".join(str(s) for s in included_sessions)
-    footer = (
-        f"\n\n---\n"
-        f"Session stats: {model} · {total_narrator_tokens:,} tokens · ${narrator_cost:.2f}{sessions_str}"
+    # Derive phase from session logs (use latest if mixed)
+    phases = sorted(set(s.get("phase", 1) for s in session_logs_raw))
+    phase = phases[-1] if phases else 1
+
+    # Build frontmatter
+    sessions_str = ", ".join(str(s) for s in included_sessions) if included_sessions else ""
+    frontmatter = (
+        f"---\n"
+        f"type: narrator\n"
+        f"chapter: {chapter_number}\n"
+        f"phase: {phase}\n"
+        f"date: {day.strftime('%Y-%m-%d')}\n"
+        f"model: {model}\n"
+        f"tokens: {total_narrator_tokens:,}\n"
+        f"cost: ${narrator_cost:.2f}\n"
     )
+    if sessions_str:
+        frontmatter += f"sessions: {sessions_str}\n"
+    frontmatter += f"---\n\n"
 
     # Save the chapter
     output_file = narrator_output_path / f"chapter_{chapter_number:04d}.md"
-    output_file.write_text(narrator_text + footer, encoding="utf-8")
+    output_file.write_text(frontmatter + narrator_text, encoding="utf-8")
 
     # Save cost sidecar — same structure as session logs for palimpsest costs
     sidecar = {
         "model": model,
+        "phase": phase,
         "tokens": {"input": usage.input_tokens, "output": usage.output_tokens},
         "cost": narrator_cost,
     }

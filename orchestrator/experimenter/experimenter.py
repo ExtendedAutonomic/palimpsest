@@ -545,23 +545,36 @@ async def run_experimenter(
         log_path, since=since, until=until, sessions=sessions, agent=agent,
     )
     included_sessions = sorted(s["session_number"] for s in session_logs_raw if "session_number" in s)
-    sessions_str = ""
-    if included_sessions:
-        sessions_str = " · Sessions: " + ", ".join(str(s) for s in included_sessions)
+    sessions_str = ", ".join(str(s) for s in included_sessions) if included_sessions else ""
 
-    # Append session stats footer
-    footer = (
-        f"\n\n---\n"
-        f"Session stats: {model} · {total_post_tokens:,} tokens · ${post_cost:.2f}{sessions_str}"
+    # Derive phase from session logs (use latest if mixed)
+    phases = sorted(set(s.get("phase", 1) for s in session_logs_raw))
+    phase = phases[-1] if phases else config.get("schedule", {}).get("current_phase", 1)
+
+    # Build frontmatter
+    now = datetime.now(timezone.utc)
+    frontmatter = (
+        f"---\n"
+        f"type: experimenter\n"
+        f"post: {post_number}\n"
+        f"phase: {phase}\n"
+        f"date: {now.strftime('%Y-%m-%d')}\n"
+        f"model: {model}\n"
+        f"tokens: {total_post_tokens:,}\n"
+        f"cost: ${post_cost:.2f}\n"
     )
+    if sessions_str:
+        frontmatter += f"sessions: {sessions_str}\n"
+    frontmatter += f"---\n\n"
 
     # Save the post
     output_file = experimenter_output_path / f"post_{post_number:04d}.md"
-    output_file.write_text(post_text + footer, encoding="utf-8")
+    output_file.write_text(frontmatter + post_text, encoding="utf-8")
 
     # Save cost sidecar — same structure as session logs for palimpsest costs
     sidecar = {
         "model": model,
+        "phase": phase,
         "tokens": {"input": usage.input_tokens, "output": usage.output_tokens},
         "cost": post_cost,
     }
