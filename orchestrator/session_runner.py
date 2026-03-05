@@ -151,7 +151,7 @@ async def run_session(
             f"The place has not been initialised. Run 'palimpsest init' first."
         )
 
-    phase = config.get("current_phase", 1)
+    phase = config.get("schedule", {}).get("current_phase", 1)
 
     logger.info(f"Starting session {session_num} for {agent_name} (Phase {phase})")
 

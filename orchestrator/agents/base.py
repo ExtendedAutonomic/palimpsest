@@ -48,7 +48,7 @@ class SessionLog:
     turns: list[Turn] = field(default_factory=list)
     reflection: str | None = None
     dusk_prompt: str | None = None
-    dusk_action: int | None = None  # Action count when dusk was sent
+    dusk_action: int | None = None  # Turn index when dusk was sent
     reflect_prompt: str | None = None
     total_input_tokens: int = 0
     total_output_tokens: int = 0
@@ -165,9 +165,8 @@ class BaseAgent(ABC):
         The arc of a day: wake → act → dusk → reflect → sleep.
         """
         now = datetime.now(timezone.utc)
-        action_budget = self.config.get("session", {}).get("action_budget", 25)
+        max_turns = self.config.get("session", {}).get("turn_budget", 25)
         dusk_threshold = self.config.get("session", {}).get("dusk_threshold", 22)
-        max_turns = action_budget  # Each turn has equal weight
 
         # Set starting location and session context
         self.place._session_number = session_number

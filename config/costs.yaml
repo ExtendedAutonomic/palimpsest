@@ -7,7 +7,7 @@ pricing:
   claude-opus-4-6:
     input: 5.00
     output: 25.00    # Also applies to extended thinking tokens
-  claude-sonnet-4-5:
+  claude-sonnet-4-5-20250929:
     input: 3.00
     output: 15.00
   gemini-2.5-pro:

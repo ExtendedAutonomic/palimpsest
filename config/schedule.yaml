@@ -1,6 +1,6 @@
 current_phase: 1
 
 session:
-  action_budget: 17
+  turn_budget: 17
   dusk_threshold: 14
   max_output_tokens: 4096
