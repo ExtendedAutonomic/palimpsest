@@ -48,6 +48,31 @@ def load_config() -> dict:
     return config
 
 
+def parse_sessions(values: tuple[str, ...]) -> tuple[int, ...] | None:
+    """Parse session arguments into a flat tuple of ints.
+
+    Accepts individual numbers ("3") and ranges ("3-6").
+    Returns None if no values provided.
+    """
+    if not values:
+        return None
+    result = []
+    for v in values:
+        if "-" in v:
+            parts = v.split("-", 1)
+            try:
+                start, end = int(parts[0]), int(parts[1])
+                result.extend(range(start, end + 1))
+            except ValueError:
+                raise click.BadParameter(f"Invalid session range: {v}")
+        else:
+            try:
+                result.append(int(v))
+            except ValueError:
+                raise click.BadParameter(f"Invalid session number: {v}")
+    return tuple(sorted(set(result)))
+
+
 def setup_logging(verbose: bool = False) -> None:
     """Configure logging."""
     level = logging.DEBUG if verbose else logging.INFO
@@ -331,12 +356,12 @@ def costs() -> None:
               help="Date to narrate (YYYY-MM-DD). Defaults to today.")
 @click.option("--prompt", "-p", type=click.Path(exists=True), default=None,
               help="Path to narrator prompt markdown file.")
-@click.option("--session", "-s", type=int, multiple=True,
-              help="Session number(s) to include. Can be repeated. Defaults to all.")
+@click.option("--session", "-s", type=str, multiple=True,
+              help="Session(s) to include. Accepts numbers (3) and ranges (3-6).")
 @click.option("--test", is_flag=True, help="Use Sonnet instead of Opus.")
-def narrate(day: str | None, prompt: str | None, session: tuple[int, ...], test: bool) -> None:
+def narrate(day: str | None, prompt: str | None, session: tuple[str, ...], test: bool) -> None:
     """Run the narrator agent to chronicle the day's events."""
-    asyncio.run(_run_narrator(day, prompt, session or None, test=test))
+    asyncio.run(_run_narrator(day, prompt, parse_sessions(session), test=test))
 
 
 async def _run_narrator(day_str: str | None, prompt_path_str: str | None, sessions: tuple[int, ...] | None = None, test: bool = False) -> None:
@@ -395,23 +420,25 @@ async def _run_narrator(day_str: str | None, prompt_path_str: str | None, sessio
               help="Include sessions from this date (YYYY-MM-DD).")
 @click.option("--until", type=str, default=None,
               help="Include sessions up to this date (YYYY-MM-DD).")
-@click.option("--session", "-s", type=int, multiple=True,
-              help="Session number(s) to include. Can be repeated.")
+@click.option("--session", "-s", type=str, multiple=True,
+              help="Session(s) to include. Accepts numbers (3) and ranges (3-6).")
 @click.option("--agent", "-a", type=str, default=None,
               help="Filter sessions by agent name.")
 @click.option("--chapter", "-c", type=int, multiple=True,
               help="Narrator chapter(s) to include. Can be repeated.")
 @click.option("--prompt", "-p", type=click.Path(exists=True), default=None,
               help="Path to experimenter blog prompt markdown file.")
+@click.option("--no-memories", is_flag=True, help="Exclude compressed memory files from context.")
 @click.option("--test", is_flag=True, help="Use Sonnet instead of Opus.")
 def blog(
     topic: str | None,
     since: str | None,
     until: str | None,
-    session: tuple[int, ...],
+    session: tuple[str, ...],
     agent: str | None,
     chapter: tuple[int, ...],
     prompt: str | None,
+    no_memories: bool,
     test: bool,
 ) -> None:
     """Write an experimenter blog post about the experiment."""
@@ -419,10 +446,11 @@ def blog(
         topic=topic,
         since_str=since,
         until_str=until,
-        sessions=session or None,
+        sessions=parse_sessions(session),
         agent=agent,
         chapters=chapter or None,
         prompt_path_str=prompt,
+        include_memories=not no_memories,
         test=test,
     ))
 
@@ -435,6 +463,7 @@ async def _run_blog(
     agent: str | None = None,
     chapters: tuple[int, ...] | None = None,
     prompt_path_str: str | None = None,
+    include_memories: bool = True,
     test: bool = False,
 ) -> None:
     """CLI wrapper for running the experimenter."""
@@ -481,6 +510,8 @@ async def _run_blog(
         click.echo(f"  Agent: {agent}")
     if chapters:
         click.echo(f"  Narrator chapters: {', '.join(str(c) for c in chapters)}")
+    if not include_memories:
+        click.echo("  Excluding compressed memories")
 
     try:
         output_file = await run_experimenter(
@@ -493,6 +524,7 @@ async def _run_blog(
             sessions=sessions,
             agent=agent,
             narrator_chapters=chapters,
+            include_memories=include_memories,
             model=model,
         )
         click.echo(f"\nPost saved: {output_file}")

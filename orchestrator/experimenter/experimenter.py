@@ -192,6 +192,40 @@ def gather_narrator_chapters(
     return sorted(entries, key=lambda x: x["chapter"])
 
 
+def gather_compressed_memories(log_path: Path, agent: str | None = None) -> list[dict]:
+    """
+    Load compressed memory files for each agent.
+
+    These show what the agent actually receives as its memory of
+    older sessions — the lossy, reshaped version of its own past.
+    The experimenter can compare this against the full session logs
+    to write about what was kept, what was lost, and how the
+    compression reshapes the agent's self-understanding.
+    """
+    memories = []
+
+    for agent_dir in sorted(log_path.iterdir()):
+        if not agent_dir.is_dir() or agent_dir.name.startswith("."):
+            continue
+        if agent_dir.name in ("narrator", "experimenter"):
+            continue
+        if agent and agent_dir.name != agent:
+            continue
+
+        compressed_file = agent_dir / "compressed_memory.md"
+        if compressed_file.exists():
+            try:
+                content = compressed_file.read_text(encoding="utf-8")
+                memories.append({
+                    "agent": agent_dir.name,
+                    "content": content,
+                })
+            except Exception as e:
+                logger.warning(f"Failed to load compressed memory for {agent_dir.name}: {e}")
+
+    return memories
+
+
 def gather_cost_summary(log_path: Path, config: dict) -> str:
     """
     Build a cost summary the experimenter can reference.
@@ -360,13 +394,14 @@ def build_experimenter_input(
     cost_summary: str,
     post_number: int,
     topic: str | None = None,
+    compressed_memories: list[dict] | None = None,
 ) -> str:
     """
     Build the user message for the experimenter.
 
     Assembles everything the experimenter has access to:
-    design docs, session logs, narrator chapters, previous
-    posts, and cost data.
+    design docs, session logs, compressed memories, narrator
+    chapters, previous posts, and cost data.
     """
     parts = []
 
@@ -395,6 +430,19 @@ def build_experimenter_input(
         for log_md in readable_logs:
             parts.append(log_md)
             parts.append("\n---\n")
+
+    # Compressed memories — what the agent actually remembers
+    if compressed_memories:
+        parts.append("## Compressed memories\n")
+        parts.append(
+            "These are the compressed memories each agent receives at session "
+            "start in place of the full session logs above. Compare what was "
+            "kept against what actually happened.\n"
+        )
+        for mem in compressed_memories:
+            parts.append(f"### {mem['agent']}\n")
+            parts.append(mem["content"])
+            parts.append("")
 
     # Cost data
     if cost_summary:
@@ -452,6 +500,7 @@ async def run_experimenter(
     sessions: tuple[int, ...] | None = None,
     agent: str | None = None,
     narrator_chapters: tuple[int, ...] | None = None,
+    include_memories: bool = True,
     model: str = EXPERIMENTER_MODEL,
 ) -> Path:
     """
@@ -498,6 +547,15 @@ async def run_experimenter(
     # Cost summary
     cost_summary = gather_cost_summary(log_path, config)
 
+    # Compressed memories — included by default so the experimenter
+    # can compare what the agent remembers against the full logs.
+    # Use --no-memories to exclude (e.g. for posts covering sessions
+    # before compression has occurred).
+    compressed_memories = (
+        gather_compressed_memories(log_path, agent=agent)
+        if include_memories else None
+    )
+
     # Determine post number
     post_number = get_next_post_number(experimenter_output_path)
 
@@ -510,6 +568,7 @@ async def run_experimenter(
         cost_summary=cost_summary,
         post_number=post_number,
         topic=topic,
+        compressed_memories=compressed_memories,
     )
 
     logger.info(
