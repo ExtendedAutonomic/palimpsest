@@ -67,7 +67,12 @@ def render_session_markdown(log_path: Path, place_path: Path | None = None) -> s
     end = datetime.fromisoformat(data["end_time"]) if data.get("end_time") else None
     actions = data.get("action_count", 0)
     tokens = data.get("tokens", {})
-    total_tokens = tokens.get("input", 0) + tokens.get("output", 0)
+    total_tokens = (
+        tokens.get("input", 0)
+        + tokens.get("cache_creation", 0)
+        + tokens.get("cache_read", 0)
+        + tokens.get("output", 0)
+    )
     location_start = data.get("location_start", "?")
     location_end = data.get("location_end", "?")
 

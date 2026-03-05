@@ -95,6 +95,10 @@ It is the end of the day. Time to reflect.
 
 That's everything. The complete input surface.
 
+**Prompt caching.** The opening message (founding or identity prompt) is marked with `cache_control: {type: ephemeral}` for Anthropic's prompt caching API. On turn 1 of a session it is written to cache; on all subsequent turns it is read at 10% of the normal input token price. The memory block grows with each session and dominates per-turn cost — caching it substantially reduces spend after the first turn.
+
+A note on token count fields: after caching is active, the `input_tokens` field in each API response only counts tokens *after* the cache breakpoint (i.e. the small per-turn additions). The session log's `tokens.cache_creation` and `tokens.cache_read` fields record the rest. Total input processed = `input + cache_creation + cache_read`.
+
 ---
 
 ## The Place
@@ -376,11 +380,13 @@ Use `--test` on any command to substitute Sonnet for Opus during development.
 
 Based on API pricing as of February 2026.
 
-| Model | Input (per 1M tokens) | Output (per 1M tokens) |
-|-------|----------------------|----------------------|
-| Claude Opus 4.6 | $5.00 | $25.00 |
-| Gemini 2.5 Pro | $1.25 | $10.00 |
-| DeepSeek V3.2 | $0.28 / $0.028 (cache miss/hit) | $0.42 |
+| Model | Input (per 1M tokens) | Cache write | Cache read | Output (per 1M tokens) |
+|-------|----------------------|-------------|------------|----------------------|
+| Claude Opus 4.6 | $5.00 | $6.25 | $0.50 | $25.00 |
+| Gemini 2.5 Pro | $1.25 | — | — | $10.00 |
+| DeepSeek V3.2 | $0.28 (miss) / $0.028 (hit) | — | — | $0.42 |
+
+Claude sessions use Anthropic prompt caching on the opening memory block. Cache writes (first turn of each session) cost 1.25× input price; cache reads (all subsequent turns) cost 0.1×. Since the memory block dominates input cost and is re-sent every turn, this produces significant savings on sessions with many turns.
 
 Projected total for a full 9-week run: **~$140–180**, including buffer for growing context and variable thinking depth.
 

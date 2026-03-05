@@ -351,5 +351,5 @@ class BaseAgent(ABC):
         logger.info(
             f"Saved session log: {log_file} "
             f"({self._session_log.action_count} actions, "
-            f"{self._session_log.total_input_tokens + self._session_log.total_output_tokens} tokens)"
+            f"{self._session_log.total_input_tokens + self._session_log.total_cache_creation_tokens + self._session_log.total_cache_read_tokens + self._session_log.total_output_tokens} tokens)"
         )
