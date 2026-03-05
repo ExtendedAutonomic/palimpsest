@@ -196,14 +196,16 @@ def gather_cost_summary(log_path: Path, config: dict) -> str:
     """
     Build a cost summary the experimenter can reference.
 
-    Prefers stored cost from log files (written by session_runner).
-    Falls back to calculating from token counts if not present.
+    Covers primary agents (session_*.json), narrator (chapter_*.json
+    sidecars), and experimenter (post_*.json sidecars).
+    Prefers stored cost; falls back to calculating from tokens + model.
     """
     from ..pricing import calculate_cost as _calculate_cost
     lines = []
     total_cost = 0.0
 
-    for agent_dir in log_path.iterdir():
+    # Primary agents
+    for agent_dir in sorted(log_path.iterdir()):
         if not agent_dir.is_dir() or agent_dir.name.startswith("."):
             continue
         if agent_dir.name in ("narrator", "experimenter"):
@@ -214,7 +216,7 @@ def gather_cost_summary(log_path: Path, config: dict) -> str:
         session_count = 0
         total_tokens = 0
 
-        for log_file in agent_dir.glob("session_*.json"):
+        for log_file in sorted(agent_dir.glob("session_*.json")):
             try:
                 data = json.loads(log_file.read_text(encoding="utf-8"))
                 tokens = data.get("tokens", {})
@@ -222,7 +224,6 @@ def gather_cost_summary(log_path: Path, config: dict) -> str:
                 output_tokens = tokens.get("output", 0)
                 total_tokens += input_tokens + output_tokens
                 session_count += 1
-                # Use stored cost if available, otherwise calculate
                 if data.get("cost") is not None:
                     agent_cost += data["cost"]
                 elif data.get("model"):
@@ -234,6 +235,40 @@ def gather_cost_summary(log_path: Path, config: dict) -> str:
         lines.append(
             f"{agent_name}: {session_count} sessions, "
             f"{total_tokens:,} tokens, ${agent_cost:.2f}"
+        )
+
+    # Observer agents — narrator and experimenter sidecars
+    observer_specs = [
+        ("narrator", "chapter_*.json", "chapters"),
+        ("experimenter", "post_*.json", "posts"),
+    ]
+    for dir_name, glob_pattern, label in observer_specs:
+        observer_dir = log_path / dir_name
+        if not observer_dir.exists():
+            continue
+        observer_cost = 0.0
+        item_count = 0
+        total_tokens = 0
+        for sidecar in sorted(observer_dir.glob(glob_pattern)):
+            try:
+                data = json.loads(sidecar.read_text(encoding="utf-8"))
+                tokens = data.get("tokens", {})
+                total_tokens += tokens.get("input", 0) + tokens.get("output", 0)
+                item_count += 1
+                if data.get("cost") is not None:
+                    observer_cost += data["cost"]
+                elif data.get("model"):
+                    observer_cost += _calculate_cost(
+                        data["model"],
+                        tokens.get("input", 0),
+                        tokens.get("output", 0),
+                    )
+            except Exception:
+                continue
+        total_cost += observer_cost
+        lines.append(
+            f"{dir_name}: {item_count} {label}, "
+            f"{total_tokens:,} tokens, ${observer_cost:.2f}"
         )
 
     budget = config.get("costs", {}).get("budget", {})
@@ -495,9 +530,15 @@ async def run_experimenter(
 
     post_text = response.content[0].text
 
-    # Calculate cost
+    # Token usage and cost
+    usage = response.usage
     post_cost = calculate_cost(model, usage.input_tokens, usage.output_tokens)
     total_post_tokens = usage.input_tokens + usage.output_tokens
+
+    logger.info(
+        f"Experimenter tokens — input: {usage.input_tokens:,}, "
+        f"output: {usage.output_tokens:,}, cost: ${post_cost:.2f}"
+    )
 
     # Build session list string
     session_str = ""
@@ -514,13 +555,15 @@ async def run_experimenter(
     output_file = experimenter_output_path / f"post_{post_number:04d}.md"
     output_file.write_text(post_text + footer, encoding="utf-8")
 
-    logger.info(f"Post {post_number} saved to {output_file}")
+    # Save cost sidecar — same structure as session logs for palimpsest costs
+    sidecar = {
+        "model": model,
+        "tokens": {"input": usage.input_tokens, "output": usage.output_tokens},
+        "cost": post_cost,
+    }
+    sidecar_file = experimenter_output_path / f"post_{post_number:04d}.json"
+    sidecar_file.write_text(json.dumps(sidecar, indent=2), encoding="utf-8")
 
-    # Log token usage
-    usage = response.usage
-    logger.info(
-        f"Experimenter tokens — input: {usage.input_tokens:,}, "
-        f"output: {usage.output_tokens:,}"
-    )
+    logger.info(f"Post {post_number} saved to {output_file}")
 
     return output_file

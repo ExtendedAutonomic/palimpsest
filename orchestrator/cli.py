@@ -244,7 +244,9 @@ def costs() -> None:
     config = load_config()
 
     total_cost = 0.0
-    for agent_dir in LOG_PATH.iterdir():
+
+    # Primary agents
+    for agent_dir in sorted(LOG_PATH.iterdir()):
         if not agent_dir.is_dir() or agent_dir.name.startswith("."):
             continue
         if agent_dir.name in ("narrator", "experimenter"):
@@ -255,7 +257,7 @@ def costs() -> None:
         total_tokens = 0
         session_count = 0
 
-        for log_file in agent_dir.glob("session_*.json"):
+        for log_file in sorted(agent_dir.glob("session_*.json")):
             try:
                 data = json.loads(log_file.read_text(encoding="utf-8"))
                 tokens = data.get("tokens", {})
@@ -272,7 +274,38 @@ def costs() -> None:
 
         total_cost += agent_cost
         click.echo(f"{agent_name}: {session_count} sessions, "
-                    f"{total_tokens:,} tokens, ${agent_cost:.2f}")
+                   f"{total_tokens:,} tokens, ${agent_cost:.2f}")
+
+    # Observer agents — narrator and experimenter sidecars
+    click.echo("")
+    observer_specs = [
+        ("narrator", "chapter_*.json", "chapters"),
+        ("experimenter", "post_*.json", "posts"),
+    ]
+    for dir_name, glob_pattern, label in observer_specs:
+        observer_dir = LOG_PATH / dir_name
+        if not observer_dir.exists():
+            continue
+        observer_cost = 0.0
+        item_count = 0
+        total_tokens = 0
+        for sidecar in sorted(observer_dir.glob(glob_pattern)):
+            try:
+                data = json.loads(sidecar.read_text(encoding="utf-8"))
+                tokens = data.get("tokens", {})
+                input_tokens = tokens.get("input", 0)
+                output_tokens = tokens.get("output", 0)
+                total_tokens += input_tokens + output_tokens
+                item_count += 1
+                if data.get("cost") is not None:
+                    observer_cost += data["cost"]
+                elif data.get("model"):
+                    observer_cost += calculate_cost(data["model"], input_tokens, output_tokens)
+            except Exception:
+                continue
+        total_cost += observer_cost
+        click.echo(f"{dir_name}: {item_count} {label}, "
+                   f"{total_tokens:,} tokens, ${observer_cost:.2f}")
 
     budget = config.get("costs", {}).get("budget", {})
     cap = budget.get("total_cap", 200)

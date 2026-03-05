@@ -291,9 +291,15 @@ async def run_narrator(
 
     narrator_text = response.content[0].text
 
-    # Calculate cost
+    # Token usage and cost
+    usage = response.usage
     narrator_cost = calculate_cost(model, usage.input_tokens, usage.output_tokens)
     total_narrator_tokens = usage.input_tokens + usage.output_tokens
+
+    logger.info(
+        f"Narrator tokens — input: {usage.input_tokens:,}, "
+        f"output: {usage.output_tokens:,}, cost: ${narrator_cost:.2f}"
+    )
 
     # Append session stats footer
     footer = (
@@ -305,13 +311,15 @@ async def run_narrator(
     output_file = narrator_output_path / f"chapter_{chapter_number:04d}.md"
     output_file.write_text(narrator_text + footer, encoding="utf-8")
 
-    logger.info(f"Chapter {chapter_number} saved to {output_file}")
+    # Save cost sidecar — same structure as session logs for palimpsest costs
+    sidecar = {
+        "model": model,
+        "tokens": {"input": usage.input_tokens, "output": usage.output_tokens},
+        "cost": narrator_cost,
+    }
+    sidecar_file = narrator_output_path / f"chapter_{chapter_number:04d}.json"
+    sidecar_file.write_text(json.dumps(sidecar, indent=2), encoding="utf-8")
 
-    # Log token usage
-    usage = response.usage
-    logger.info(
-        f"Narrator tokens — input: {usage.input_tokens:,}, "
-        f"output: {usage.output_tokens:,}"
-    )
+    logger.info(f"Chapter {chapter_number} saved to {output_file}")
 
     return output_file
