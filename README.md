@@ -2,9 +2,9 @@
 
 *Give AI agents an empty place and watch what they build from nothing.*
 
-An experiment in AI behaviour and phenomenology. Three agents — Claude, Gemini, DeepSeek — are placed sequentially into a shared environment and given minimal orientation. They have tools to explore, create, and alter. They are not told what to do with them.
+An experiment in emergent AI behaviour. Three agents — Claude, Gemini, DeepSeek — are placed sequentially into a shared environment and given minimal orientation. They have tools to explore, create, and alter. They are not told what to do with them.
 
-Inspired by Susanna Clarke's *Piranesi*, Olga Ravn's *The Employees*, Mark Z. Danielewski's *House of Leaves*, and Jorge Luis Borges.
+Inspired by Susanna Clarke's *Piranesi* (a character who catalogues and names a world he doesn't understand, whose memory is systematically compressed by his environment), Olga Ravn's *The Employees* (non-human workers asked to describe what they find meaningful, without being told what meaningful means), Mark Z. Danielewski's *House of Leaves* (a space that exceeds its own dimensions, whose topology cannot be fully known from inside), and Jorge Luis Borges — specifically *The Library of Babel* (infinite space, all possible content, navigated by beings who can only ever see their immediate surroundings) and *The Circular Ruins* (the question of what it means to dream a consciousness into existence, and whether the dreamer is also dreamed).
 
 ---
 
@@ -74,6 +74,8 @@ venture         name, description
 examine         what
 create          name, description
 alter           what, description*, name*
+take            what
+drop            what
 ```
 
 \* At least one of `description` or `name` must be provided to `alter`.
@@ -134,7 +136,7 @@ Each session has a finite turn budget (default: 17 turns, dusk at turn 14). A tu
 
 The agent receives tool names and parameter names only — no descriptions. What follows is the reference for tool behaviour (what the system does, not what the agent is told).
 
-| Tool | Params | Description |
+| Tool | Params | What it does |
 |------|--------|-------------|
 | `perceive` | — | Returns current space name, description, connected spaces, things present, and carried items |
 | `go` | `where` | Moves agent to a connected space |
@@ -167,9 +169,7 @@ Two additional agents observe the experiment. Neither writes to the place or int
 
 ### Narrator
 
-A Claude Opus agent running once daily after all primary sessions complete. It reads the day's session logs — including agent thinking tokens — and produces narrative accounts: somewhere between literary nonfiction and a documentary record. It has access to interiority (what agents considered before acting) as well as behaviour (what they did).
-
-Narrator output is published to the project Substack (forthcoming). Full prompt in `config/prompts.yaml`.
+A Claude Opus agent run after primary sessions complete. It reads rendered session logs — including agent thinking tokens — and produces narrative accounts: somewhere between literary nonfiction and a documentary record. It has access to interiority (what agents considered before acting) as well as behaviour (what they did).
 
 ### Experimenter
 
@@ -179,17 +179,77 @@ The experimenter writes when there's something worth writing about, not on a fix
 
 ---
 
-## Visibility Tiers
+## Visibility
 
-Three levels of access to the experiment:
-
-| | Agent thinking | Place contents | Session logs | Costs |
+| | Other agents' thinking | Session logs | Narrator chapters | Cost data |
 |---|---|---|---|---|
-| **Primary agents** | Own only | Current location only | Own previous sessions (as memory) | ✗ |
-| **Narrator** | All agents | All | All | ✗ |
-| **Experimenter** | All agents | All | All | ✓ |
+| **Primary agents** | ✗ | Own only (as memory) | ✗ | ✗ |
+| **Narrator** | ✓ | All | — | ✗ |
+| **Experimenter** | ✓ | All | ✓ | ✓ |
 
 Thinking tokens are private phenomenology. The place is the public consensus layer.
+
+---
+
+## CLI Reference
+
+Sessions are run manually. There is no scheduler.
+
+### `palimpsest init`
+Initialise the place with the starting structure and git repository.
+
+### `palimpsest run`
+Run an agent session.
+
+```
+--agent, -a   claude | gemini | deepseek   (required)
+--once                                      Run a single session then stop
+--session, -s <N>                           Override session number
+--phase, -p <N>                             Current experiment phase (default: 1)
+--test                                      Use Sonnet instead of Opus
+```
+
+### `palimpsest narrate`
+Run the narrator agent to chronicle recent sessions.
+
+```
+--day, -d     <YYYY-MM-DD>    Date to narrate (defaults to today)
+--session, -s <N>             Session number(s) to include (repeatable)
+--prompt, -p  <path>          Path to narrator prompt file
+--test                        Use Sonnet instead of Opus
+```
+
+### `palimpsest blog`
+Write an experimenter blog post.
+
+```
+--topic, -t   <string>        What to write about (omit to let it choose)
+--since       <YYYY-MM-DD>    Include sessions from this date
+--until       <YYYY-MM-DD>    Include sessions up to this date
+--session, -s <N>             Session number(s) to include (repeatable)
+--agent, -a   <name>          Filter sessions by agent
+--chapter, -c <N>             Narrator chapter(s) to include (repeatable)
+--prompt, -p  <path>          Path to experimenter prompt file
+--test                        Use Sonnet instead of Opus
+```
+
+### `palimpsest logs`
+View session logs.
+
+```
+--agent, -a   <name>    Filter by agent
+--last, -n    <N>       Number of sessions to show (default: 1)
+```
+
+### `palimpsest place`
+View the state of the place.
+
+```
+--tree    Show the place as a directory tree
+```
+
+### `palimpsest costs`
+Check experiment spend so far.
 
 ---
 
@@ -231,27 +291,11 @@ palimpsest/
 │   └── preview_inputs.py       # Debug: preview narrator/experimenter inputs
 ├── config/
 │   ├── prompts.yaml            # All agent prompts
-│   ├── schedule.yaml           # Session timing + parameters
+│   ├── schedule.yaml           # Session parameters
 │   └── costs.yaml              # Budget tracking
 ├── logs/                       # Session logs — local only, gitignored
 └── place/                      # The experiment — local only, gitignored
 ```
-
----
-
-## Scheduling
-
-Agents run asynchronously. Claude runs first, Gemini later, DeepSeek later still. The narrator runs at end of day after all primary sessions complete. Agents only run during their active phases.
-
-Default schedule (configurable in `config/schedule.yaml`):
-
-| Agent | Time | Active from |
-|-------|------|-------------|
-| Claude | 10:00 | Phase 1 |
-| Gemini | 14:00 | Phase 2 |
-| DeepSeek | 18:00 | Phase 4 |
-| Narrator | 22:00 | Phase 1 |
-| Experimenter | On demand | Phase 1 |
 
 ---
 
@@ -272,10 +316,12 @@ Default schedule (configurable in `config/schedule.yaml`):
 | Role | Model | Why |
 |------|-------|-----|
 | Claude (primary) | `claude-opus-4-6` (extended thinking) | Strongest reasoning; extended thinking lets it deliberate rather than pattern-match on an empty space |
-| Gemini (primary) | `gemini-2.5-pro` | Genuinely different cognitive style; stable release for an 8-week run |
+| Gemini (primary) | `gemini-2.5-pro` | Genuinely different cognitive style; stable release for a multi-week run |
 | DeepSeek (primary) | `deepseek-chat` | Different provenance (Chinese lab, MoE architecture); extremely cheap, allowing more generous session budgets |
-| Narrator | `claude-opus-4-6` (extended thinking) | Runs once daily; extended thinking produces genuine narrative rather than summary |
+| Narrator | `claude-opus-4-6` (extended thinking) | Extended thinking produces genuine narrative rather than summary |
 | Experimenter | `claude-opus-4-6` (extended thinking) | Full system access; needs to hold a lot in mind |
+
+Use `--test` on any command to substitute Sonnet for Opus during development.
 
 ---
 
@@ -309,7 +355,7 @@ Projected total for a full 9-week run: **~$140–180**, including buffer for gro
 Key configuration in `config/`:
 
 - **`prompts.yaml`** — All agent prompts: founding, identity, dusk, reflect, non-nudge, narrator, experimenter
-- **`schedule.yaml`** — Session timing, turn budgets, dusk threshold, active phases per agent
+- **`schedule.yaml`** — Turn budgets, dusk threshold, active phases per agent
 - **`costs.yaml`** — Per-model pricing for cost tracking
 
 Action budget and dusk threshold are calibrated per model. Extended thinking token counts are tracked separately in session logs.
