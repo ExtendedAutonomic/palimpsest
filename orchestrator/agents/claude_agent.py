@@ -75,15 +75,30 @@ class ClaudeAgent(BaseAgent):
         """
         Prepare messages for the Anthropic API.
 
-        Handles the conversation format, ensuring proper alternation
-        between user and assistant messages.
+        Marks the first user message (the opening/memory prompt) with
+        cache_control so it is cached across turns. This is the large
+        static prefix that would otherwise be re-billed at full price
+        on every turn of the session.
         """
         prepared = []
-        for msg in messages:
+        for i, msg in enumerate(messages):
             role = msg["role"]
             content = msg["content"]
-            # Anthropic expects string or list of content blocks
-            if isinstance(content, str):
+
+            # Cache the opening message — the memory block is the dominant
+            # cost driver and is identical across all turns in a session
+            if i == 0 and role == "user" and isinstance(content, str):
+                prepared.append({
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": content,
+                            "cache_control": {"type": "ephemeral"},
+                        }
+                    ],
+                })
+            elif isinstance(content, str):
                 prepared.append({"role": role, "content": content})
             else:
                 prepared.append({"role": role, "content": content})
@@ -99,6 +114,8 @@ class ClaudeAgent(BaseAgent):
             "usage": {
                 "input_tokens": response.usage.input_tokens,
                 "output_tokens": response.usage.output_tokens,
+                "cache_creation_input_tokens": getattr(response.usage, "cache_creation_input_tokens", 0) or 0,
+                "cache_read_input_tokens": getattr(response.usage, "cache_read_input_tokens", 0) or 0,
             },
             "stop_reason": response.stop_reason,
         }

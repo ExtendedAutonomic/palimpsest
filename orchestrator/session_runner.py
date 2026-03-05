@@ -181,7 +181,13 @@ async def run_session(
 
     # Calculate and store cost in the log
     if log.model:
-        log.cost = calculate_cost(log.model, log.total_input_tokens, log.total_output_tokens)
+        log.cost = calculate_cost(
+            log.model,
+            log.total_input_tokens,
+            log.total_output_tokens,
+            cache_creation_tokens=log.total_cache_creation_tokens,
+            cache_read_tokens=log.total_cache_read_tokens,
+        )
         log_file_early = log_path / agent_name / f"session_{session_num:04d}.json"
         if log_file_early.exists():
             log_file_early.write_text(

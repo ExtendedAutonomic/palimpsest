@@ -26,9 +26,23 @@ def _load_pricing() -> dict[str, dict[str, float]]:
 MODEL_PRICING: dict[str, dict[str, float]] = _load_pricing()
 
 
-def calculate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
-    """Calculate cost in USD for a given model and token counts."""
+def calculate_cost(
+    model: str,
+    input_tokens: int,
+    output_tokens: int,
+    cache_creation_tokens: int = 0,
+    cache_read_tokens: int = 0,
+) -> float:
+    """Calculate cost in USD for a given model and token counts.
+
+    Handles prompt caching pricing:
+      - cache_creation_tokens: charged at 1.25x input price (cache write)
+      - cache_read_tokens: charged at 0.1x input price (cache hit)
+    """
     pricing = MODEL_PRICING.get(model, {"input": 0.0, "output": 0.0})
-    input_cost = (input_tokens / 1_000_000) * pricing.get("input", 0.0)
+    input_price = pricing.get("input", 0.0)
+    input_cost = (input_tokens / 1_000_000) * input_price
+    cache_write_cost = (cache_creation_tokens / 1_000_000) * input_price * 1.25
+    cache_read_cost = (cache_read_tokens / 1_000_000) * input_price * 0.1
     output_cost = (output_tokens / 1_000_000) * pricing.get("output", 0.0)
-    return round(input_cost + output_cost, 2)
+    return round(input_cost + cache_write_cost + cache_read_cost + output_cost, 2)

@@ -52,6 +52,8 @@ class SessionLog:
     reflect_prompt: str | None = None
     total_input_tokens: int = 0
     total_output_tokens: int = 0
+    total_cache_creation_tokens: int = 0
+    total_cache_read_tokens: int = 0
     model: str | None = None
     cost: float | None = None
 
@@ -81,6 +83,8 @@ class SessionLog:
             "tokens": {
                 "input": self.total_input_tokens,
                 "output": self.total_output_tokens,
+                "cache_creation": self.total_cache_creation_tokens,
+                "cache_read": self.total_cache_read_tokens,
             },
             "turns": [
                 {
@@ -231,6 +235,8 @@ class BaseAgent(ABC):
             usage = response.get("usage", {})
             self._session_log.total_input_tokens += usage.get("input_tokens", 0)
             self._session_log.total_output_tokens += usage.get("output_tokens", 0)
+            self._session_log.total_cache_creation_tokens += usage.get("cache_creation_input_tokens", 0)
+            self._session_log.total_cache_read_tokens += usage.get("cache_read_input_tokens", 0)
 
             # Process actions
             tool_calls = response.get("tool_calls", [])
