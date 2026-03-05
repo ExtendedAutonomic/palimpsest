@@ -75,11 +75,13 @@ def render_session_markdown(log_path: Path, place_path: Path | None = None) -> s
     )
     location_start = data.get("location_start", "?")
     location_end = data.get("location_end", "?")
+    model = data.get("model", "")
 
     lines = []
 
     # Frontmatter
     lines.append("---")
+    lines.append("type: session")
     lines.append(f"agent: {agent}")
     lines.append(f"session: {session}")
     lines.append(f"phase: {phase}")
