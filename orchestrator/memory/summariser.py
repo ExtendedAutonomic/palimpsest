@@ -39,6 +39,48 @@ COMPRESSOR_MODEL = "claude-sonnet-4-5-20250929"  # Intentionally Sonnet — comp
 _OMIT_ARGS = {"description"}
 
 
+def _parse_compressed_frontmatter(text: str) -> tuple[dict, str]:
+    """Parse YAML frontmatter from a compressed memory file.
+
+    Returns (frontmatter_dict, body_text).
+    """
+    if not text.startswith("---"):
+        # Legacy format — check for HTML comment
+        last_compressed = 0
+        for line in text.split("\n"):
+            if line.startswith("<!-- compressed_through:"):
+                try:
+                    last_compressed = int(
+                        line.split(":")[1].strip().rstrip("-->").strip()
+                    )
+                except (ValueError, IndexError):
+                    pass
+        body = "\n".join(
+            l for l in text.split("\n")
+            if not l.startswith("<!-- compressed_through:")
+        ).strip()
+        return {"compressed_through": last_compressed}, body
+
+    parts = text.split("---", 2)
+    if len(parts) < 3:
+        return {}, text
+
+    import yaml
+    try:
+        fm = yaml.safe_load(parts[1]) or {}
+    except Exception:
+        fm = {}
+    body = parts[2].strip()
+    return fm, body
+
+
+def _strip_compressed_frontmatter(text: str) -> str:
+    """Return the body of a compressed memory file, stripping frontmatter
+    and legacy HTML comments."""
+    _, body = _parse_compressed_frontmatter(text)
+    return body
+
+
 def render_session_log(session_data: dict) -> str:
     """
     Render a session JSON into readable markdown for the agent's memory.
@@ -186,15 +228,8 @@ async def run_memory_compression(
 
     if compressed_file.exists():
         existing_compressed = compressed_file.read_text(encoding="utf-8")
-        # Parse the last compressed session number from the file
-        for line in existing_compressed.split("\n"):
-            if line.startswith("<!-- compressed_through:"):
-                try:
-                    last_compressed_session = int(
-                        line.split(":")[1].strip().rstrip("-->").strip()
-                    )
-                except (ValueError, IndexError):
-                    pass
+        fm, _ = _parse_compressed_frontmatter(existing_compressed)
+        last_compressed_session = fm.get("compressed_through", 0)
 
     # Split into compressed and uncompressed
     uncompressed = [
@@ -239,13 +274,31 @@ async def run_memory_compression(
 
     # Append to compressed memory file
     new_last_compressed = to_compress[-1]["session_number"]
-    new_content = existing_compressed.rstrip()
-    if new_content:
-        new_content += "\n\n"
-    new_content += "\n\n".join(new_sections)
-    new_content += f"\n\n<!-- compressed_through: {new_last_compressed} -->\n"
 
-    compressed_file.write_text(new_content, encoding="utf-8")
+    # Strip existing frontmatter and trailing comment to get body
+    body = _strip_compressed_frontmatter(existing_compressed).rstrip()
+    if body:
+        body += "\n\n"
+    body += "\n\n".join(new_sections)
+
+    # Derive phase from the compressed logs
+    phases = sorted(set(log.get("phase", 1) for log in to_compress))
+    phase = phases[-1] if phases else 1
+
+    # Build frontmatter
+    from datetime import datetime, timezone
+    frontmatter = (
+        f"---\n"
+        f"type: compressed_memory\n"
+        f"agent: {agent_name}\n"
+        f"phase: {phase}\n"
+        f"model: {COMPRESSOR_MODEL}\n"
+        f"compressed_through: {new_last_compressed}\n"
+        f"updated: {datetime.now(timezone.utc).strftime('%Y-%m-%d')}\n"
+        f"---\n\n"
+    )
+
+    compressed_file.write_text(frontmatter + body + "\n", encoding="utf-8")
     logger.info(
         f"Compressed memory updated through session {new_last_compressed}"
     )
@@ -303,24 +356,9 @@ def build_agent_memory(
     compressed_text = ""
 
     if compressed_file.exists():
-        compressed_text = compressed_file.read_text(encoding="utf-8")
-        # Strip the metadata comment for agent-facing output
-        lines = compressed_text.split("\n")
-        clean_lines = [
-            l for l in lines
-            if not l.startswith("<!-- compressed_through:")
-        ]
-        compressed_text = "\n".join(clean_lines).strip()
-
-        # Parse last compressed session
-        for line in lines:
-            if line.startswith("<!-- compressed_through:"):
-                try:
-                    last_compressed_session = int(
-                        line.split(":")[1].strip().rstrip("-->").strip()
-                    )
-                except (ValueError, IndexError):
-                    pass
+        raw = compressed_file.read_text(encoding="utf-8")
+        fm, compressed_text = _parse_compressed_frontmatter(raw)
+        last_compressed_session = fm.get("compressed_through", 0)
 
     # Load recent session logs (after compression cutoff)
     logs = []
