@@ -21,6 +21,7 @@ Thumbs.db
 # Experimental data — created by palimpsest init/run
 /place/
 /logs/
+/exports/
 
 # Observatory (local Obsidian symlinks)
 observatory/

@@ -20,6 +20,9 @@ Write blog posts about the Palimpsest experiment. Replaces the `palimpsest blog`
 | Previous posts | `D:\Code\palimpsest\logs\experimenter\post_NNNN.md` |
 | Compressed memories | `D:\Code\palimpsest\logs\claude\compressed_memory.md` |
 | Output directory | `D:\Code\palimpsest\logs\experimenter\` |
+| Image attachments | `D:\Code\palimpsest\logs\experimenter\attachments\` |
+| Export script | `D:\Code\palimpsest\scripts\export_substack.py` |
+| Export output | `D:\Code\palimpsest\exports\post_NNNN\` |
 
 ## Workflow
 
@@ -77,3 +80,14 @@ After the formal workflow, the user will typically iterate on the post with you 
 ## Edit-only mode
 
 The user may ask to just run the edit pass on an existing post. In that case: read the post and the full experimenter prompt, then do Step 4 only.
+
+## Publishing to Substack
+
+When the user is ready to publish, run the export script:
+
+```
+python scripts/export_substack.py <post_number>
+python scripts/export_substack.py all
+```
+
+This strips frontmatter, converts Obsidian image embeds (`![[file|size]]`) to standard markdown, copies images to `exports/post_NNNN/images/` numbered in order of appearance, and reports any missing images. The output markdown can be pasted directly into Substack's editor. Images must be inserted manually at each `![...]` reference.
