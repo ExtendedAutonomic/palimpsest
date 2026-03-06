@@ -25,19 +25,21 @@ Write blog posts about the Palimpsest experiment. Replaces the `palimpsest blog`
 
 ### Step 1: Gather context
 
-The user will specify which sessions to cover (e.g. "sessions 3-6") and optionally a topic or `--no-memories`. If it's not clear, ask.
+The user will specify which sessions to cover (e.g. "sessions 3-6") and optionally a topic. If it's not clear, ask.
 
 Read the following files:
 
 1. **Experimenter prompt** - read in full. This is your voice, style guide, and quality standard. Internalise everything: the tone, the examples, and every bullet in "What to avoid."
 
-2. **Design docs** - read all four. Strip YAML frontmatter mentally; you only need the content.
+2. **Design docs** - read all four. 
 
 3. **Previous posts** - list `D:\Code\palimpsest\logs\experimenter\` and read any existing `post_NNNN.md` files. These give you continuity.
 
 4. **Session logs** - read the readable markdown logs for the specified sessions at `D:\Code\palimpsest\logs\claude\readable\session_NNNN.md`.
 
-5. **Compressed memories** (optional) - read `D:\Code\palimpsest\logs\claude\compressed_memory.md` if relevant. Skip if the user says `--no-memories` or if sessions predate compression.
+5. **Compressed memories** - read `D:\Code\palimpsest\logs\claude\compressed_memory.md` if it exists. This is the lossy, compressed version of older sessions that the agent actually receives as memory. Always read it unless the user explicitly says to skip compressed memories.
+
+If any files failed to read or were missing, stop and report the failures. Do not proceed. If everything read successfully, continue to the next step.
 
 ### Step 2: Determine post number
 
@@ -45,17 +47,9 @@ Look at existing posts in `D:\Code\palimpsest\logs\experimenter\` and take the n
 
 ### Step 3: Write the post
 
-The experimenter prompt you read in Step 1 is the authority on voice, tone, structure, and format. Follow it completely. 
+The experimenter prompt you read in Step 1 is the authority on voice, tone, structure, and format. Follow it completely.
 
-Save the draft (no frontmatter) to `D:\Code\palimpsest\logs\experimenter\post_NNNN_draft.md` and tell the user it's saved.
-
-### Step 4: Edit pass
-
-Re-read the **full experimenter prompt** (`D:\Vault\Projects\Active\Palimpsest\Experimenter Blog Prompt.md`). Go through the draft and audit it against every section. For each violation, fix it. Save the edited version over the draft file and tell the user what you changed.
-
-### Step 5: Save final
-
-Once approved, build frontmatter and save:
+Build the frontmatter and include it at the top of the draft:
 
 ```yaml
 ---
@@ -63,12 +57,22 @@ type: experimenter
 post: [number]
 phase: [current phase]
 date: [today, YYYY-MM-DD]
-model: [ask user]
+model: [model writing this post]
 sessions: [comma-separated]
 ---
 ```
 
-Write frontmatter + post to `D:\Code\palimpsest\logs\experimenter\post_NNNN.md` and delete the draft file.  If phase, model, or any other frontmatter field is unknown, ask the user.
+If phase, model, or any other frontmatter field is unknown, ask the user before writing.
+
+Save the draft to `D:\Code\palimpsest\logs\experimenter\post_NNNN.md` and tell the user it's saved.
+
+### Step 4: Edit pass
+
+Re-read the **full experimenter prompt** (`D:\Vault\Projects\Active\Palimpsest\Experimenter Blog Prompt.md`). Go through the draft and audit it against every section. For each violation, fix it. Save the edited version over the draft file and tell the user what you changed.
+
+### Step 5: Save final
+
+The draft is already saved as `post_NNNN.md` with frontmatter. Once the user approves (after any review edits are applied), the post is done. No rename or copy needed.
 
 ## Edit-only mode
 

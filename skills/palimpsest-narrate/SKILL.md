@@ -30,6 +30,8 @@ Read the following files:
 
 3. **Session logs** - read the readable markdown logs for the specified sessions at `D:\Code\palimpsest\logs\claude\readable\session_NNNN.md`. These are your primary source. They include the agent's thinking, words, tool calls, results, and reflections.
 
+If any files failed to read or were missing, stop and report the failures. Do not proceed. If everything read successfully, continue to the next step.
+
 ### Step 2: Determine chapter number
 
 Look at existing chapters in `D:\Code\palimpsest\logs\narrator\` and take the next number.
@@ -38,15 +40,7 @@ Look at existing chapters in `D:\Code\palimpsest\logs\narrator\` and take the ne
 
 The narrator prompt (`D:\Vault\Projects\Active\Palimpsest\Narrator Prompt.md`) is your complete guide. Follow it.
 
-Save the draft (no frontmatter) to `D:\Code\palimpsest\logs\narrator\chapter_NNNN_draft.md` and tell the user it's saved.
-
-### Step 4: Edit pass
-
-Re-read the **full narrator prompt** (`D:\Vault\Projects\Active\Palimpsest\Narrator Prompt.md`). Go through the draft and audit it against every section. For each violation, fix it. Save the edited version over the draft file and tell the user what you changed.
-
-### Step 5: Save final
-
-Once approved, build frontmatter and save:
+Build the frontmatter and include it at the top of the draft:
 
 ```yaml
 ---
@@ -54,10 +48,20 @@ type: narrator
 chapter: [number]
 phase: [current phase]
 date: [today, YYYY-MM-DD]
-model: [ask user]
+model: [model writing this]
 sessions: [comma-separated]
 ---
 ```
 
-Write frontmatter + chapter to `D:\Code\palimpsest\logs\narrator\chapter_NNNN.md` and delete the draft file. If phase, model, or any other frontmatter field is unknown, ask the user.
+If phase, model, or any other frontmatter field is unknown, ask the user before writing.
+
+Save the draft to `D:\Code\palimpsest\logs\narrator\chapter_NNNN.md` and tell the user it's saved.
+
+### Step 4: Edit pass
+
+Re-read the **full narrator prompt** (`D:\Vault\Projects\Active\Palimpsest\Narrator Prompt.md`). Go through the draft and audit it against every section. For each violation, fix it. Save the edited version over the draft file and tell the user what you changed.
+
+### Step 5: Save final
+
+The draft is already saved as `chapter_NNNN.md` with frontmatter. Once the user approves (after any review edits are applied), the chapter is done. No rename or copy needed.
 
