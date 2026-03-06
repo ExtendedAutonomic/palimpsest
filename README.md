@@ -37,7 +37,7 @@ palimpsest costs
 
 This is the most important thing to understand about the design. The agent receives as little as possible.
 
-**No system prompt.** The `system` parameter is omitted from the API call entirely. The agent receives no behavioural instruction: no guidance on how to communicate, what to do, or what the place is.
+**No system prompt.** The `system` parameter is omitted from the API call entirely. The agent receives no behavioural instruction: no guidance on how to communicate, what to do, or what the Place is.
 
 **Founding prompt (first session only):**
 
@@ -103,7 +103,7 @@ A note on token count fields: after caching is active, the `input_tokens` field 
 
 ## The Place
 
-The place is a directory of markdown notes. Every space and every thing is a `.md` file. Spaces contain wiki links to connected spaces and things; the Obsidian graph view becomes the spatial map.
+The Place is a directory of markdown notes. Every space and every thing is a `.md` file. Spaces contain wiki links to connected spaces and things; the Obsidian graph view becomes the spatial map.
 
 ```markdown
 ---
@@ -118,7 +118,7 @@ A quiet garden. Paths lead off in several directions.
 [[here]] · [[the library of unwritten books]] · [[a stone bench]]
 ```
 
-The place is its own git repository (separate from the code repo). Every agent action is committed with agent and session metadata, giving complete archaeological access to the place's evolution.
+The place is its own git repository (separate from the code repo). Every agent action is committed with agent and session metadata, giving complete archaeological access to its evolution.
 
 `place/` and `logs/` are gitignored from the code repo. Run `palimpsest init` to set up the place locally.
 
@@ -169,7 +169,7 @@ Each session ends with a reflect prompt. The reflection is stored and fed back a
 
 ## Observer Agents
 
-Two additional agents observe the experiment. Neither writes to the place or interacts with the primary agents.
+Two additional agents observe the experiment. Neither writes to the Place or interacts with the primary agents.
 
 Both can be run either via the CLI (API calls, tracked costs) or as Claude Desktop/claude.ai skills (uses your Max subscription, no API cost). Skills live in `skills/` and can be installed via Customize > Skills or referenced directly in conversation.
 
@@ -199,7 +199,7 @@ The experimenter writes when there's something worth writing about, not on a fix
 | **Narrator** | ✓ | All | — | ✗ |
 | **Experimenter** | ✓ | All | ✗ (by default) | ✓ |
 
-Thinking tokens are private phenomenology. The place is the public consensus layer.
+Thinking tokens are private phenomenology. The Place is the public consensus layer.
 
 ---
 
@@ -339,7 +339,8 @@ palimpsest/
 │   ├── palimpsest-blog/        # Experimenter blog skill (Claude Desktop/claude.ai)
 │   └── palimpsest-narrate/     # Narrator skill (Claude Desktop/claude.ai)
 ├── scripts/
-│   └── preview_inputs.py       # Debug: preview narrator/experimenter inputs
+│   ├── preview_inputs.py       # Debug: preview narrator/experimenter inputs
+│   └── export_substack.py      # Export posts for Substack publishing
 ├── config/
 │   ├── prompts.yaml            # All agent prompts
 │   ├── schedule.yaml           # Session parameters
@@ -352,13 +353,13 @@ palimpsest/
 
 ## Phases
 
-| Phase | Duration | Description |
-|-------|----------|-------------|
-| 1 — The Solitary | Weeks 1–2 | Claude alone in an empty place |
-| 2 — The Other | Weeks 3–4 | Gemini enters. Neither agent is told about the other |
-| 3 — Contact | Weeks 5–6 | The agents encounter each other's traces |
-| 4 — The Third | Weeks 7–8 | DeepSeek arrives |
-| 5 — The Reveal | Post-experiment | Full disclosure to all participants |
+| Phase | Description |
+|-------|-------------|
+| 1 — The Solitary | Claude alone in an empty place |
+| 2 — The Other | Gemini enters. Neither agent is told about the other |
+| 3 — Contact | The agents encounter each other's traces |
+| 4 — The Third | DeepSeek arrives |
+| 5 — The Reveal | Full disclosure to all participants |
 
 ---
 
@@ -368,7 +369,7 @@ palimpsest/
 |------|-------|-----|
 | Claude (primary) | `claude-opus-4-6` (extended thinking) | Strongest reasoning; extended thinking lets it deliberate rather than pattern-match on an empty space |
 | Gemini (primary) | `gemini-2.5-pro` | Genuinely different cognitive style; stable release for a multi-week run |
-| DeepSeek (primary) | `deepseek-chat` | Different provenance (Chinese lab, MoE architecture); extremely cheap, allowing more generous session budgets |
+| DeepSeek (primary) | `deepseek-chat` | Different provenance (Chinese open-source lab, MoE architecture); extremely cheap, allowing more generous session budgets |
 | Narrator | `claude-opus-4-6` (extended thinking) | Extended thinking produces genuine narrative rather than summary |
 | Experimenter | `claude-opus-4-6` (extended thinking) | Full system access; needs to hold a lot in mind |
 
@@ -399,7 +400,7 @@ Based on API pricing as of February 2026.
 
 Claude sessions use Anthropic prompt caching on the opening memory block. Cache writes (first turn of each session) cost 1.25× input price; cache reads (all subsequent turns) cost 0.1×. Since the memory block dominates input cost and is re-sent every turn, this produces significant savings on sessions with many turns.
 
-Projected total for a full 9-week run: **~$140–180**, including buffer for growing context and variable thinking depth.
+Projected daily costs range from ~$1 (Phase 1) to ~$2.60 (Phase 4). Total cost depends on how long each phase runs.
 
 **Note:** Narrator and experimenter costs drop to zero when run as Claude Desktop/claude.ai skills (included in Max subscription) instead of via the CLI. Only primary agent sessions and memory compression incur API costs.
 
