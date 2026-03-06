@@ -1,6 +1,6 @@
 ---
 name: palimpsest-narrate
-description: Write a narrator chapter for the Palimpsest project. Use when the user asks to narrate, write a chapter, or says something like "narrate session 3" or "write chapter 2". The narrator chronicles what happens in The Place as literary nonfiction.
+description: Write a narrator chapter for the Palimpsest project. Use when the user asks to narrate, write a chapter, or says something like "narrate session 3" or "write chapter 2". The narrator chronicles what happens in the Place as literary nonfiction.
 ---
 
 # Palimpsest Narrator

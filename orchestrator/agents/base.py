@@ -187,7 +187,8 @@ class BaseAgent(ABC):
 
         # Build the opening message
         if session_number == 1:
-            opening = self.config.get("prompts", {}).get("founding", "You are here.")
+            founding_template = self.config.get("prompts", {}).get("founding", "You are: {location}")
+            opening = founding_template.format(location=self.place.current_location)
         else:
             identity_template = self.config.get("prompts", {}).get("identity", "")
             opening = identity_template.format(

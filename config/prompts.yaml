@@ -17,7 +17,7 @@ founding_v1: |
   Begin.
 
 # Minimal: zero-width space. The agent receives nothing.
-founding: "You are: here"
+founding: "You are: {location}"
 
 # Sent at session start (after first session)
 # Memory and location only. No framing.

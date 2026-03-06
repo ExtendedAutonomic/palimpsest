@@ -38,6 +38,14 @@ class SessionResult:
 # Test model overrides — cheaper models for development
 TEST_MODELS = {
     "claude": "claude-sonnet-4-5-20250929",
+    "gemini": "gemini-2.0-flash",
+}
+
+# Default starting locations per agent (used on session 1 only)
+START_LOCATIONS = {
+    "claude": "here",
+    "gemini": "there",
+    "deepseek": "somewhere",
 }
 
 
@@ -160,7 +168,23 @@ async def run_session(
 
     # Build context (memory) for non-first sessions
     memory = None
-    start_location = None
+    start_location = START_LOCATIONS.get(agent_name, "here")
+
+    # Ensure starting space exists (creates it on first run for each agent)
+    if session_num == 1 and start_location:
+        start_note = place_path / f"{start_location}.md"
+        if not start_note.exists():
+            start_note.write_text(
+                "---\n"
+                "type: space\n"
+                "created_by: place\n"
+                "created_session: 0\n"
+                "updated_by: place\n"
+                "updated_session: 0\n"
+                "---\n",
+                encoding="utf-8",
+            )
+            logger.info(f"Created starting space: {start_location}")
 
     if session_num > 1:
         context = build_session_context(
