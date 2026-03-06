@@ -171,15 +171,23 @@ Each session ends with a reflect prompt. The reflection is stored and fed back a
 
 Two additional agents observe the experiment. Neither writes to the place or interacts with the primary agents.
 
+Both can be run either via the CLI (API calls, tracked costs) or as Claude Desktop/claude.ai skills (uses your Max subscription, no API cost). Skills live in `skills/` and can be installed via Customize > Skills or referenced directly in conversation.
+
 ### Narrator
 
-A Claude Opus agent run after primary sessions complete. It reads rendered session logs — including agent thinking tokens — and produces narrative accounts: somewhere between literary nonfiction and a documentary record. It has access to interiority (what agents considered before acting) as well as behaviour (what they did).
+Reads rendered session logs, including agent thinking tokens, and produces narrative accounts: somewhere between literary nonfiction and a documentary record. It has access to interiority (what agents considered before acting) as well as behaviour (what they did).
+
+**CLI:** `palimpsest narrate --session 1`
+**Skill:** `skills/palimpsest-narrate/`
 
 ### Experimenter
 
-A Claude Opus agent that writes from outside the experiment — showing working, noting what's surprising, being honest about what breaks. It has access to everything: session logs (including thinking and reflections), experiment design docs, and cost data. Narrator chapters can be passed in explicitly via `--chapter` but are excluded by default.
+Writes from outside the experiment: showing working, noting what's surprising, being honest about what breaks. It has access to everything: session logs (including thinking and reflections), experiment design docs, and cost data. Narrator chapters can be passed in explicitly via `--chapter` but are excluded by default.
 
-The experimenter writes when there's something worth writing about, not on a fixed schedule. Its output is a researcher's notebook rather than a paper.
+The experimenter writes when there's something worth writing about, not on a fixed schedule. Its output is a researcher's notebook rather than a paper. The skill version includes a built-in edit pass that audits the draft against the style guide before finalising.
+
+**CLI:** `palimpsest blog -s 3-6`
+**Skill:** `skills/palimpsest-blog/`
 
 ---
 
@@ -327,6 +335,9 @@ palimpsest/
 │   ├── test_renderer.py
 │   ├── test_narrator.py
 │   └── test_experimenter.py
+├── skills/
+│   ├── palimpsest-blog/        # Experimenter blog skill (Claude Desktop/claude.ai)
+│   └── palimpsest-narrate/     # Narrator skill (Claude Desktop/claude.ai)
 ├── scripts/
 │   └── preview_inputs.py       # Debug: preview narrator/experimenter inputs
 ├── config/
@@ -389,6 +400,8 @@ Based on API pricing as of February 2026.
 Claude sessions use Anthropic prompt caching on the opening memory block. Cache writes (first turn of each session) cost 1.25× input price; cache reads (all subsequent turns) cost 0.1×. Since the memory block dominates input cost and is re-sent every turn, this produces significant savings on sessions with many turns.
 
 Projected total for a full 9-week run: **~$140–180**, including buffer for growing context and variable thinking depth.
+
+**Note:** Narrator and experimenter costs drop to zero when run as Claude Desktop/claude.ai skills (included in Max subscription) instead of via the CLI. Only primary agent sessions and memory compression incur API costs.
 
 ---
 
