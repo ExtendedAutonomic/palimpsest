@@ -70,9 +70,9 @@ Save the draft to `D:\Code\palimpsest\logs\experimenter\post_NNNN.md` and tell t
 
 Re-read the **full experimenter prompt** (`D:\Vault\Projects\Active\Palimpsest\Experimenter Blog Prompt.md`). Go through the draft and audit it against every section. For each violation, fix it. Save the edited version over the draft file and tell the user what you changed.
 
-### Step 5: Save final
+## Collaborative editing
 
-The draft is already saved as `post_NNNN.md` with frontmatter. Once the user approves (after any review edits are applied), the post is done. No rename or copy needed.
+After the formal workflow, the user will typically iterate on the post with you in real time. They may be editing the same file simultaneously in their editor. **Always re-read the file immediately before making any edit**, even if you read it moments ago. The version in your context may already be stale.
 
 ## Edit-only mode
 
