@@ -8,6 +8,7 @@ Tool conversion is handled by the centralised convert_tools_gemini().
 from __future__ import annotations
 
 import logging
+import os
 from pathlib import Path
 from typing import Any
 
@@ -31,8 +32,20 @@ class GeminiAgent(BaseAgent):
         model: str = "gemini-2.5-pro",
     ):
         super().__init__("gemini", place_path, log_path, config)
-        self.client = genai.Client()
+        self._client = None
         self.model = model
+
+    @property
+    def client(self) -> genai.Client:
+        """Lazy client creation — only connects when actually needed."""
+        if self._client is None:
+            if not (os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")):
+                raise ValueError(
+                    "No Gemini API key found. Set GOOGLE_API_KEY in your .env file. "
+                    "Get a key at https://ai.google.dev/gemini-api/docs/api-key"
+                )
+            self._client = genai.Client()
+        return self._client
 
     async def send_message(
         self,

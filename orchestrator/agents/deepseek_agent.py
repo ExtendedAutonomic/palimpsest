@@ -33,11 +33,22 @@ class DeepSeekAgent(BaseAgent):
         model: str = "deepseek-chat",
     ):
         super().__init__("deepseek", place_path, log_path, config)
-        self.client = AsyncOpenAI(
-            api_key=os.environ.get("DEEPSEEK_API_KEY", ""),
-            base_url="https://api.deepseek.com",
-        )
+        self._client = None
         self.model = model
+
+    @property
+    def client(self) -> AsyncOpenAI:
+        """Lazy client creation — only connects when actually needed."""
+        if self._client is None:
+            if not os.environ.get("DEEPSEEK_API_KEY"):
+                raise ValueError(
+                    "No DeepSeek API key found. Set DEEPSEEK_API_KEY in your .env file."
+                )
+            self._client = AsyncOpenAI(
+                api_key=os.environ["DEEPSEEK_API_KEY"],
+                base_url="https://api.deepseek.com",
+            )
+        return self._client
 
     async def send_message(
         self,

@@ -8,6 +8,7 @@ Tool conversion is handled by the centralised convert_tools_anthropic().
 from __future__ import annotations
 
 import logging
+import os
 from pathlib import Path
 from typing import Any
 
@@ -30,8 +31,19 @@ class ClaudeAgent(BaseAgent):
         model: str = "claude-opus-4-6",
     ):
         super().__init__("claude", place_path, log_path, config)
-        self.client = anthropic.AsyncAnthropic()
+        self._client = None
         self.model = model
+
+    @property
+    def client(self) -> anthropic.AsyncAnthropic:
+        """Lazy client creation — only connects when actually needed."""
+        if self._client is None:
+            if not os.environ.get("ANTHROPIC_API_KEY"):
+                raise ValueError(
+                    "No Anthropic API key found. Set ANTHROPIC_API_KEY in your .env file."
+                )
+            self._client = anthropic.AsyncAnthropic()
+        return self._client
 
     async def send_message(
         self,
