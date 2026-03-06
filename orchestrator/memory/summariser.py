@@ -154,9 +154,12 @@ def render_session_log(session_data: dict) -> str:
 COMPRESSOR_PROMPT = """\
 These are records of your earlier days in a place you inhabit.
 
-Compress them into a shorter account, the way memory works — keeping \
-what felt important, letting the rest go. Write in first person. \
-Match the voice and register of the original.
+Compress them into a shorter account, the way memory works - keeping \
+what felt important to remember, and letting the rest go. Consider what \
+could be useful to remember for the future, and what you might want to \
+be a part of your ongoing continuity. Write in first person. Match the \
+voice and register of the original. Weave in original wording where it \
+feels important to do so.
 
 Do not add structure that wasn't there. No headings, no bullet points, \
 no bold summaries. Do not clean up uncertainty or make the account more \
