@@ -8,6 +8,8 @@ parameters.
 
 from __future__ import annotations
 
+import pytest
+
 from orchestrator.place.tools import (
     AGENT_TOOLS,
     convert_tools_anthropic,
@@ -135,3 +137,65 @@ class TestCustomToolConversion:
         converted = convert_tools_openai(custom)
         assert len(converted) == 1
         assert converted[0]["function"]["name"] == "listen"
+
+
+class TestGeminiConversion:
+    """Gemini tool format — google.genai types."""
+
+    @pytest.fixture(autouse=True)
+    def _skip_without_genai(self):
+        pytest.importorskip("google.genai", reason="google-genai SDK not installed")
+
+    def test_converts_all_tools(self):
+        from orchestrator.place.tools import convert_tools_gemini
+        converted = convert_tools_gemini()
+        # Returns a list containing one Tool object with function_declarations
+        assert len(converted) == 1
+        declarations = converted[0].function_declarations
+        assert len(declarations) == 6
+
+    def test_tool_names_match(self):
+        from orchestrator.place.tools import convert_tools_gemini
+        converted = convert_tools_gemini()
+        names = [fd.name for fd in converted[0].function_declarations]
+        assert names == ["perceive", "go", "venture", "examine", "create", "alter"]
+
+    def test_perceive_has_no_parameters(self):
+        from orchestrator.place.tools import convert_tools_gemini
+        converted = convert_tools_gemini()
+        perceive = converted[0].function_declarations[0]
+        assert perceive.parameters is None
+
+    def test_tools_have_no_descriptions(self):
+        """Minimal experiment: tool descriptions are omitted."""
+        from orchestrator.place.tools import convert_tools_gemini
+        converted = convert_tools_gemini()
+        for fd in converted[0].function_declarations:
+            assert fd.description is None
+
+    def test_alter_optional_params(self):
+        """Optional params should not appear in required."""
+        from orchestrator.place.tools import convert_tools_gemini
+        converted = convert_tools_gemini()
+        alter = converted[0].function_declarations[5]
+        assert "what" in alter.parameters.required
+        assert "description" not in alter.parameters.required
+        assert "name" not in alter.parameters.required
+
+    def test_custom_tools(self):
+        from orchestrator.place.tools import convert_tools_gemini
+        custom = [
+            {
+                "name": "listen",
+                "description": "Listen carefully.",
+                "parameters": {
+                    "direction": {"type": "string"},
+                },
+            }
+        ]
+        converted = convert_tools_gemini(custom)
+        assert len(converted) == 1
+        declarations = converted[0].function_declarations
+        assert len(declarations) == 1
+        assert declarations[0].name == "listen"
+        assert declarations[0].description == "Listen carefully."

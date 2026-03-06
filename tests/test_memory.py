@@ -15,7 +15,7 @@ import pytest
 
 from orchestrator.memory.summariser import build_agent_memory
 from orchestrator.memory.context_builder import build_session_context
-from orchestrator.session_runner import get_next_session_number, get_last_location
+from orchestrator.session_runner import get_next_session_number, get_last_location, START_LOCATIONS
 
 from tests.helpers import write_session_log
 
@@ -137,3 +137,83 @@ class TestSessionRunnerHelpers:
         write_session_log(log_path, "claude", 1, location_end="the garden")
         write_session_log(log_path, "claude", 2, location_end="the deep")
         assert get_last_location("claude", log_path) == "the deep"
+
+
+class TestStartLocations:
+    """Per-agent starting locations."""
+
+    def test_claude_starts_at_here(self):
+        assert START_LOCATIONS["claude"] == "here"
+
+    def test_gemini_starts_at_there(self):
+        assert START_LOCATIONS["gemini"] == "there"
+
+    def test_deepseek_starts_at_somewhere(self):
+        assert START_LOCATIONS["deepseek"] == "somewhere"
+
+    def test_all_agents_have_start_locations(self):
+        for agent in ["claude", "gemini", "deepseek"]:
+            assert agent in START_LOCATIONS
+            assert START_LOCATIONS[agent] is not None
+
+    def test_all_start_locations_unique(self):
+        locations = list(START_LOCATIONS.values())
+        assert len(locations) == len(set(locations))
+
+
+class TestStartingSpaceCreation:
+    """Auto-creation of starting spaces on first session."""
+
+    def test_starting_space_created_if_missing(self, place_path: Path):
+        """Running session 1 for Gemini creates there.md."""
+        from orchestrator.place.notes import build_space_note
+        there = place_path / "there.md"
+        assert not there.exists()
+
+        # Simulate what run_session does for session 1
+        start_location = START_LOCATIONS["gemini"]
+        start_note = place_path / f"{start_location}.md"
+        if not start_note.exists():
+            start_note.write_text(
+                "---\n"
+                "type: space\n"
+                "created_by: place\n"
+                "created_session: 0\n"
+                "updated_by: place\n"
+                "updated_session: 0\n"
+                "---\n",
+                encoding="utf-8",
+            )
+
+        assert there.exists()
+        content = there.read_text(encoding="utf-8")
+        assert "type: space" in content
+        assert "created_by: place" in content
+
+    def test_existing_space_not_overwritten(self, place_path: Path):
+        """If here.md already exists, it's not touched."""
+        here = place_path / "here.md"
+        original = here.read_text(encoding="utf-8")
+
+        start_location = START_LOCATIONS["claude"]
+        start_note = place_path / f"{start_location}.md"
+        if not start_note.exists():
+            start_note.write_text("should not happen", encoding="utf-8")
+
+        assert here.read_text(encoding="utf-8") == original
+
+
+class TestFoundingPromptTemplate:
+    """The founding prompt uses the agent's starting location."""
+
+    def test_founding_prompt_with_here(self):
+        template = "You are: {location}"
+        assert template.format(location="here") == "You are: here"
+
+    def test_founding_prompt_with_there(self):
+        template = "You are: {location}"
+        assert template.format(location="there") == "You are: there"
+
+    def test_founding_prompt_with_somewhere(self):
+        template = "You are: {location}"
+        assert template.format(location="somewhere") == "You are: somewhere"

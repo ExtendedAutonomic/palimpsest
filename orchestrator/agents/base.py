@@ -28,7 +28,7 @@ class Turn:
     """One exchange in a session: agent response + any actions taken."""
     agent_text: str
     tool_calls: list[ToolCall] = field(default_factory=list)
-    thinking: str | None = None  # Extended thinking (Claude only)
+    thinking: str | None = None  # Extended thinking / reasoning content
     nudge: str | None = None  # Injected user message after this turn (e.g. "...")
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -54,6 +54,7 @@ class SessionLog:
     total_output_tokens: int = 0
     total_cache_creation_tokens: int = 0
     total_cache_read_tokens: int = 0
+    total_thinking_tokens: int = 0
     model: str | None = None
     cost: float | None = None
 
@@ -85,6 +86,7 @@ class SessionLog:
                 "output": self.total_output_tokens,
                 "cache_creation": self.total_cache_creation_tokens,
                 "cache_read": self.total_cache_read_tokens,
+                "thinking": self.total_thinking_tokens,
             },
             "turns": [
                 {
@@ -237,6 +239,7 @@ class BaseAgent(ABC):
             self._session_log.total_output_tokens += usage.get("output_tokens", 0)
             self._session_log.total_cache_creation_tokens += usage.get("cache_creation_input_tokens", 0)
             self._session_log.total_cache_read_tokens += usage.get("cache_read_input_tokens", 0)
+            self._session_log.total_thinking_tokens += usage.get("thinking_tokens", 0)
 
             # Process actions
             tool_calls = response.get("tool_calls", [])
