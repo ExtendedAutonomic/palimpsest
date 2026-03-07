@@ -361,13 +361,15 @@ def costs() -> None:
               help="Path to narrator prompt markdown file.")
 @click.option("--session", "-s", type=str, multiple=True,
               help="Session(s) to include. Accepts numbers (3) and ranges (3-6).")
+@click.option("--agent", "-a", type=str, default=None,
+              help="Filter by agent name (e.g. claude, gemini, deepseek).")
 @click.option("--test", is_flag=True, help="Use Sonnet instead of Opus.")
-def narrate(day: str | None, prompt: str | None, session: tuple[str, ...], test: bool) -> None:
+def narrate(day: str | None, prompt: str | None, session: tuple[str, ...], agent: str | None, test: bool) -> None:
     """Run the narrator agent to chronicle the day's events."""
-    asyncio.run(_run_narrator(day, prompt, parse_sessions(session), test=test))
+    asyncio.run(_run_narrator(day, prompt, parse_sessions(session), agent=agent, test=test))
 
 
-async def _run_narrator(day_str: str | None, prompt_path_str: str | None, sessions: tuple[int, ...] | None = None, test: bool = False) -> None:
+async def _run_narrator(day_str: str | None, prompt_path_str: str | None, sessions: tuple[int, ...] | None = None, agent: str | None = None, test: bool = False) -> None:
     """CLI wrapper for running the narrator."""
     from datetime import datetime, timezone
     from .narrator.narrator import run_narrator
@@ -396,6 +398,8 @@ async def _run_narrator(day_str: str | None, prompt_path_str: str | None, sessio
     click.echo(f"  Prompt: {narrator_prompt_path}")
     if day:
         click.echo(f"  Day: {day.strftime('%Y-%m-%d')}")
+    if agent:
+        click.echo(f"  Agent: {agent}")
 
     try:
         output_file = await run_narrator(
@@ -403,6 +407,7 @@ async def _run_narrator(day_str: str | None, prompt_path_str: str | None, sessio
             narrator_prompt_path=narrator_prompt_path,
             day=day,
             sessions=sessions,
+            agent=agent,
             model=model,
         )
         click.echo(f"\nChapter saved: {output_file}")

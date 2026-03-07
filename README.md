@@ -235,13 +235,15 @@ Run the narrator agent to chronicle recent sessions.
 
 ```
 --day     YYYY-MM-DD    Date to narrate (defaults to today)
---session N             Session number(s) to include (repeatable)
+--session N             Session number(s) to include (repeatable, accepts ranges)
+--agent   name          Filter by agent (e.g. claude, gemini, deepseek)
 --prompt  path          Path to narrator prompt file
 --test                  Use Sonnet instead of Opus
 ```
 
 ```bash
 palimpsest narrate
+palimpsest narrate --agent gemini --session 1
 palimpsest narrate --session 3 --session 4
 palimpsest narrate --day 2026-03-04 --test
 ```

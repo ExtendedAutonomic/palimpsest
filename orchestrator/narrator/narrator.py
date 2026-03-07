@@ -52,11 +52,13 @@ def gather_session_logs(
     log_path: Path,
     day: datetime | None = None,
     sessions: tuple[int, ...] | None = None,
+    agent: str | None = None,
 ) -> list[dict]:
     """
     Gather all session logs for a given day.
 
     If no day is specified, gathers logs from today.
+    If agent is specified, only gathers logs from that agent.
     Returns logs sorted by session number.
     """
     if day is None:
@@ -68,7 +70,9 @@ def gather_session_logs(
     for agent_dir in log_path.iterdir():
         if not agent_dir.is_dir() or agent_dir.name.startswith("."):
             continue
-        if agent_dir.name == "narrator":
+        if agent_dir.name in ("narrator", "experimenter"):
+            continue
+        if agent and agent_dir.name != agent:
             continue
 
         for log_file in sorted(agent_dir.glob("session_*.json")):
@@ -89,12 +93,14 @@ def gather_readable_logs(
     log_path: Path,
     day: datetime | None = None,
     sessions: tuple[int, ...] | None = None,
+    agent: str | None = None,
 ) -> list[str]:
     """
     Gather readable markdown logs for a given day.
 
     Prefers readable/ versions if they exist, falls back to
     rendering from JSON.
+    If agent is specified, only gathers logs from that agent.
     """
     if day is None:
         day = datetime.now(timezone.utc)
@@ -105,7 +111,9 @@ def gather_readable_logs(
     for agent_dir in log_path.iterdir():
         if not agent_dir.is_dir() or agent_dir.name.startswith("."):
             continue
-        if agent_dir.name == "narrator":
+        if agent_dir.name in ("narrator", "experimenter"):
+            continue
+        if agent and agent_dir.name != agent:
             continue
 
         readable_dir = agent_dir / "readable"
@@ -233,6 +241,7 @@ async def run_narrator(
     day: datetime | None = None,
     model: str = NARRATOR_MODEL,
     sessions: tuple[int, ...] | None = None,
+    agent: str | None = None,
 ) -> Path:
     """
     Run the narrator for a given day.
@@ -254,15 +263,16 @@ async def run_narrator(
     logger.info(f"Narrator system prompt loaded ({len(system_prompt):,} chars) from {narrator_prompt_path}")
 
     # Gather the day's readable logs
-    readable_logs = gather_readable_logs(log_path, day, sessions)
+    readable_logs = gather_readable_logs(log_path, day, sessions, agent)
     if not readable_logs:
+        agent_label = f" for {agent}" if agent else ""
         raise ValueError(
-            f"No session logs found for {day.strftime('%Y-%m-%d')}. "
+            f"No session logs found{agent_label} on {day.strftime('%Y-%m-%d')}. "
             "Nothing to narrate."
         )
 
     # Track which sessions were included
-    session_logs_raw = gather_session_logs(log_path, day, sessions)
+    session_logs_raw = gather_session_logs(log_path, day, sessions, agent)
     included_sessions = sorted(s["session_number"] for s in session_logs_raw if "session_number" in s)
 
     # Get previous entries
