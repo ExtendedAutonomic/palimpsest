@@ -94,11 +94,11 @@ def _render_opening_with_memory(opening: str, agent: str, fmt: str) -> list[str]
     location_match = re.search(r"You are at: (.+)", opening)
     location = location_match.group(1).strip() if location_match else None
 
-    # Find compressed batch references: "Days 1-3" or "Days 1–3"
-    compressed = re.findall(r"Days\s+(\d+)[–\-](\d+)", opening)
+    # Find compressed batch references: "Days 1-3" or "### Days 1–3"
+    compressed = re.findall(r"(?:#{1,3}\s+)?Days\s+(\d+)[–\-](\d+)", opening)
 
-    # Find individual day references: "Day 1", "Day 2" etc.
-    individual = [int(m) for m in re.findall(r"(?:^|\n)Day\s+(\d+)", opening)]
+    # Find individual day references: "Day 1" or "### Day 1"
+    individual = [int(m) for m in re.findall(r"(?:^|\n)(?:#{1,3}\s+)?Day\s+(\d+)", opening)]
 
     # Remove any individual days that fall within compressed ranges
     compressed_sessions = set()

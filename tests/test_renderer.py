@@ -76,7 +76,7 @@ class TestRenderSessionMarkdown:
     def test_renders_memory_as_compact_reference(self, tmp_path: Path):
         log_data = make_session_log(session_number=2, reflection="")
         log_data["opening_prompt"] = (
-            "## Memory\n\n---\n\nDay 1\n\n"
+            "## Memory\n\n---\n\n### Day 1\n\n"
             "I explored the place.\n\n"
             "You are at: here"
         )
@@ -93,10 +93,10 @@ class TestRenderSessionMarkdown:
         log_data = make_session_log(session_number=7)
         log_data["opening_prompt"] = (
             "## Memory\n\n---\n\n"
-            "Days 1\u20133\n\ncompressed stuff\n\n---\n\n"
-            "Day 4\n\nfull log 4\n\n---\n\n"
-            "Day 5\n\nfull log 5\n\n---\n\n"
-            "Day 6\n\nfull log 6\n\n"
+            "### Days 1\u20133\n\ncompressed stuff\n\n---\n\n"
+            "### Day 4\n\nfull log 4\n\n---\n\n"
+            "### Day 5\n\nfull log 5\n\n---\n\n"
+            "### Day 6\n\nfull log 6\n\n"
             "You are at: the garden"
         )
         log_file = tmp_path / "session_0007.json"

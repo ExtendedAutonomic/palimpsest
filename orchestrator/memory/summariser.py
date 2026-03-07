@@ -279,7 +279,7 @@ async def run_memory_compression(
         total_input_tokens += token_counts["input"]
         total_output_tokens += token_counts["output"]
         new_sections.append(
-            f"Days {first_session}\u2013{last_session}\n\n{compressed}"
+            f"### Days {first_session}\u2013{last_session}\n\n{compressed}"
         )
 
     # Append to compressed memory file
@@ -413,7 +413,7 @@ def build_agent_memory(
         session_num = log["session_number"]
         rendered = render_session_log(log)
         if rendered.strip():
-            memory_parts.append(f"Day {session_num}\n\n{rendered}")
+            memory_parts.append(f"### Day {session_num}\n\n{rendered}")
 
     # Return empty string if no memories
     if len(memory_parts) <= 1:
