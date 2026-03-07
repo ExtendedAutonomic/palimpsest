@@ -279,10 +279,29 @@ def render_session_markdown(
 
             # Format the tool call — wiki links in Obsidian, plain text in GitHub
             # GitHub uses backtick code for tool names to distinguish actions visually
-            tool_fmt = f"`{tool}`" if fmt == "github" else f"**{tool}**"
-            q = "" if fmt == "github" else '"'
+            if fmt == "github":
+                tool_fmt = f"`{tool}:`"
+                q = ""
+            else:
+                tool_fmt = f"**{tool}**"
+                q = '"'
             if tool == "perceive":
-                lines.append(f"> {tool_fmt}")
+                if fmt == "github" and result:
+                    # First line of perceive result is the space name
+                    result_parts = result.strip().split("\n", 1)
+                    space_name = result_parts[0].strip()
+                    lines.append(f"> {tool_fmt} {space_name}")
+                    # Remaining lines rendered as results below
+                    if len(result_parts) > 1 and result_parts[1].strip():
+                        for rl in result_parts[1].strip().split("\n"):
+                            if rl.strip():
+                                lines.append(f"> *{rl}*")
+                            else:
+                                lines.append(">")
+                    lines.append("")
+                    continue  # Skip the generic result rendering below
+                else:
+                    lines.append(f"> {tool_fmt}")
             elif tool == "go":
                 where = args.get("where", "?")
                 if where == "back":
@@ -327,10 +346,7 @@ def render_session_markdown(
                 result_lines = display_result.strip().split("\n")
                 for rl in result_lines:
                     if rl.strip():
-                        if fmt == "github":
-                            lines.append(f"> `{rl}`")
-                        else:
-                            lines.append(f"> *{rl}*")
+                        lines.append(f"> *{rl}*")
                     else:
                         lines.append(">")
 
