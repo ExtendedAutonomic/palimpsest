@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from ..place import PlaceInterface, ToolName, ToolCall, AGENT_TOOLS
+from ..pricing import calculate_cost
 
 logger = logging.getLogger(__name__)
 
@@ -217,6 +218,10 @@ class BaseAgent(ABC):
 
         total_actions = 0
         dusk_sent = False
+        context_limit = self.config.get("session", {}).get("context_limit", 180_000)
+        cost_limit = self.config.get("session", {}).get("cost_limit", 5.0)
+        running_cost = 0.0
+
         for turn_idx in range(max_turns):
             # Dusk approaches — counted by turns, not actions
             if turn_idx >= dusk_threshold and not dusk_sent:
@@ -236,32 +241,64 @@ class BaseAgent(ABC):
 
             # Track tokens
             usage = response.get("usage", {})
-            self._session_log.total_input_tokens += usage.get("input_tokens", 0)
+            turn_input = usage.get("input_tokens", 0)
+            turn_cache_create = usage.get("cache_creation_input_tokens", 0)
+            turn_cache_read = usage.get("cache_read_input_tokens", 0)
+            self._session_log.total_input_tokens += turn_input
             self._session_log.total_output_tokens += usage.get("output_tokens", 0)
-            self._session_log.total_cache_creation_tokens += usage.get("cache_creation_input_tokens", 0)
-            self._session_log.total_cache_read_tokens += usage.get("cache_read_input_tokens", 0)
+            self._session_log.total_cache_creation_tokens += turn_cache_create
+            self._session_log.total_cache_read_tokens += turn_cache_read
             self._session_log.total_thinking_tokens += usage.get("thinking_tokens", 0)
+
+            # Safety checks: trigger early dusk if approaching limits
+            turn_context = turn_input + turn_cache_create + turn_cache_read
+            turn_output = usage.get("output_tokens", 0)
+            turn_thinking = usage.get("thinking_tokens", 0)
+
+            running_cost += calculate_cost(
+                self._session_log.model or "",
+                turn_input, turn_output + turn_thinking,
+                cache_creation_tokens=turn_cache_create,
+                cache_read_tokens=turn_cache_read,
+            )
+
+            if not dusk_sent:
+                if turn_context >= context_limit:
+                    logger.warning(
+                        f"Turn {turn_idx}: context {turn_context:,} tokens, "
+                        f"approaching limit. Triggering early dusk."
+                    )
+                    dusk_prompt = self.config.get("prompts", {}).get("dusk", "")
+                    messages.append({"role": "user", "content": dusk_prompt})
+                    self._session_log.dusk_prompt = dusk_prompt
+                    self._session_log.dusk_action = turn_idx
+                    dusk_sent = True
+                elif running_cost >= cost_limit:
+                    logger.warning(
+                        f"Turn {turn_idx}: session cost ${running_cost:.2f}, "
+                        f"exceeds ${cost_limit:.2f} limit. Triggering early dusk."
+                    )
+                    dusk_prompt = self.config.get("prompts", {}).get("dusk", "")
+                    messages.append({"role": "user", "content": dusk_prompt})
+                    self._session_log.dusk_prompt = dusk_prompt
+                    self._session_log.dusk_action = turn_idx
+                    dusk_sent = True
 
             # Process actions
             tool_calls = response.get("tool_calls", [])
             if not tool_calls:
-                if response.get("stop_reason") == "end_turn":
-                    # The agent spoke without acting — nudge it.
-                    nudge_text = self.config.get("prompts", {}).get("nudge", "...")
-                    turn.nudge = nudge_text
-                    messages.append({
-                        "role": "assistant",
-                        "content": self._format_assistant_message(response),
-                    })
-                    messages.append({
-                        "role": "user",
-                        "content": nudge_text,
-                    })
-                else:
-                    messages.append({
-                        "role": "assistant",
-                        "content": self._format_assistant_message(response),
-                    })
+                nudge_text = self.config.get("prompts", {}).get("nudge", "...")
+                if response.get("stop_reason") == "max_tokens":
+                    logger.warning(f"Turn {turn_idx}: hit output token limit")
+                turn.nudge = nudge_text
+                messages.append({
+                    "role": "assistant",
+                    "content": self._format_assistant_message(response),
+                })
+                messages.append({
+                    "role": "user",
+                    "content": nudge_text,
+                })
                 self._session_log.turns.append(turn)
                 continue
 

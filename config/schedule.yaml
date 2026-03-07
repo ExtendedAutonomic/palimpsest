@@ -4,3 +4,5 @@ session:
   turn_budget: 17
   dusk_threshold: 14
   max_output_tokens: 4096
+  context_limit: 180000  # Trigger early dusk if per-turn context exceeds this (200K max)
+  cost_limit: 3.00       # Trigger early dusk if session cost exceeds this (USD)
