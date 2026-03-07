@@ -349,11 +349,10 @@ palimpsest/
 │   └── costs.yaml              # Budget tracking
 ├── logs/                       # Session logs — local only, gitignored
 │   ├── {agent}/
-│   │   ├── json/               # Raw session JSON files
+│   │   ├── json/               # Session JSON + compression_costs.json
 │   │   ├── obsidian_logs/      # Obsidian-formatted readable logs
 │   │   ├── github_logs/        # GitHub-formatted readable logs
-│   │   ├── compressed_memory.md
-│   │   └── compression_costs.json
+│   │   └── compressed_memory.md
 │   ├── narrator/               # Narrator chapters + cost sidecars
 │   └── experimenter/           # Blog posts + cost sidecars
 └── place/                      # The experiment — local only, gitignored

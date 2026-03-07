@@ -347,7 +347,9 @@ def _record_compression_cost(
     output_tokens: int,
 ) -> None:
     """Append compression token usage to the agent's compression_costs.json."""
-    costs_file = agent_log_dir / "compression_costs.json"
+    json_dir = agent_log_dir / "json"
+    json_dir.mkdir(parents=True, exist_ok=True)
+    costs_file = json_dir / "compression_costs.json"
     existing: list[dict] = []
     if costs_file.exists():
         try:

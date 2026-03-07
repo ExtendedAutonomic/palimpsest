@@ -21,8 +21,8 @@ Thumbs.db
 # Experimental data
 /exports/
 
-# Obsidian-formatted readable logs (GitHub versions in logs/*/github/)
-logs/*/readable/
+# Obsidian-formatted readable logs (GitHub versions in logs/*/github_logs/)
+logs/*/obsidian_logs/
 
 # Narrator and experimenter outputs (published separately)
 /logs/narrator/

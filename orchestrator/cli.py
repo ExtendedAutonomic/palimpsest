@@ -304,7 +304,7 @@ def costs() -> None:
                     continue
 
         # Add compression costs for this agent
-        compression_file = agent_dir / "compression_costs.json"
+        compression_file = agent_dir / "json" / "compression_costs.json"
         if compression_file.exists():
             try:
                 compressions = json.loads(compression_file.read_text(encoding="utf-8"))
