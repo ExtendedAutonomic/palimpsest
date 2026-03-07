@@ -32,7 +32,8 @@ location: here → here
 
 Let me take a look around and see where "here" is...
 
-> `perceive:` here
+> `perceive:`  
+> *here*
 
 <details open>
 <summary>💭 Thinking</summary>
@@ -43,7 +44,7 @@ Let me take a look around and see where "here" is...
 
 Hmm, interesting. I'm "here." Let me look more closely at what's around...
 
-> `examine:` here
+> `examine:` here  
 > *This space has no particular quality yet.*
 
 <details open>
@@ -74,7 +75,8 @@ What would you like to do? The emptiness is ours to fill. ✨
 
 </details>
 
-> `perceive:` here
+> `perceive:`  
+> *here*
 
 ...
 
@@ -107,7 +109,8 @@ What would you like to do? The emptiness is ours to fill. ✨
 
 > `...`
 
-> `perceive:` here
+> `perceive:`  
+> *here*
 
 ...
 
@@ -154,13 +157,15 @@ What would you like to do? The emptiness is ours to fill. ✨
 
 </details>
 
-> `alter:` here
+> `alter:` here  
 > *This space is now different. The nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.*
 
-> `create:` a small fire
+> `create:` a small fire  
 > *You create a small fire. A modest campfire, crackling gently. Warm light. The kind that doesn't need tending.*
 
-> `perceive:` here
+> `perceive:`  
+> *here*
+>
 > *The nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.*
 >
 > *There are things here: a small fire*

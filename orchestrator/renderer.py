@@ -286,22 +286,7 @@ def render_session_markdown(
                 tool_fmt = f"**{tool}**"
                 q = '"'
             if tool == "perceive":
-                if fmt == "github" and result:
-                    # First line of perceive result is the space name
-                    result_parts = result.strip().split("\n", 1)
-                    space_name = result_parts[0].strip()
-                    lines.append(f"> {tool_fmt} {space_name}")
-                    # Remaining lines rendered as results below
-                    if len(result_parts) > 1 and result_parts[1].strip():
-                        for rl in result_parts[1].strip().split("\n"):
-                            if rl.strip():
-                                lines.append(f"> *{rl}*")
-                            else:
-                                lines.append(">")
-                    lines.append("")
-                    continue  # Skip the generic result rendering below
-                else:
-                    lines.append(f"> {tool_fmt}")
+                lines.append(f"> {tool_fmt}")
             elif tool == "go":
                 where = args.get("where", "?")
                 if where == "back":
@@ -343,6 +328,9 @@ def render_session_markdown(
                 if desc:
                     display_result = f"{result} {desc}"
             if display_result:
+                if fmt == "github":
+                    # Two trailing spaces on previous line forces <br> without blank line
+                    lines[-1] = lines[-1] + "  "
                 result_lines = display_result.strip().split("\n")
                 for rl in result_lines:
                     if rl.strip():

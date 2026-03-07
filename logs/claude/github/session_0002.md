@@ -37,15 +37,17 @@ location: here → here
 
 Let me open my eyes.
 
-> `perceive:` here
+> `perceive:`  
+> *here*
+>
 > *The nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.*
 >
 > *There are things here: a small fire*
 
-> `examine:` a small fire
+> `examine:` a small fire  
 > *A modest campfire, crackling gently. Warm light. The kind that doesn't need tending.*
 
-> `examine:` the sky
+> `examine:` the sky  
 > *There is nothing called "the sky" here.*
 
 <details open>
@@ -236,10 +238,12 @@ We're still here. What would you like to do today?
 
 *stands slowly. stretches.*
 
-> `create:` a smooth stone
+> `create:` a smooth stone  
 > *You create a smooth stone. A small, smooth stone, the kind you'd find by a river. Warm on one side from sitting near the fire. Cool on the other. It fits perfectly in the palm of a hand.*
 
-> `perceive:` here
+> `perceive:`  
+> *here*
+>
 > *The nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.*
 >
 > *There are things here: a small fire, a smooth stone*

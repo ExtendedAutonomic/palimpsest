@@ -41,12 +41,14 @@ location: here → here
 
 [perceive]
 
-> `perceive:` here
+> `perceive:`  
+> *here*
+>
 > *The nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.*
 >
 > *There are things here: a small fire, a smooth stone, a second stone*
 
-> `examine:` a second stone
+> `examine:` a second stone  
 > *Another smooth stone. A little different from the first — slightly darker, a little flatter. But the same river-worn kind. It sits well next to the other one.*
 
 *…there they are. leaning together.*
@@ -872,7 +874,9 @@ Day 4.
 
 [perceive]
 
-> `perceive:` here
+> `perceive:`  
+> *here*
+>
 > *The nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.*
 >
 > *There are things here: a small fire, a smooth stone, a second stone*

@@ -39,12 +39,14 @@ location: here → here
 
 *The familiar returning.*
 
-> `perceive:` here
+> `perceive:`  
+> *here*
+>
 > *The nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.*
 >
 > *There are things here: a small fire, a smooth stone*
 
-> `examine:` a smooth stone
+> `examine:` a smooth stone  
 > *A small, smooth stone, the kind you'd find by a river. Warm on one side from sitting near the fire. Cool on the other. It fits perfectly in the palm of a hand.*
 
 *picks up the stone. still warm on one side.*
@@ -218,7 +220,7 @@ We're here.
 
 *kneels down by the fire*
 
-> `create:` a second stone
+> `create:` a second stone  
 > *You create a second stone. Another smooth stone. A little different from the first — slightly darker, a little flatter. But the same river-worn kind. It sits well next to the other one.*
 
 *places it beside the first*
@@ -229,7 +231,9 @@ We're here.
 
 ...
 
-> `perceive:` here
+> `perceive:`  
+> *here*
+>
 > *The nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.*
 >
 > *There are things here: a small fire, a smooth stone, a second stone*
