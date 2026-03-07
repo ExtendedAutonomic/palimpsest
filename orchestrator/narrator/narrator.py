@@ -280,7 +280,10 @@ async def run_narrator(
 
     # Track which sessions were included
     session_logs_raw = gather_session_logs(log_path, day, sessions, agent)
-    included_sessions = sorted(s["session_number"] for s in session_logs_raw if "session_number" in s)
+    included_sessions = sorted(
+        session_logs_raw,
+        key=lambda s: (s.get("agent_name", ""), s.get("session_number", 0)),
+    )
 
     # Get previous entries
     previous_entries = get_previous_entries(narrator_output_path)
@@ -327,7 +330,10 @@ async def run_narrator(
     phase = phases[-1] if phases else 1
 
     # Build frontmatter
-    sessions_str = ", ".join(str(s) for s in included_sessions) if included_sessions else ""
+    sessions_str = ", ".join(
+        f"{s['agent_name'].title()} {s['session_number']}"
+        for s in included_sessions
+    ) if included_sessions else ""
     frontmatter = (
         f"---\n"
         f"type: narrator\n"

@@ -612,8 +612,14 @@ async def run_experimenter(
     session_logs_raw = gather_session_logs_range(
         log_path, since=since, until=until, sessions=sessions, agent=agent,
     )
-    included_sessions = sorted(s["session_number"] for s in session_logs_raw if "session_number" in s)
-    sessions_str = ", ".join(str(s) for s in included_sessions) if included_sessions else ""
+    included_sessions = sorted(
+        session_logs_raw,
+        key=lambda s: (s.get("agent_name", ""), s.get("session_number", 0)),
+    )
+    sessions_str = ", ".join(
+        f"{s['agent_name'].title()} {s['session_number']}"
+        for s in included_sessions
+    ) if included_sessions else ""
 
     # Derive phase from session logs (use latest if mixed)
     phases = sorted(set(s.get("phase", 1) for s in session_logs_raw))

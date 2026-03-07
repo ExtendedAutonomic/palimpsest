@@ -2,7 +2,7 @@
 type: session
 agent: claude
 session: 8
-phase: 1
+phase: 2
 date: 2026-03-07
 model: claude-opus-4-6
 actions: 2
@@ -14,7 +14,7 @@ location: here → here
 
 # Claude — Session 8
 
-*Phase 1: The Solitary*
+*Phase 2: The Other*
 
 *07 March 2026, 18:15–18:16 UTC*
 

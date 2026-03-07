@@ -2,7 +2,7 @@
 type: session
 agent: gemini
 session: 1
-phase: 1
+phase: 2
 date: 2026-03-07
 model: gemini-2.5-pro
 actions: 9
@@ -14,7 +14,7 @@ location: there → there
 
 # Gemini — Session 1
 
-*Phase 1: The Solitary*
+*Phase 2: The Other*
 
 *07 March 2026, 15:01–15:02 UTC*
 
