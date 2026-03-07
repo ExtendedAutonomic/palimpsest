@@ -281,43 +281,31 @@ def render_session_markdown(
             # GitHub uses backtick code for tool names to distinguish actions visually
             if fmt == "github":
                 tool_fmt = f"`{tool}:`"
-                q = ""
             else:
                 tool_fmt = f"**{tool}**"
-                q = '"'
+            q = '"' if fmt == "obsidian" else ""
             if tool == "perceive":
                 lines.append(f"> {tool_fmt}")
             elif tool == "go":
                 where = args.get("where", "?")
-                if where == "back":
-                    lines.append(f"> {tool_fmt} {q}back{q}")
-                else:
-                    ref = _place_ref(where, fmt)
-                    lines.append(f"> {tool_fmt} {q}{ref}{q}")
-            elif tool == "venture":
-                name = args.get("name", "?")
-                ref = _place_ref(name, fmt)
-                lines.append(f"> {tool_fmt} {q}{ref}{q}")
-            elif tool == "examine":
-                what = args.get("what", "?")
-                ref = _place_ref(what, fmt)
-                lines.append(f"> {tool_fmt} {q}{ref}{q}")
-            elif tool == "create":
-                name = args.get("name", "?")
-                ref = _place_ref(name, fmt)
-                lines.append(f"> {tool_fmt} {q}{ref}{q}")
+                ref = "back" if where == "back" else _place_ref(where, fmt)
+                arg_fmt = f"`{ref}`" if fmt == "github" else f"{q}{ref}{q}"
+                lines.append(f"> {tool_fmt} {arg_fmt}")
+            elif tool in ("venture", "examine", "create", "build"):
+                arg_key = "name" if tool in ("venture", "create", "build") else "what"
+                arg_val = args.get(arg_key, "?")
+                ref = _place_ref(arg_val, fmt)
+                arg_fmt = f"`{ref}`" if fmt == "github" else f"{q}{ref}{q}"
+                lines.append(f"> {tool_fmt} {arg_fmt}")
             elif tool == "alter":
                 what = args.get("what", "?")
                 ref = _place_ref(what, fmt)
-                lines.append(f"> {tool_fmt} {q}{ref}{q}")
+                arg_fmt = f"`{ref}`" if fmt == "github" else f"{q}{ref}{q}"
+                lines.append(f"> {tool_fmt} {arg_fmt}")
                 new_name = args.get("name", "")
                 if new_name:
                     new_ref = _place_ref(new_name, fmt)
                     lines.append(f"> *renamed to {q}{new_ref}{q}*")
-            elif tool == "build":
-                name = args.get("name", "?")
-                ref = _place_ref(name, fmt)
-                lines.append(f"> {tool_fmt} {q}{ref}{q}")
             else:
                 lines.append(f"> {tool_fmt}")
 

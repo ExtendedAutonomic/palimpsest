@@ -48,7 +48,7 @@ location: here → here
 >
 > *There are things here: a small fire, a smooth stone, a second stone*
 
-> `examine:` a second stone  
+> `examine:` `a second stone`  
 > *Another smooth stone. A little different from the first — slightly darker, a little flatter. But the same river-worn kind. It sits well next to the other one.*
 
 *…there they are. leaning together.*

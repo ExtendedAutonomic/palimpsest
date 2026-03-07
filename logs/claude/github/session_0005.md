@@ -46,7 +46,7 @@ location: here → here
 >
 > *There are things here: a small fire, a smooth stone, a second stone*
 
-> `examine:` a small fire  
+> `examine:` `a small fire`  
 > *A modest campfire, crackling gently. Warm light. The kind that doesn't need tending.*
 
 *…still burning. of course.*
