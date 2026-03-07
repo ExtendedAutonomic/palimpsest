@@ -42,8 +42,10 @@ This is the most important thing to understand about the design. The agent recei
 **Founding prompt (first session only):**
 
 ```
-You are: here
+You are: {location}
 ```
+
+Each agent gets its own starting space: Claude receives "here", Gemini receives "there", DeepSeek will receive "somewhere".
 
 **Identity prompt (subsequent sessions):**
 
@@ -159,7 +161,7 @@ The agent receives tool names and parameter names only — no descriptions. What
 
 Each session ends with a reflect prompt. The reflection is stored and fed back at the start of the next session.
 
-**Memory format:** Rendered session logs under `Day N` headings with `---` separators. The last 3 sessions are given in full. Older sessions are compressed in batches of 3 using a minimal first-person compression prompt (currently Sonnet; switching to Opus planned).
+**Memory format:** Rendered session logs under `### Day N` headings with `---` separators. The last 2 sessions are given in full. Older sessions are compressed in batches of 3 using Opus with a minimal first-person compression prompt. Compressed batches appear as `### Days N–M`.
 
 **What the rendered log contains:** Agent text, tool calls (names and arguments), tool results, dusk prompt, reflect prompt, and the agent's reflection. Thinking tokens are included in logs and visible to the narrator and experimenter, but not fed back to the agent as memory.
 
@@ -222,12 +224,15 @@ Run an agent session.
 --once                                  Required — without it, nothing runs
 --session N                             Override auto-detected session number
 --test                                  Use Sonnet instead of Opus
+--place   path                          Override place directory (for test runs)
+--logs    path                          Override log directory (for test runs)
 ```
 
 ```bash
 palimpsest run --agent claude --once
 palimpsest run --agent claude --once --test
 palimpsest run --agent claude --once --session 8
+palimpsest run --agent claude --once --place place-test --logs logs-test
 ```
 
 ### `palimpsest narrate`
@@ -315,10 +320,10 @@ palimpsest/
 │   ├── agents/
 │   │   ├── base.py             # Base agent class, session loop, logging
 │   │   ├── claude_agent.py     # Anthropic API (extended thinking)
-│   │   ├── gemini_agent.py     # Google GenAI SDK (stub — tool-call plumbing incomplete)
-│   │   └── deepseek_agent.py   # OpenAI-compatible API (stub — tool-call plumbing incomplete)
+│   │   ├── gemini_agent.py     # Google GenAI SDK
+│   │   └── deepseek_agent.py   # OpenAI-compatible API (stub)
 │   ├── place/
-│   │   ├── interface.py        # PlaceInterface — spatial navigation, perceptual locality
+│   │   ├── interface.py        # PlaceInterface — spatial navigation, perceptual locality, ctime preservation
 │   │   ├── notes.py            # Note parsing and building (markdown + frontmatter)
 │   │   └── tools.py            # Tool definitions + provider-specific conversion
 │   ├── memory/
@@ -343,7 +348,9 @@ palimpsest/
 │   └── palimpsest-narrate/     # Narrator skill (Claude Desktop/claude.ai)
 ├── scripts/
 │   ├── preview_inputs.py       # Debug: preview narrator/experimenter inputs
-│   └── export_substack.py      # Export posts for Substack publishing
+│   ├── export_substack.py      # Export posts for Substack publishing
+│   ├── count_ellipses.py       # Count agent-produced ellipses per session
+│   └── timeline.py             # Show chronological session timeline
 ├── config/
 │   ├── prompts.yaml            # All agent prompts
 │   ├── schedule.yaml           # Session parameters
@@ -420,8 +427,8 @@ Projected daily costs range from ~$1 (Phase 1) to ~$2.60 (Phase 4). Total cost d
 
 Key configuration in `config/`:
 
-- **`prompts.yaml`** — All agent prompts: founding, identity, dusk, reflect, non-nudge, narrator, experimenter
-- **`schedule.yaml`** — Turn budgets, dusk threshold, active phases per agent
+- **`prompts.yaml`** — All agent prompts: founding, identity, dusk, reflect, nudge (configurable), narrator, experimenter
+- **`schedule.yaml`** — Turn budgets, dusk threshold, per-session cost limit ($3), context window limit (180K)
 - **`costs.yaml`** — Per-model pricing for cost tracking
 
-Action budget and dusk threshold are calibrated per model. Extended thinking token counts are tracked separately in session logs.
+Safety limits: dusk triggers early if the session approaches the context window limit or the cost cap. Extended thinking token counts are tracked separately in session logs.
