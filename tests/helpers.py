@@ -56,14 +56,14 @@ def make_session_log(
 
 def write_session_log(log_path: Path, agent_name: str, session_number: int, **kwargs) -> Path:
     """Write a session log file and return its path."""
-    agent_dir = log_path / agent_name
-    agent_dir.mkdir(parents=True, exist_ok=True)
+    json_dir = log_path / agent_name / "json"
+    json_dir.mkdir(parents=True, exist_ok=True)
 
     log_data = make_session_log(
         agent_name=agent_name,
         session_number=session_number,
         **kwargs,
     )
-    log_file = agent_dir / f"session_{session_number:04d}.json"
+    log_file = json_dir / f"session_{session_number:04d}.json"
     log_file.write_text(json.dumps(log_data, indent=2), encoding="utf-8")
     return log_file

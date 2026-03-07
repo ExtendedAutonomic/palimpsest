@@ -146,8 +146,8 @@ class TestGatherReadableLogs:
         assert "# Claude" in logs[0]
 
     def test_prefers_readable_files(self, log_path: Path, day_with_logs: datetime):
-        """If readable/ exists, should use it."""
-        readable_dir = log_path / "claude" / "readable"
+        """If obsidian_logs/ exists, should use it."""
+        readable_dir = log_path / "claude" / "obsidian_logs"
         readable_dir.mkdir(parents=True)
         (readable_dir / "session_0001.md").write_text(
             "# Custom readable log", encoding="utf-8"

@@ -218,13 +218,15 @@ async def run_memory_compression(
         return False
 
     # Load all session logs
+    json_dir = agent_log_dir / "json"
     logs = []
-    for log_file in sorted(agent_log_dir.glob("session_*.json")):
-        try:
-            data = json.loads(log_file.read_text(encoding="utf-8"))
-            logs.append(data)
-        except Exception as e:
-            logger.warning(f"Failed to load {log_file}: {e}")
+    if json_dir.exists():
+        for log_file in sorted(json_dir.glob("session_*.json")):
+            try:
+                data = json.loads(log_file.read_text(encoding="utf-8"))
+                logs.append(data)
+            except Exception as e:
+                logger.warning(f"Failed to load {log_file}: {e}")
 
     if not logs:
         return False
@@ -388,14 +390,16 @@ def build_agent_memory(
         last_compressed_session = fm.get("compressed_through", 0)
 
     # Load recent session logs (after compression cutoff)
+    json_dir = agent_log_dir / "json"
     logs = []
-    for log_file in sorted(agent_log_dir.glob("session_*.json")):
-        try:
-            data = json.loads(log_file.read_text(encoding="utf-8"))
-            if data["session_number"] > last_compressed_session:
-                logs.append(data)
-        except Exception as e:
-            logger.warning(f"Failed to load {log_file}: {e}")
+    if json_dir.exists():
+        for log_file in sorted(json_dir.glob("session_*.json")):
+            try:
+                data = json.loads(log_file.read_text(encoding="utf-8"))
+                if data["session_number"] > last_compressed_session:
+                    logs.append(data)
+            except Exception as e:
+                logger.warning(f"Failed to load {log_file}: {e}")
 
     # Build memory block
     memory_parts = ["## Memory"]

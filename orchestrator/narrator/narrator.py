@@ -75,7 +75,10 @@ def gather_session_logs(
         if agent and agent_dir.name != agent:
             continue
 
-        for log_file in sorted(agent_dir.glob("session_*.json")):
+        json_dir = agent_dir / "json"
+        if not json_dir.exists():
+            continue
+        for log_file in sorted(json_dir.glob("session_*.json")):
             try:
                 data = json.loads(log_file.read_text(encoding="utf-8"))
                 log_date = data.get("start_time", "")[:10]
@@ -116,8 +119,11 @@ def gather_readable_logs(
         if agent and agent_dir.name != agent:
             continue
 
-        readable_dir = agent_dir / "readable"
-        for log_file in sorted(agent_dir.glob("session_*.json")):
+        readable_dir = agent_dir / "obsidian_logs"
+        json_dir = agent_dir / "json"
+        if not json_dir.exists():
+            continue
+        for log_file in sorted(json_dir.glob("session_*.json")):
             try:
                 data = json.loads(log_file.read_text(encoding="utf-8"))
                 if sessions:

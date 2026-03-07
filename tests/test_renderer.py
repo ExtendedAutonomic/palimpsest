@@ -117,7 +117,9 @@ class TestSaveReadableLog:
 
     def test_creates_readable_file(self, tmp_path: Path):
         log_data = make_session_log()
-        log_file = tmp_path / "session_0001.json"
+        json_dir = tmp_path / "json"
+        json_dir.mkdir()
+        log_file = json_dir / "session_0001.json"
         log_file.write_text(json.dumps(log_data), encoding="utf-8")
 
         output = save_readable_log(log_file)
@@ -125,13 +127,15 @@ class TestSaveReadableLog:
         assert output.suffix == ".md"
         assert output.name == "session_0001.md"
 
-    def test_creates_readable_directory(self, tmp_path: Path):
+    def test_creates_obsidian_logs_directory(self, tmp_path: Path):
         log_data = make_session_log()
-        log_file = tmp_path / "session_0001.json"
+        json_dir = tmp_path / "json"
+        json_dir.mkdir()
+        log_file = json_dir / "session_0001.json"
         log_file.write_text(json.dumps(log_data), encoding="utf-8")
 
         save_readable_log(log_file)
-        assert (tmp_path / "readable").is_dir()
+        assert (tmp_path / "obsidian_logs").is_dir()
 
     def test_custom_output_directory(self, tmp_path: Path):
         log_data = make_session_log()

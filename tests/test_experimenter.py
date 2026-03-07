@@ -87,10 +87,10 @@ def multi_day_logs(log_path: Path) -> Path:
     write_session_log(log_path, "claude", 2)
 
     # Day 2: session 3 (different date)
-    agent_dir = log_path / "claude"
+    json_dir = log_path / "claude" / "json"
     log_data = make_session_log(agent_name="claude", session_number=3)
     log_data["start_time"] = "2026-03-02T10:00:00+00:00"
-    (agent_dir / "session_0003.json").write_text(
+    (json_dir / "session_0003.json").write_text(
         json.dumps(log_data, indent=2), encoding="utf-8"
     )
     return log_path
@@ -189,7 +189,7 @@ class TestGatherReadableLogsRange:
         assert "# Claude" in logs[0]
 
     def test_prefers_readable_files(self, multi_day_logs: Path):
-        readable_dir = multi_day_logs / "claude" / "readable"
+        readable_dir = multi_day_logs / "claude" / "obsidian_logs"
         readable_dir.mkdir(parents=True)
         (readable_dir / "session_0001.md").write_text(
             "# Custom readable", encoding="utf-8"

@@ -16,7 +16,7 @@ Write blog posts about the Palimpsest experiment. Replaces the `palimpsest blog`
 | | `D:\Vault\Projects\Active\Palimpsest\Palimpsest - Technical Architecture.md` |
 | | `D:\Vault\Projects\Active\Palimpsest\Palimpsest - Experimental Design.md` |
 | | `D:\Vault\Projects\Active\Palimpsest\Palimpsest - Insights.md` |
-| Readable session logs | `D:\Code\palimpsest\logs\claude\readable\session_NNNN.md` |
+| Readable session logs | `D:\Code\palimpsest\logs\{agent}\obsidian_logs\session_NNNN.md` |
 | Previous posts | `D:\Code\palimpsest\logs\experimenter\post_NNNN.md` |
 | Compressed memories | `D:\Code\palimpsest\logs\claude\compressed_memory.md` |
 | Output directory | `D:\Code\palimpsest\logs\experimenter\` |
@@ -38,7 +38,7 @@ Read the following files:
 
 3. **Previous posts** - list `D:\Code\palimpsest\logs\experimenter\` and read any existing `post_NNNN.md` files. These give you continuity.
 
-4. **Session logs** - read the readable markdown logs for the specified sessions at `D:\Code\palimpsest\logs\claude\readable\session_NNNN.md`.
+4. **Session logs** - read the readable markdown logs for the specified sessions at `D:\Code\palimpsest\logs\{agent}\obsidian_logs\session_NNNN.md` (where `{agent}` is `claude`, `gemini`, etc.).
 
 5. **Compressed memories** - read `D:\Code\palimpsest\logs\claude\compressed_memory.md` if it exists. This is the lossy, compressed version of older sessions that the agent actually receives as memory. Always read it unless the user explicitly says to skip compressed memories.
 

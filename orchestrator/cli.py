@@ -238,13 +238,13 @@ def _print_tree(path: Path, prefix: str = "", is_last: bool = True) -> None:
 def logs(agent: str | None, last: int) -> None:
     """View session logs."""
     if agent:
-        agent_dir = LOG_PATH / agent
-        if not agent_dir.exists():
+        json_dir = LOG_PATH / agent / "json"
+        if not json_dir.exists():
             click.echo(f"No logs for {agent}")
             return
-        log_files = sorted(agent_dir.glob("session_*.json"))[-last:]
+        log_files = sorted(json_dir.glob("session_*.json"))[-last:]
     else:
-        log_files = sorted(LOG_PATH.rglob("session_*.json"))[-last:]
+        log_files = sorted(LOG_PATH.glob("*/json/session_*.json"))[-last:]
 
     for lf in log_files:
         data = json.loads(lf.read_text(encoding="utf-8"))
@@ -279,27 +279,29 @@ def costs() -> None:
         total_tokens = 0
         session_count = 0
 
-        for log_file in sorted(agent_dir.glob("session_*.json")):
-            try:
-                data = json.loads(log_file.read_text(encoding="utf-8"))
-                tokens = data.get("tokens", {})
-                input_tokens = tokens.get("input", 0)
-                output_tokens = tokens.get("output", 0)
-                thinking_tokens = tokens.get("thinking", 0)
-                cache_creation = tokens.get("cache_creation", 0)
-                cache_read = tokens.get("cache_read", 0)
-                total_tokens += input_tokens + cache_creation + cache_read + output_tokens + thinking_tokens
-                session_count += 1
-                if data.get("cost") is not None:
-                    agent_cost += data["cost"]
-                elif data.get("model"):
-                    agent_cost += calculate_cost(
-                        data["model"], input_tokens, output_tokens + thinking_tokens,
-                        cache_creation_tokens=cache_creation,
-                        cache_read_tokens=cache_read,
-                    )
-            except Exception:
-                continue
+        json_dir = agent_dir / "json"
+        if json_dir.exists():
+            for log_file in sorted(json_dir.glob("session_*.json")):
+                try:
+                    data = json.loads(log_file.read_text(encoding="utf-8"))
+                    tokens = data.get("tokens", {})
+                    input_tokens = tokens.get("input", 0)
+                    output_tokens = tokens.get("output", 0)
+                    thinking_tokens = tokens.get("thinking", 0)
+                    cache_creation = tokens.get("cache_creation", 0)
+                    cache_read = tokens.get("cache_read", 0)
+                    total_tokens += input_tokens + cache_creation + cache_read + output_tokens + thinking_tokens
+                    session_count += 1
+                    if data.get("cost") is not None:
+                        agent_cost += data["cost"]
+                    elif data.get("model"):
+                        agent_cost += calculate_cost(
+                            data["model"], input_tokens, output_tokens + thinking_tokens,
+                            cache_creation_tokens=cache_creation,
+                            cache_read_tokens=cache_read,
+                        )
+                except Exception:
+                    continue
 
         # Add compression costs for this agent
         compression_file = agent_dir / "compression_costs.json"
@@ -575,7 +577,11 @@ def render(agent: str | None, session: tuple[str, ...], fmt: str) -> None:
             click.echo(f"No logs for {agent_dir.name}")
             continue
 
-        log_files = sorted(agent_dir.glob("session_*.json"))
+        json_dir = agent_dir / "json"
+        if not json_dir.exists():
+            click.echo(f"No JSON logs for {agent_dir.name}")
+            continue
+        log_files = sorted(json_dir.glob("session_*.json"))
         if sessions:
             log_files = [
                 f for f in log_files

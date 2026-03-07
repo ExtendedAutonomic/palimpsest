@@ -345,6 +345,7 @@ class BaseAgent(ABC):
         log_file = (
             self.log_path
             / self.name
+            / "json"
             / f"session_{self._session_log.session_number:04d}.json"
         )
         log_file.parent.mkdir(parents=True, exist_ok=True)

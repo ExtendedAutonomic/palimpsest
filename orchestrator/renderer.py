@@ -352,7 +352,7 @@ def render_session_markdown(
 def save_readable_log(log_path: Path, output_dir: Path | None = None) -> Path:
     """Render a session log and save it as Obsidian-formatted markdown."""
     if output_dir is None:
-        output_dir = log_path.parent / "readable"
+        output_dir = log_path.parent.parent / "obsidian_logs"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     md = render_session_markdown(log_path, fmt="obsidian")
@@ -364,7 +364,7 @@ def save_readable_log(log_path: Path, output_dir: Path | None = None) -> Path:
 def save_github_log(log_path: Path, output_dir: Path | None = None) -> Path:
     """Render a session log and save it as GitHub-formatted markdown."""
     if output_dir is None:
-        output_dir = log_path.parent / "github"
+        output_dir = log_path.parent.parent / "github_logs"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     md = render_session_markdown(log_path, fmt="github")

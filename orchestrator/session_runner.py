@@ -80,10 +80,10 @@ def create_agent(
 
 def get_next_session_number(agent_name: str, log_path: Path) -> int:
     """Get the next session number for an agent based on existing logs."""
-    agent_log_dir = log_path / agent_name
-    if not agent_log_dir.exists():
+    json_dir = log_path / agent_name / "json"
+    if not json_dir.exists():
         return 1
-    existing = list(agent_log_dir.glob("session_*.json"))
+    existing = list(json_dir.glob("session_*.json"))
     if not existing:
         return 1
     numbers = [int(f.stem.split("_")[1]) for f in existing]
@@ -92,10 +92,10 @@ def get_next_session_number(agent_name: str, log_path: Path) -> int:
 
 def get_last_location(agent_name: str, log_path: Path) -> str | None:
     """Get the agent's last known location from its most recent log."""
-    agent_log_dir = log_path / agent_name
-    if not agent_log_dir.exists():
+    json_dir = log_path / agent_name / "json"
+    if not json_dir.exists():
         return None
-    logs = sorted(agent_log_dir.glob("session_*.json"))
+    logs = sorted(json_dir.glob("session_*.json"))
     if not logs:
         return None
     try:
@@ -214,7 +214,7 @@ async def run_session(
             cache_creation_tokens=log.total_cache_creation_tokens,
             cache_read_tokens=log.total_cache_read_tokens,
         )
-        log_file_early = log_path / agent_name / f"session_{session_num:04d}.json"
+        log_file_early = log_path / agent_name / "json" / f"session_{session_num:04d}.json"
         if log_file_early.exists():
             log_file_early.write_text(
                 json.dumps(log.to_dict(), indent=2, ensure_ascii=False),
@@ -228,7 +228,7 @@ async def run_session(
     memory_compressed = await run_memory_compression(agent_name, log_path)
 
     # Generate readable logs (both formats)
-    log_file = log_path / agent_name / f"session_{session_num:04d}.json"
+    log_file = log_path / agent_name / "json" / f"session_{session_num:04d}.json"
     readable_path = None
     try:
         readable_path = save_readable_log(log_file)

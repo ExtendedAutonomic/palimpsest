@@ -12,7 +12,7 @@ Write narrator chapters chronicling the Palimpsest experiment. Replaces the `pal
 | What | Where |
 |------|-------|
 | Narrator prompt (voice + style) | `D:\Vault\Projects\Active\Palimpsest\Narrator Prompt.md` |
-| Readable session logs | `D:\Code\palimpsest\logs\claude\readable\session_NNNN.md` |
+| Readable session logs | `D:\Code\palimpsest\logs\claude\obsidian_logs\session_NNNN.md` |
 | Previous chapters | `D:\Code\palimpsest\logs\narrator\chapter_NNNN.md` |
 | Output directory | `D:\Code\palimpsest\logs\narrator\` |
 
@@ -28,7 +28,7 @@ Read the following files:
 
 2. **Previous chapters** - list `D:\Code\palimpsest\logs\narrator\` and read any existing `chapter_NNNN.md` files. These give you narrative continuity.
 
-3. **Session logs** - read the readable markdown logs for the specified sessions at `D:\Code\palimpsest\logs\claude\readable\session_NNNN.md`. These are your primary source. They include the agent's thinking, words, tool calls, results, and reflections.
+3. **Session logs** - read the readable markdown logs for the specified sessions at `D:\Code\palimpsest\logs\claude\obsidian_logs\session_NNNN.md`. These are your primary source. They include the agent's thinking, words, tool calls, results, and reflections.
 
 If any files failed to read or were missing, stop and report the failures. Do not proceed. If everything read successfully, continue to the next step.
 
