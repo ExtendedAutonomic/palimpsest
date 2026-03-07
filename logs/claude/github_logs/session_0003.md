@@ -21,7 +21,7 @@ location: here → here
 ## Opening
 
 > [!NOTE]
-> Memory: [Day 1](session_0001.md), [Day 2](session_0002.md)
+> Memory: [Day 1](logs/claude/github_logs/session_0001.md), [Day 2](session_0002.md)
 > `You are at: here`
 
 ## Day

@@ -41,6 +41,9 @@ dusk: |
 reflect: |
   It is the end of the day. Time to reflect.
 
+# Non-nudge — sent when the agent speaks without acting
+nudge: "..."
+
 # System prompt — omitted entirely for minimal experiment
 system:
 

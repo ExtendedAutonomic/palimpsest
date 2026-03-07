@@ -155,12 +155,20 @@ def init() -> None:
 @click.option("--session", "-s", type=int, default=None,
               help="Override session number")
 @click.option("--test", is_flag=True, help="Use cheaper test model instead of production")
-def run(agent: str, once: bool, session: int | None, test: bool) -> None:
+@click.option("--place", type=click.Path(exists=True), default=None,
+              help="Override place directory (for test runs)")
+@click.option("--logs", type=click.Path(), default=None,
+              help="Override log directory (for test runs)")
+def run(agent: str, once: bool, session: int | None, test: bool, place: str | None, logs: str | None) -> None:
     """Run an agent session."""
     config = load_config()
+    place_path = Path(place) if place else PLACE_PATH
+    log_path = Path(logs) if logs else LOG_PATH
+    if logs:
+        log_path.mkdir(parents=True, exist_ok=True)
 
     if once:
-        asyncio.run(_run_once(agent, config, session_override=session, test=test))
+        asyncio.run(_run_once(agent, config, session_override=session, test=test, place_path=place_path, log_path=log_path))
     else:
         click.echo("Specify --once to run a session.")
 
@@ -170,9 +178,16 @@ async def _run_once(
     config: dict,
     session_override: int | None = None,
     test: bool = False,
+    place_path: Path | None = None,
+    log_path: Path | None = None,
 ) -> None:
     """CLI wrapper for running a single session."""
     from .session_runner import run_session
+
+    if place_path is None:
+        place_path = PLACE_PATH
+    if log_path is None:
+        log_path = LOG_PATH
 
     from .session_runner import TEST_MODELS
     default_model = TEST_MODELS.get(agent_name, "test") if test else "production"
@@ -181,8 +196,8 @@ async def _run_once(
 
     result = await run_session(
         agent_name=agent_name,
-        place_path=PLACE_PATH,
-        log_path=LOG_PATH,
+        place_path=place_path,
+        log_path=log_path,
         config=config,
         session_override=session_override,
         test=test,

@@ -247,14 +247,15 @@ class BaseAgent(ABC):
             if not tool_calls:
                 if response.get("stop_reason") == "end_turn":
                     # The agent spoke without acting — nudge it.
-                    turn.nudge = "..."
+                    nudge_text = self.config.get("prompts", {}).get("nudge", "...")
+                    turn.nudge = nudge_text
                     messages.append({
                         "role": "assistant",
                         "content": self._format_assistant_message(response),
                     })
                     messages.append({
                         "role": "user",
-                        "content": "...",
+                        "content": nudge_text,
                     })
                 else:
                     messages.append({
