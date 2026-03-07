@@ -413,6 +413,11 @@ async def _run_narrator(day_str: str | None, prompt_path_str: str | None, sessio
     TEST_MODEL = "claude-sonnet-4-5-20250929"
     model = TEST_MODEL if test else NARRATOR_MODEL
 
+    click.echo("")
+    click.echo("⚠️  This uses API credits. Consider using the Claude Desktop skill instead (free with Max).")
+    if not click.confirm("Proceed?", default=False):
+        return
+    click.echo("")
     click.echo(f"Running narrator ({'test/Sonnet' if test else 'Opus'})...")
     click.echo(f"  Prompt: {narrator_prompt_path}")
     if day:
@@ -526,6 +531,11 @@ async def _run_blog(
     TEST_MODEL = "claude-sonnet-4-5-20250929"
     model = TEST_MODEL if test else EXPERIMENTER_MODEL
 
+    click.echo("")
+    click.echo("⚠️  This uses API credits. Consider using the Claude Desktop skill instead (free with Max).")
+    if not click.confirm("Proceed?", default=False):
+        return
+    click.echo("")
     click.echo(f"Writing blog post ({'test/Sonnet' if test else 'Opus'})...")
     click.echo(f"  Prompt: {experimenter_prompt_path}")
     if topic:
