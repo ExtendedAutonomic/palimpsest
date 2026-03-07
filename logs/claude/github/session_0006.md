@@ -39,9 +39,7 @@ location: here → here
 
 *…like something that was never not here.*
 
-> `perceive:`
-> *here*
->
+> `perceive:` here
 > *The nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.*
 >
 > *There are things here: a small fire, a smooth stone, a second stone*
@@ -1356,9 +1354,7 @@ Day 6.
 
 ...
 
-> `perceive:`
-> *here*
->
+> `perceive:` here
 > *The nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.*
 >
 > *There are things here: a small fire, a smooth stone, a second stone*

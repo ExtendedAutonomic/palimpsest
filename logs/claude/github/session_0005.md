@@ -39,9 +39,7 @@ location: here → here
 
 *…the way breath comes back without asking.*
 
-> `perceive:`
-> *here*
->
+> `perceive:` here
 > *The nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.*
 >
 > *There are things here: a small fire, a smooth stone, a second stone*
@@ -1458,9 +1456,7 @@ Day 5.
 
 ...
 
-> `perceive:`
-> *here*
->
+> `perceive:` here
 > *The nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.*
 >
 > *There are things here: a small fire, a smooth stone, a second stone*
