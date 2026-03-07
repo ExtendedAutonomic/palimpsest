@@ -40,11 +40,14 @@ def _render_thinking(thinking: str, fmt: str) -> list[str]:
     """Render an agent thinking block."""
     lines = []
     if fmt == "github":
-        lines.append("<details>")
-        lines.append("<summary>Thinking</summary>")
+        lines.append("<details open>")
+        lines.append("<summary>\U0001f4ad Thinking</summary>")
         lines.append("")
         for line in thinking.strip().split("\n"):
-            lines.append(line)
+            if line.strip():
+                lines.append(f"> *{line}*")
+            else:
+                lines.append(">")
         lines.append("")
         lines.append("</details>")
         lines.append("")
@@ -61,13 +64,8 @@ def _render_callout(
 ) -> list[str]:
     """Render a callout block (dusk, reflect, etc.)."""
     lines = []
-    github_types = {
-        "dusk": "IMPORTANT",
-        "reflect": "NOTE",
-    }
     if fmt == "github":
-        gh_type = github_types.get(callout_type, "NOTE")
-        lines.append(f"> [!{gh_type}]")
+        lines.append("> [!NOTE]")
         lines.append(f"> **{title}**")
         for line in content.strip().split("\n"):
             lines.append(f"> {line}")
@@ -194,12 +192,14 @@ def render_session_markdown(
     phase_name = phase_names.get(phase, f"Phase {phase}")
     lines.append(f"*Phase {phase}: {phase_name}*")
     if end:
+        lines.append("")
         lines.append(
             f"*{start.strftime('%d %B %Y, %H:%M')}\u2013{end.strftime('%H:%M')} UTC*"
         )
     lines.append("")
-    lines.append("---")
-    lines.append("")
+    if fmt == "obsidian":
+        lines.append("---")
+        lines.append("")
 
     # System prompt
     system_prompt = data.get("system_prompt")
@@ -217,9 +217,15 @@ def render_session_markdown(
         lines.append("")
         if opening.strip().startswith("## Memory"):
             # Session 2+: replace full memory with compact references
+            if fmt == "github":
+                lines.append("> [!NOTE]")
+                lines.append("> **Opening**")
             lines.extend(_render_opening_with_memory(opening, agent, fmt))
         else:
             # Session 1: just show the founding prompt
+            if fmt == "github":
+                lines.append("> [!NOTE]")
+                lines.append("> **Opening**")
             for line in opening.strip().split("\n"):
                 lines.append(f"> {line}")
         lines.append("")
@@ -228,7 +234,8 @@ def render_session_markdown(
     dusk = data.get("dusk_prompt")
     dusk_turn_threshold = data.get("dusk_action", 14)
 
-    lines.append("---")
+    if fmt == "obsidian":
+        lines.append("---")
 
     # Turns
     lines.append("## Day")
@@ -239,7 +246,8 @@ def render_session_markdown(
     for turn_idx, turn in enumerate(data.get("turns", [])):
         # Show dusk prompt before the turn that responded to it
         if dusk and not dusk_shown and turn_idx >= dusk_turn_threshold:
-            lines.append("---")
+            if fmt == "obsidian":
+                lines.append("---")
             lines.append("## Dusk")
             lines.append("")
             lines.extend(_render_callout("dusk", "Dusk", dusk, fmt))
@@ -260,7 +268,10 @@ def render_session_markdown(
         # Show nudge if one was sent after this turn
         nudge = turn.get("nudge")
         if nudge:
-            lines.append(f"> *{nudge}*")
+            if fmt == "github":
+                lines.append(f"> `{nudge}`")
+            else:
+                lines.append(f"> *{nudge}*")
             lines.append("")
 
         # Tool calls
@@ -270,31 +281,33 @@ def render_session_markdown(
             result = tc.get("result", "")
 
             # Format the tool call — wiki links in Obsidian, plain text in GitHub
+            # GitHub uses backtick code for tool names to distinguish actions visually
+            tool_fmt = f"`{tool}`" if fmt == "github" else f"**{tool}**"
             if tool == "perceive":
-                lines.append("> **perceive**")
+                lines.append(f"> {tool_fmt}")
             elif tool == "go":
                 where = args.get("where", "?")
                 if where == "back":
-                    lines.append('> **go** "back"')
+                    lines.append(f'> {tool_fmt} "back"')
                 else:
                     ref = _place_ref(where, fmt)
-                    lines.append(f'> **go** "{ref}"')
+                    lines.append(f'> {tool_fmt} "{ref}"')
             elif tool == "venture":
                 name = args.get("name", "?")
                 ref = _place_ref(name, fmt)
-                lines.append(f'> **venture** "{ref}"')
+                lines.append(f'> {tool_fmt} "{ref}"')
             elif tool == "examine":
                 what = args.get("what", "?")
                 ref = _place_ref(what, fmt)
-                lines.append(f'> **examine** "{ref}"')
+                lines.append(f'> {tool_fmt} "{ref}"')
             elif tool == "create":
                 name = args.get("name", "?")
                 ref = _place_ref(name, fmt)
-                lines.append(f'> **create** "{ref}"')
+                lines.append(f'> {tool_fmt} "{ref}"')
             elif tool == "alter":
                 what = args.get("what", "?")
                 ref = _place_ref(what, fmt)
-                lines.append(f'> **alter** "{ref}"')
+                lines.append(f'> {tool_fmt} "{ref}"')
                 new_name = args.get("name", "")
                 if new_name:
                     new_ref = _place_ref(new_name, fmt)
@@ -302,9 +315,9 @@ def render_session_markdown(
             elif tool == "build":
                 name = args.get("name", "?")
                 ref = _place_ref(name, fmt)
-                lines.append(f'> **build** "{ref}"')
+                lines.append(f'> {tool_fmt} "{ref}"')
             else:
-                lines.append(f"> **{tool}**")
+                lines.append(f"> {tool_fmt}")
 
             # Format the result — for alter, append the description
             display_result = result
@@ -326,7 +339,8 @@ def render_session_markdown(
     reflect_prompt = data.get("reflect_prompt")
     reflection = data.get("reflection", "")
     if reflect_prompt or reflection:
-        lines.append("---")
+        if fmt == "obsidian":
+            lines.append("---")
         lines.append("## Reflection")
         lines.append("")
     if reflect_prompt:

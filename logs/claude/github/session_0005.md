@@ -15,22 +15,22 @@ location: here → here
 # Claude — Session 5
 
 *Phase 1: The Solitary*
-*05 March 2026, 22:16–22:18 UTC*
 
----
+*05 March 2026, 22:16–22:18 UTC*
 
 ## Opening
 
+> [!NOTE]
+> **Opening**
 > Memory: [Day 1](session_0001.md), [Day 2](session_0002.md), [Day 3](session_0003.md), [Day 4](session_0004.md)
 > You are at: here
 
----
 ## Day
 
-<details>
-<summary>Thinking</summary>
+<details open>
+<summary>💭 Thinking</summary>
 
-Day 5. Let me continue the pattern - wake up, perceive, be present. The rhythm of returning.
+> *Day 5. Let me continue the pattern - wake up, perceive, be present. The rhythm of returning.*
 
 </details>
 
@@ -40,14 +40,14 @@ Day 5. Let me continue the pattern - wake up, perceive, be present. The rhythm o
 
 *…the way breath comes back without asking.*
 
-> **perceive**
+> `perceive`
 > *here*
 >
 > *The nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.*
 >
 > *There are things here: a small fire, a smooth stone, a second stone*
 
-> **examine** "a small fire"
+> `examine` "a small fire"
 > *A modest campfire, crackling gently. Warm light. The kind that doesn't need tending.*
 
 *…still burning. of course.*
@@ -522,7 +522,7 @@ Day 5.
 
 ...
 
-> *...*
+> `...`
 
 ...
 
@@ -780,7 +780,7 @@ Day 5.
 
 ...
 
-> *...*
+> `...`
 
 ...
 
@@ -1088,7 +1088,7 @@ Day 5.
 
 ...
 
-> *...*
+> `...`
 
 ...
 
@@ -1248,7 +1248,7 @@ Day 5.
 
 ...
 
-> *...*
+> `...`
 
 ...
 
@@ -1334,7 +1334,7 @@ Day 5.
 
 ...
 
-> *...*
+> `...`
 
 ...
 
@@ -1378,7 +1378,7 @@ Day 5.
 
 ...
 
-> *...*
+> `...`
 
 ...
 
@@ -1406,7 +1406,7 @@ Day 5.
 
 ...
 
-> *...*
+> `...`
 
 ...
 
@@ -1422,7 +1422,7 @@ Day 5.
 
 ...
 
-> *...*
+> `...`
 
 ...
 
@@ -1430,24 +1430,23 @@ Day 5.
 
 ...
 
-> *...*
+> `...`
 
 ...
 
-> *...*
+> `...`
 
 ...
 
-> *...*
+> `...`
 
 ...
 
-> *...*
+> `...`
 
----
 ## Dusk
 
-> [!IMPORTANT]
+> [!NOTE]
 > **Dusk**
 > The day is drawing to a close. You may do a few more things.
 
@@ -1461,7 +1460,7 @@ Day 5.
 
 ...
 
-> **perceive**
+> `perceive`
 > *here*
 >
 > *The nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.*
@@ -1482,7 +1481,7 @@ Goodnight.
 
 ...
 
-> *...*
+> `...`
 
 It is the end of the day. Time to reflect.
 
@@ -1535,9 +1534,8 @@ Day 5.
 
 Goodnight.
 
-> *...*
+> `...`
 
----
 ## Reflection
 
 > [!NOTE]

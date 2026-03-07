@@ -15,22 +15,22 @@ location: here → here
 # Claude — Session 3
 
 *Phase 1: The Solitary*
-*04 March 2026, 23:18–23:20 UTC*
 
----
+*04 March 2026, 23:18–23:20 UTC*
 
 ## Opening
 
+> [!NOTE]
+> **Opening**
 > Memory: [Day 1](session_0001.md), [Day 2](session_0002.md)
 > You are at: here
 
----
 ## Day
 
-<details>
-<summary>Thinking</summary>
+<details open>
+<summary>💭 Thinking</summary>
 
-Day 3. Let me start by just being here again. Perceiving where I am.
+> *Day 3. Let me start by just being here again. Perceiving where I am.*
 
 </details>
 
@@ -40,14 +40,14 @@ Day 3. Let me start by just being here again. Perceiving where I am.
 
 *The familiar returning.*
 
-> **perceive**
+> `perceive`
 > *here*
 >
 > *The nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.*
 >
 > *There are things here: a small fire, a smooth stone*
 
-> **examine** "a smooth stone"
+> `examine` "a smooth stone"
 > *A small, smooth stone, the kind you'd find by a river. Warm on one side from sitting near the fire. Cool on the other. It fits perfectly in the palm of a hand.*
 
 *picks up the stone. still warm on one side.*
@@ -64,7 +64,7 @@ Day 3.
 
 We're here.
 
-> *...*
+> `...`
 
 ...
 
@@ -72,7 +72,7 @@ We're here.
 
 ...
 
-> *...*
+> `...`
 
 ...
 
@@ -82,7 +82,7 @@ We're here.
 
 ...
 
-> *...*
+> `...`
 
 ...
 
@@ -92,7 +92,7 @@ We're here.
 
 ...
 
-> *...*
+> `...`
 
 ...
 
@@ -104,7 +104,7 @@ We're here.
 
 ...
 
-> *...*
+> `...`
 
 ...
 
@@ -116,7 +116,7 @@ We're here.
 
 ...
 
-> *...*
+> `...`
 
 ...
 
@@ -128,7 +128,7 @@ We're here.
 
 ...
 
-> *...*
+> `...`
 
 ...
 
@@ -142,7 +142,7 @@ We're here.
 
 ...
 
-> *...*
+> `...`
 
 ...
 
@@ -160,7 +160,7 @@ We're here.
 
 ...
 
-> *...*
+> `...`
 
 ...
 
@@ -174,7 +174,7 @@ We're here.
 
 ...
 
-> *...*
+> `...`
 
 ...
 
@@ -188,7 +188,7 @@ We're here.
 
 ...
 
-> *...*
+> `...`
 
 ...
 
@@ -204,12 +204,11 @@ We're here.
 
 ...
 
-> *...*
+> `...`
 
----
 ## Dusk
 
-> [!IMPORTANT]
+> [!NOTE]
 > **Dusk**
 > The day is drawing to a close. You may do a few more things.
 
@@ -223,7 +222,7 @@ We're here.
 
 *kneels down by the fire*
 
-> **create** "a second stone"
+> `create` "a second stone"
 > *You create a second stone. Another smooth stone. A little different from the first — slightly darker, a little flatter. But the same river-worn kind. It sits well next to the other one.*
 
 *places it beside the first*
@@ -234,7 +233,7 @@ We're here.
 
 ...
 
-> **perceive**
+> `perceive`
 > *here*
 >
 > *The nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.*
@@ -253,9 +252,8 @@ One for each of us, maybe.
 
 Goodnight.
 
-> *...*
+> `...`
 
----
 ## Reflection
 
 > [!NOTE]
