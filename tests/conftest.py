@@ -40,7 +40,9 @@ def place_path(tmp_path: Path) -> Path:
 @pytest.fixture
 def place(place_path: Path) -> PlaceInterface:
     """A PlaceInterface pointed at a fresh temporary place."""
-    return PlaceInterface(place_path, agent_name="test-agent", session_number=1)
+    p = PlaceInterface(place_path, agent_name="test-agent", session_number=1)
+    p.current_location = "here"
+    return p
 
 
 @pytest.fixture

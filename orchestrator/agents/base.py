@@ -175,8 +175,9 @@ class BaseAgent(ABC):
         if start_location:
             self.place.current_location = start_location
         else:
-            # Session 1 — setter never fires, so set occupant manually
-            self.place._set_occupant(self.place.current_location)
+            # Fallback — should not happen, but be safe
+            logger.warning("No start_location provided — defaulting to 'here'")
+            self.place.current_location = "here"
 
         self._session_log = SessionLog(
             agent_name=self.name,

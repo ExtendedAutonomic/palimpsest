@@ -154,7 +154,7 @@ def init() -> None:
 @click.option("--once", is_flag=True, help="Run a single session")
 @click.option("--session", "-s", type=int, default=None,
               help="Override session number")
-@click.option("--test", is_flag=True, help="Use cheaper test model (Sonnet) instead of production (Opus)")
+@click.option("--test", is_flag=True, help="Use cheaper test model instead of production")
 def run(agent: str, once: bool, session: int | None, test: bool) -> None:
     """Run an agent session."""
     config = load_config()
@@ -174,7 +174,9 @@ async def _run_once(
     """CLI wrapper for running a single session."""
     from .session_runner import run_session
 
-    model_label = "test (Sonnet)" if test else "production (Opus)"
+    from .session_runner import TEST_MODELS
+    default_model = TEST_MODELS.get(agent_name, "test") if test else "production"
+    model_label = f"test ({default_model})" if test else f"production"
     click.echo(f"Starting session for {agent_name} ({model_label})")
 
     result = await run_session(

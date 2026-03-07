@@ -28,7 +28,7 @@ class PlaceInterface:
 
     def __init__(self, place_path: Path, agent_name: str = "", session_number: int = 0):
         self.place_path = place_path.resolve()
-        self._current_location = "here"
+        self._current_location: str | None = None
         self._agent_name = agent_name
         self._session_number = session_number
         self._carrying: list[str] = []  # Things the agent is carrying
@@ -42,7 +42,8 @@ class PlaceInterface:
     @current_location.setter
     def current_location(self, value: str) -> None:
         if value != self._current_location:
-            self._clear_occupant(self._current_location)
+            if self._current_location is not None:
+                self._clear_occupant(self._current_location)
             self._current_location = value
             self._set_occupant(value)
         else:

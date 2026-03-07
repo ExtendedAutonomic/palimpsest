@@ -38,7 +38,7 @@ class SessionResult:
 # Test model overrides — cheaper models for development
 TEST_MODELS = {
     "claude": "claude-sonnet-4-5-20250929",
-    "gemini": "gemini-2.0-flash",
+    "gemini": "gemini-2.5-flash",
 }
 
 # Default starting locations per agent (used on session 1 only)
