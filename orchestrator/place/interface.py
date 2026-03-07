@@ -12,6 +12,7 @@ filesystem or markdown terminology.
 from __future__ import annotations
 
 import logging
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +20,54 @@ from .notes import ParsedNote, parse_note, build_space_note, build_thing_note
 from .tools import ToolCall, ToolName
 
 logger = logging.getLogger(__name__)
+
+
+def _get_creation_time_ns(path: Path) -> int | None:
+    """Get a file's creation time in nanoseconds, or None if it doesn't exist."""
+    if not path.exists():
+        return None
+    return path.stat().st_ctime_ns
+
+
+def _set_creation_time(path: Path, creation_time_ns: int) -> None:
+    """Restore a file's creation time on Windows. No-op on other platforms.
+
+    Obsidian's graph animation uses filesystem creation times to order
+    note appearance. Without this, any file rewrite (alter, link update,
+    occupant change) would reset the creation time and break the timeline.
+    """
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        # Convert nanoseconds to Windows FILETIME (100ns intervals since 1601-01-01)
+        EPOCH_DIFF_100NS = 116444736000000000
+        filetime_int = (creation_time_ns // 100) + EPOCH_DIFF_100NS
+
+        kernel32 = ctypes.windll.kernel32
+        handle = kernel32.CreateFileW(
+            str(path),
+            256,   # FILE_WRITE_ATTRIBUTES
+            7,     # FILE_SHARE_READ | WRITE | DELETE
+            None,
+            3,     # OPEN_EXISTING
+            128,   # FILE_ATTRIBUTE_NORMAL
+            None,
+        )
+        if handle == -1:
+            return
+        try:
+            ft = wintypes.FILETIME(
+                filetime_int & 0xFFFFFFFF,
+                (filetime_int >> 32) & 0xFFFFFFFF,
+            )
+            kernel32.SetFileTime(handle, ctypes.byref(ft), None, None)
+        finally:
+            kernel32.CloseHandle(handle)
+    except Exception:
+        pass  # Best-effort
 
 
 class PlaceInterface:
@@ -141,10 +190,13 @@ class PlaceInterface:
         text = path.read_text(encoding="utf-8")
         return parse_note(text)
 
-    def _write_note(self, name: str, content: str) -> None:
-        """Write a note to disk."""
+    def _write_note(self, name: str, content: str, preserve_ctime: bool = True) -> None:
+        """Write a note to disk, preserving creation time for existing files."""
         path = self._note_path(name)
+        original_ctime = _get_creation_time_ns(path) if preserve_ctime else None
         path.write_text(content, encoding="utf-8")
+        if original_ctime is not None:
+            _set_creation_time(path, original_ctime)
 
     def _make_frontmatter(self, note_type: str) -> dict[str, Any]:
         """Create frontmatter for a new note."""
@@ -199,7 +251,10 @@ class PlaceInterface:
             text = path.read_text(encoding="utf-8")
             updated = text.replace(f"[[{old_name}]]", f"[[{new_name}]]")
             if updated != text:
+                original_ctime = _get_creation_time_ns(path)
                 path.write_text(updated, encoding="utf-8")
+                if original_ctime is not None:
+                    _set_creation_time(path, original_ctime)
 
     # -------------------------------------------------------------------
     # Agent-facing methods
@@ -392,11 +447,14 @@ class PlaceInterface:
                 if self._note_exists(name):
                     return f"Something called \"{name}\" already exists."
                 old_name = self._current_location
+                old_ctime = _get_creation_time_ns(self._note_path(old_name))
                 self._write_note(name, build_space_note(
                     new_description, note.spaces, note.things, fm
-                ))
+                ), preserve_ctime=False)
                 self._note_path(old_name).unlink()
                 self._rename_all_links(old_name, name)
+                if old_ctime is not None:
+                    _set_creation_time(self._note_path(name), old_ctime)
                 self._current_location = name
                 parts.append(f"This space is now called {name}.")
             else:
@@ -427,9 +485,13 @@ class PlaceInterface:
                 if self._note_exists(name):
                     return f"Something called \"{name}\" already exists."
                 old_name = what
-                self._write_note(name, build_thing_note(new_description, fm))
+                old_ctime = _get_creation_time_ns(self._note_path(old_name))
+                self._write_note(name, build_thing_note(new_description, fm),
+                                 preserve_ctime=False)
                 self._note_path(old_name).unlink()
                 self._rename_all_links(old_name, name)
+                if old_ctime is not None:
+                    _set_creation_time(self._note_path(name), old_ctime)
                 parts.append(f"What was called {old_name} is now called {name}.")
             else:
                 self._write_note(what, build_thing_note(new_description, fm))

@@ -602,5 +602,6 @@ def render(agent: str | None, session: tuple[str, ...], fmt: str) -> None:
     click.echo(f"\nRendered {rendered} session(s).")
 
 
+
 if __name__ == "__main__":
     cli()
