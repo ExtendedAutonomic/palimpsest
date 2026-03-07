@@ -285,15 +285,16 @@ def costs() -> None:
                 tokens = data.get("tokens", {})
                 input_tokens = tokens.get("input", 0)
                 output_tokens = tokens.get("output", 0)
+                thinking_tokens = tokens.get("thinking", 0)
                 cache_creation = tokens.get("cache_creation", 0)
                 cache_read = tokens.get("cache_read", 0)
-                total_tokens += input_tokens + cache_creation + cache_read + output_tokens
+                total_tokens += input_tokens + cache_creation + cache_read + output_tokens + thinking_tokens
                 session_count += 1
                 if data.get("cost") is not None:
                     agent_cost += data["cost"]
                 elif data.get("model"):
                     agent_cost += calculate_cost(
-                        data["model"], input_tokens, output_tokens,
+                        data["model"], input_tokens, output_tokens + thinking_tokens,
                         cache_creation_tokens=cache_creation,
                         cache_read_tokens=cache_read,
                     )

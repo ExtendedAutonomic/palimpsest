@@ -68,6 +68,9 @@ class GeminiAgent(BaseAgent):
             "automatic_function_calling": types.AutomaticFunctionCallingConfig(
                 disable=True,
             ),
+            "thinking_config": types.ThinkingConfig(
+                include_thoughts=True,
+            ),
         }
         if system:
             config_kwargs["system_instruction"] = system
@@ -156,9 +159,9 @@ class GeminiAgent(BaseAgent):
             "thinking": None,
             "raw_content": [],
             "usage": {
-                "input_tokens": getattr(response.usage_metadata, "prompt_token_count", 0),
-                "output_tokens": getattr(response.usage_metadata, "candidates_token_count", 0),
-                "thinking_tokens": getattr(response.usage_metadata, "thinking_token_count", 0) if hasattr(response.usage_metadata, "thinking_token_count") else 0,
+                "input_tokens": getattr(response.usage_metadata, "prompt_token_count", 0) or 0,
+                "output_tokens": getattr(response.usage_metadata, "candidates_token_count", 0) or 0,
+                "thinking_tokens": getattr(response.usage_metadata, "thoughts_token_count", 0) or 0,
             },
             "stop_reason": "end_turn",
         }

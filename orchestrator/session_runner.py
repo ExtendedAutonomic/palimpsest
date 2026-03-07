@@ -205,10 +205,12 @@ async def run_session(
 
     # Calculate and store cost in the log
     if log.model:
+        # Thinking tokens are billed at output rate (both Anthropic and Google)
+        billable_output = log.total_output_tokens + log.total_thinking_tokens
         log.cost = calculate_cost(
             log.model,
             log.total_input_tokens,
-            log.total_output_tokens,
+            billable_output,
             cache_creation_tokens=log.total_cache_creation_tokens,
             cache_read_tokens=log.total_cache_read_tokens,
         )
