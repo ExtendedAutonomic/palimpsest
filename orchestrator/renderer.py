@@ -33,7 +33,7 @@ def _session_ref(
     label = display or f"Session {session_num}"
     if fmt == "github":
         return f"[{label}](session_{session_num:04d}.md)"
-    return f"[[{agent.title()} \u2014 Session {session_num}|{label}]]"
+    return f"[[logs/{agent}/obsidian_logs/session_{session_num:04d}|{label}]]"
 
 
 def _render_thinking(thinking: str, fmt: str) -> list[str]:
