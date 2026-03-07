@@ -7,8 +7,10 @@ Tool conversion is handled by the centralised convert_tools_gemini().
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
+import re
 from pathlib import Path
 from typing import Any
 
@@ -63,6 +65,9 @@ class GeminiAgent(BaseAgent):
         # Claude's omitted system parameter)
         config_kwargs: dict[str, Any] = {
             "max_output_tokens": max_tokens,
+            "automatic_function_calling": types.AutomaticFunctionCallingConfig(
+                disable=True,
+            ),
         }
         if system:
             config_kwargs["system_instruction"] = system
@@ -71,17 +76,38 @@ class GeminiAgent(BaseAgent):
 
         config = types.GenerateContentConfig(**config_kwargs)
 
-        try:
-            response = await self.client.aio.models.generate_content(
-                model=self.model,
-                contents=contents,
-                config=config,
-            )
-        except Exception as e:
-            logger.error(f"Gemini API error: {e}")
-            raise
-
-        return self._parse_response(response)
+        max_retries = 5
+        for attempt in range(max_retries):
+            try:
+                response = await self.client.aio.models.generate_content(
+                    model=self.model,
+                    contents=contents,
+                    config=config,
+                )
+                # Log success with token counts
+                parsed = self._parse_response(response)
+                usage = parsed.get("usage", {})
+                tool_count = len(parsed.get("tool_calls", []))
+                logger.info(
+                    f"Gemini response: {usage.get('input_tokens', 0)} in / "
+                    f"{usage.get('output_tokens', 0)} out, "
+                    f"{tool_count} tool call(s)"
+                )
+                return parsed
+            except Exception as e:
+                error_str = str(e)
+                if "429" in error_str and attempt < max_retries - 1:
+                    # Extract retry delay from "retryDelay": "35s" or similar
+                    delay_match = re.search(r'retryDelay.*?(\d{2,})s', error_str)
+                    delay = int(delay_match.group(1)) + 2 if delay_match else 30
+                    logger.warning(
+                        f"Rate limited (attempt {attempt + 1}/{max_retries}), "
+                        f"waiting {delay}s..."
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    logger.error(f"Gemini API error: {e}")
+                    raise
 
     def _prepare_messages(self, messages: list[dict]) -> list[types.Content]:
         """Convert our message format to Gemini's Content format.
@@ -142,6 +168,8 @@ class GeminiAgent(BaseAgent):
 
         if response.candidates:
             candidate = response.candidates[0]
+            if not candidate.content or not candidate.content.parts:
+                return result
             for part in candidate.content.parts:
                 if hasattr(part, "thought") and part.thought:
                     # Gemini thinking/reasoning content
