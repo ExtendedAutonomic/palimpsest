@@ -1,5 +1,9 @@
 """
 Session log renderer — converts JSON session logs to readable markdown.
+
+Supports two output formats:
+- "obsidian": Obsidian-native with callouts, wiki links, collapsible sections
+- "github": GitHub-flavoured markdown with HTML details, GitHub alerts, plain text refs
 """
 
 from __future__ import annotations
@@ -8,25 +12,92 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-
 import re
 
 
-def _render_opening_with_memory(opening: str, agent: str) -> list[str]:
-    """
-    Replace the full memory dump with compact wiki-linked references.
+# ---------------------------------------------------------------------------
+# Format helpers
+# ---------------------------------------------------------------------------
 
-    Instead of embedding the entire memory in the rendered log,
-    list which sessions were provided as memory with links.
+def _place_ref(name: str, fmt: str) -> str:
+    """Format a reference to a place or thing in the world."""
+    if fmt == "github":
+        return name
+    return f"[[{name}]]"
+
+
+def _session_ref(
+    agent: str, session_num: int, display: str | None = None, fmt: str = "obsidian"
+) -> str:
+    """Format a reference to another session log."""
+    label = display or f"Session {session_num}"
+    if fmt == "github":
+        return f"[{label}](session_{session_num:04d}.md)"
+    return f"[[{agent.title()} \u2014 Session {session_num}|{label}]]"
+
+
+def _render_thinking(thinking: str, fmt: str) -> list[str]:
+    """Render an agent thinking block."""
+    lines = []
+    if fmt == "github":
+        lines.append("<details>")
+        lines.append("<summary>Thinking</summary>")
+        lines.append("")
+        for line in thinking.strip().split("\n"):
+            lines.append(line)
+        lines.append("")
+        lines.append("</details>")
+        lines.append("")
+    else:
+        lines.append("> [!tip]+ Thinking")
+        for line in thinking.strip().split("\n"):
+            lines.append(f"> {line}")
+        lines.append("")
+    return lines
+
+
+def _render_callout(
+    callout_type: str, title: str, content: str, fmt: str
+) -> list[str]:
+    """Render a callout block (dusk, reflect, etc.)."""
+    lines = []
+    github_types = {
+        "dusk": "IMPORTANT",
+        "reflect": "NOTE",
+    }
+    if fmt == "github":
+        gh_type = github_types.get(callout_type, "NOTE")
+        lines.append(f"> [!{gh_type}]")
+        lines.append(f"> **{title}**")
+        for line in content.strip().split("\n"):
+            lines.append(f"> {line}")
+        lines.append("")
+    else:
+        lines.append(f"> [!{callout_type}] {title}")
+        for line in content.strip().split("\n"):
+            lines.append(f"> {line}")
+        lines.append("")
+    return lines
+
+
+# ---------------------------------------------------------------------------
+# Memory rendering
+# ---------------------------------------------------------------------------
+
+def _render_opening_with_memory(opening: str, agent: str, fmt: str) -> list[str]:
+    """
+    Replace the full memory dump with compact references.
+
+    Obsidian: wiki-linked session references.
+    GitHub: relative markdown links.
     """
     lines = []
-    agent_title = agent.title()
 
     # Extract the location line from the end
     location_match = re.search(r"You are at: (.+)", opening)
     location = location_match.group(1).strip() if location_match else None
 
-    # Find compressed batch references: "Days 1–3" or "Days 1-3"
+    # Find compressed batch references: "Days 1-3" or "Days 1–3"
     compressed = re.findall(r"Days\s+(\d+)[–\-](\d+)", opening)
 
     # Find individual day references: "Day 1", "Day 2" etc.
@@ -44,9 +115,7 @@ def _render_opening_with_memory(opening: str, agent: str) -> list[str]:
     for start, end in compressed:
         parts.append(f"Days {start}\u2013{end} (compressed)")
     for day_num in sorted(set(individual)):
-        parts.append(
-            f"[[{agent_title} \u2014 Session {day_num}|Day {day_num}]]"
-        )
+        parts.append(_session_ref(agent, day_num, f"Day {day_num}", fmt))
 
     if parts:
         lines.append(f"> Memory: {', '.join(parts)}")
@@ -56,8 +125,20 @@ def _render_opening_with_memory(opening: str, agent: str) -> list[str]:
     return lines
 
 
-def render_session_markdown(log_path: Path, place_path: Path | None = None) -> str:
-    """Render a session JSON log as readable markdown."""
+# ---------------------------------------------------------------------------
+# Main renderer
+# ---------------------------------------------------------------------------
+
+def render_session_markdown(
+    log_path: Path, place_path: Path | None = None, fmt: str = "obsidian"
+) -> str:
+    """Render a session JSON log as readable markdown.
+
+    Args:
+        log_path: Path to the session JSON log file.
+        place_path: Optional path to the place directory (unused, reserved).
+        fmt: Output format — "obsidian" or "github".
+    """
     data = json.loads(log_path.read_text(encoding="utf-8"))
 
     agent = data["agent_name"]
@@ -136,7 +217,7 @@ def render_session_markdown(log_path: Path, place_path: Path | None = None) -> s
         lines.append("")
         if opening.strip().startswith("## Memory"):
             # Session 2+: replace full memory with compact references
-            lines.extend(_render_opening_with_memory(opening, agent))
+            lines.extend(_render_opening_with_memory(opening, agent, fmt))
         else:
             # Session 1: just show the founding prompt
             for line in opening.strip().split("\n"):
@@ -145,7 +226,7 @@ def render_session_markdown(log_path: Path, place_path: Path | None = None) -> s
 
     # Dusk prompt (if it was sent)
     dusk = data.get("dusk_prompt")
-    dusk_turn_threshold = data.get("dusk_action", 14)  # Turn index when dusk was sent
+    dusk_turn_threshold = data.get("dusk_action", 14)
 
     lines.append("---")
 
@@ -161,19 +242,14 @@ def render_session_markdown(log_path: Path, place_path: Path | None = None) -> s
             lines.append("---")
             lines.append("## Dusk")
             lines.append("")
-            lines.append("> [!dusk] Dusk")
-            for dusk_line in dusk.strip().split("\n"):
-                lines.append(f"> {dusk_line}")
-            lines.append("")
+            lines.extend(_render_callout("dusk", "Dusk", dusk, fmt))
+
             dusk_shown = True
 
-        # Thinking (inline, as callout)
+        # Thinking (inline)
         thinking = turn.get("thinking")
         if thinking:
-            lines.append("> [!tip]+ Thinking")
-            for think_line in thinking.strip().split("\n"):
-                lines.append(f"> {think_line}")
-            lines.append("")
+            lines.extend(_render_thinking(thinking, fmt))
 
         # Agent text
         text = turn.get("agent_text", "").strip()
@@ -193,33 +269,40 @@ def render_session_markdown(log_path: Path, place_path: Path | None = None) -> s
             args = tc.get("arguments", {})
             result = tc.get("result", "")
 
-            # Format the tool call with wiki links for create/build/venture
+            # Format the tool call — wiki links in Obsidian, plain text in GitHub
             if tool == "perceive":
                 lines.append("> **perceive**")
             elif tool == "go":
                 where = args.get("where", "?")
                 if where == "back":
-                    lines.append("> **go** \"back\"")
+                    lines.append('> **go** "back"')
                 else:
-                    lines.append(f"> **go** \"[[{where}]]\"")
+                    ref = _place_ref(where, fmt)
+                    lines.append(f'> **go** "{ref}"')
             elif tool == "venture":
                 name = args.get("name", "?")
-                lines.append(f"> **venture** \"[[{name}]]\"")
+                ref = _place_ref(name, fmt)
+                lines.append(f'> **venture** "{ref}"')
             elif tool == "examine":
                 what = args.get("what", "?")
-                lines.append(f"> **examine** \"[[{what}]]\"")
+                ref = _place_ref(what, fmt)
+                lines.append(f'> **examine** "{ref}"')
             elif tool == "create":
                 name = args.get("name", "?")
-                lines.append(f"> **create** \"[[{name}]]\"")
+                ref = _place_ref(name, fmt)
+                lines.append(f'> **create** "{ref}"')
             elif tool == "alter":
                 what = args.get("what", "?")
-                lines.append(f"> **alter** \"[[{what}]]\"")
+                ref = _place_ref(what, fmt)
+                lines.append(f'> **alter** "{ref}"')
                 new_name = args.get("name", "")
                 if new_name:
-                    lines.append(f"> *renamed to \"[[{new_name}]]\"*")
+                    new_ref = _place_ref(new_name, fmt)
+                    lines.append(f'> *renamed to "{new_ref}"*')
             elif tool == "build":
                 name = args.get("name", "?")
-                lines.append(f"> **build** \"[[{name}]]\"")
+                ref = _place_ref(name, fmt)
+                lines.append(f'> **build** "{ref}"')
             else:
                 lines.append(f"> **{tool}**")
 
@@ -247,39 +330,37 @@ def render_session_markdown(log_path: Path, place_path: Path | None = None) -> s
         lines.append("## Reflection")
         lines.append("")
     if reflect_prompt:
-        lines.append("> [!reflect] Reflect")
-        for reflect_line in reflect_prompt.strip().split("\n"):
-            lines.append(f"> {reflect_line}")
-        lines.append("")
+        lines.extend(_render_callout("reflect", "Reflect", reflect_prompt, fmt))
     if reflection:
         lines.append(reflection.strip())
         lines.append("")
 
-    # Session stats footer
-    duration_str = ""
-    if end:
-        duration_secs = int((end - start).total_seconds())
-        duration_str = f" \u00b7 {duration_secs // 60}m {duration_secs % 60}s"
-    cost_str = ""
-    cost = data.get("cost")
-    if cost is not None:
-        cost_str = f" \u00b7 ${cost:.2f}"
-    lines.append("---")
-    lines.append(
-        f"Session stats: {model} \u00b7 {actions} actions \u00b7 {total_tokens:,} tokens{cost_str}{duration_str}"
-    )
-    lines.append("")
-
     return "\n".join(lines)
 
 
+# ---------------------------------------------------------------------------
+# File output
+# ---------------------------------------------------------------------------
+
 def save_readable_log(log_path: Path, output_dir: Path | None = None) -> Path:
-    """Render a session log and save it as markdown."""
+    """Render a session log and save it as Obsidian-formatted markdown."""
     if output_dir is None:
         output_dir = log_path.parent / "readable"
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    md = render_session_markdown(log_path)
+    md = render_session_markdown(log_path, fmt="obsidian")
+    output_file = output_dir / log_path.name.replace(".json", ".md")
+    output_file.write_text(md, encoding="utf-8")
+    return output_file
+
+
+def save_github_log(log_path: Path, output_dir: Path | None = None) -> Path:
+    """Render a session log and save it as GitHub-formatted markdown."""
+    if output_dir is None:
+        output_dir = log_path.parent / "github"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    md = render_session_markdown(log_path, fmt="github")
     output_file = output_dir / log_path.name.replace(".json", ".md")
     output_file.write_text(md, encoding="utf-8")
     return output_file

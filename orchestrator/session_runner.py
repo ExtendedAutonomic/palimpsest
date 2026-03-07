@@ -145,7 +145,7 @@ async def run_session(
     """
     from .memory.context_builder import build_session_context
     from .memory.summariser import run_memory_compression
-    from .renderer import save_readable_log
+    from .renderer import save_readable_log, save_github_log
 
     # Determine session number
     if session_override is not None:
@@ -225,13 +225,17 @@ async def run_session(
     # Run memory compression if needed
     memory_compressed = await run_memory_compression(agent_name, log_path)
 
-    # Generate readable log
+    # Generate readable logs (both formats)
     log_file = log_path / agent_name / f"session_{session_num:04d}.json"
     readable_path = None
     try:
         readable_path = save_readable_log(log_file)
     except Exception as e:
-        logger.warning(f"Failed to render readable log: {e}")
+        logger.warning(f"Failed to render Obsidian log: {e}")
+    try:
+        save_github_log(log_file)
+    except Exception as e:
+        logger.warning(f"Failed to render GitHub log: {e}")
 
     return SessionResult(
         agent_name=agent_name,

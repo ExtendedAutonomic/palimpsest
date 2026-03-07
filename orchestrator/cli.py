@@ -538,5 +538,55 @@ async def _run_blog(
         click.echo(f"Error: {e}", err=True)
 
 
+@cli.command()
+@click.option("--agent", "-a", type=str, default=None,
+              help="Filter by agent. If omitted, renders all agents.")
+@click.option("--session", "-s", type=str, multiple=True,
+              help="Session(s) to render. Accepts numbers (3) and ranges (3-6). If omitted, renders all.")
+@click.option("--format", "-f", "fmt", type=click.Choice(["both", "obsidian", "github"]),
+              default="both", help="Which format(s) to generate.")
+def render(agent: str | None, session: tuple[str, ...], fmt: str) -> None:
+    """Re-render readable logs from session JSON files."""
+    from .renderer import save_readable_log, save_github_log
+
+    sessions = parse_sessions(session)
+
+    # Find agent directories to process
+    if agent:
+        agent_dirs = [LOG_PATH / agent]
+    else:
+        agent_dirs = [
+            d for d in sorted(LOG_PATH.iterdir())
+            if d.is_dir() and d.name not in ("narrator", "experimenter", ".git")
+            and not d.name.startswith(".")
+        ]
+
+    rendered = 0
+    for agent_dir in agent_dirs:
+        if not agent_dir.exists():
+            click.echo(f"No logs for {agent_dir.name}")
+            continue
+
+        log_files = sorted(agent_dir.glob("session_*.json"))
+        if sessions:
+            log_files = [
+                f for f in log_files
+                if int(f.stem.split("_")[1]) in sessions
+            ]
+
+        for log_file in log_files:
+            try:
+                if fmt in ("both", "obsidian"):
+                    save_readable_log(log_file)
+                if fmt in ("both", "github"):
+                    save_github_log(log_file)
+                rendered += 1
+                click.echo(f"  {agent_dir.name}/{log_file.name} -> {fmt}")
+            except Exception as e:
+                click.echo(f"  {agent_dir.name}/{log_file.name} FAILED: {e}", err=True)
+
+    click.echo(f"\nRendered {rendered} session(s).")
+
+
 if __name__ == "__main__":
     cli()
