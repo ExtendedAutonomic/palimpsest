@@ -18,10 +18,12 @@ venv/
 .DS_Store
 Thumbs.db
 
-# Experimental data — created by palimpsest init/run
-/place/
-/logs/
+# Experimental data
 /exports/
+
+# Narrator and experimenter outputs (published separately)
+/logs/narrator/
+/logs/experimenter/
 
 # Observatory (local Obsidian symlinks)
 observatory/
