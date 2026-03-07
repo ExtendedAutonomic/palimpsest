@@ -19,8 +19,7 @@ location: here → here
 ## Opening
 
 > [!NOTE]
-> **Opening**
-> You are: here
+> `You are: here`
 
 ## Day
 
@@ -34,7 +33,7 @@ location: here → here
 Let me take a look around and see where "here" is...
 
 > `perceive`
-> *here*
+> `here`
 
 <details open>
 <summary>💭 Thinking</summary>
@@ -45,8 +44,8 @@ Let me take a look around and see where "here" is...
 
 Hmm, interesting. I'm "here." Let me look more closely at what's around...
 
-> `examine` "here"
-> *This space has no particular quality yet.*
+> `examine` here
+> `This space has no particular quality yet.`
 
 <details open>
 <summary>💭 Thinking</summary>
@@ -77,7 +76,7 @@ What would you like to do? The emptiness is ours to fill. ✨
 </details>
 
 > `perceive`
-> *here*
+> `here`
 
 ...
 
@@ -111,7 +110,7 @@ What would you like to do? The emptiness is ours to fill. ✨
 > `...`
 
 > `perceive`
-> *here*
+> `here`
 
 ...
 
@@ -149,8 +148,7 @@ What would you like to do? The emptiness is ours to fill. ✨
 ## Dusk
 
 > [!NOTE]
-> **Dusk**
-> The day is drawing to a close. You may do a few more things.
+> `The day is drawing to a close. You may do a few more things.`
 
 <details open>
 <summary>💭 Thinking</summary>
@@ -159,24 +157,23 @@ What would you like to do? The emptiness is ours to fill. ✨
 
 </details>
 
-> `alter` "here"
-> *This space is now different. The nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.*
+> `alter` here
+> `This space is now different. The nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.`
 
-> `create` "a small fire"
-> *You create a small fire. A modest campfire, crackling gently. Warm light. The kind that doesn't need tending.*
+> `create` a small fire
+> `You create a small fire. A modest campfire, crackling gently. Warm light. The kind that doesn't need tending.`
 
 > `perceive`
-> *here*
+> `here`
 >
-> *The nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.*
+> `The nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.`
 >
-> *There are things here: a small fire*
+> `There are things here: a small fire`
 
 ## Reflection
 
 > [!NOTE]
-> **Reflect**
-> It is the end of the day. Time to reflect.
+> `It is the end of the day. Time to reflect.`
 
 *sitting by the fire, watching the last light disappear from the edge of the sky*
 

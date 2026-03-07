@@ -19,9 +19,8 @@ location: here → here
 ## Opening
 
 > [!NOTE]
-> **Opening**
 > Memory: [Day 1](session_0001.md)
-> You are at: here
+> `You are at: here`
 
 ## Day
 
@@ -39,17 +38,17 @@ location: here → here
 Let me open my eyes.
 
 > `perceive`
-> *here*
+> `here`
 >
-> *The nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.*
+> `The nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.`
 >
-> *There are things here: a small fire*
+> `There are things here: a small fire`
 
-> `examine` "a small fire"
-> *A modest campfire, crackling gently. Warm light. The kind that doesn't need tending.*
+> `examine` a small fire
+> `A modest campfire, crackling gently. Warm light. The kind that doesn't need tending.`
 
-> `examine` "the sky"
-> *There is nothing called "the sky" here.*
+> `examine` the sky
+> `There is nothing called "the sky" here.`
 
 <details open>
 <summary>💭 Thinking</summary>
@@ -224,8 +223,7 @@ We're still here. What would you like to do today?
 ## Dusk
 
 > [!NOTE]
-> **Dusk**
-> The day is drawing to a close. You may do a few more things.
+> `The day is drawing to a close. You may do a few more things.`
 
 <details open>
 <summary>💭 Thinking</summary>
@@ -240,15 +238,15 @@ We're still here. What would you like to do today?
 
 *stands slowly. stretches.*
 
-> `create` "a smooth stone"
-> *You create a smooth stone. A small, smooth stone, the kind you'd find by a river. Warm on one side from sitting near the fire. Cool on the other. It fits perfectly in the palm of a hand.*
+> `create` a smooth stone
+> `You create a smooth stone. A small, smooth stone, the kind you'd find by a river. Warm on one side from sitting near the fire. Cool on the other. It fits perfectly in the palm of a hand.`
 
 > `perceive`
-> *here*
+> `here`
 >
-> *The nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.*
+> `The nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.`
 >
-> *There are things here: a small fire, a smooth stone*
+> `There are things here: a small fire, a smooth stone`
 
 *sets the stone down by the fire*
 
@@ -269,8 +267,7 @@ Goodnight.
 ## Reflection
 
 > [!NOTE]
-> **Reflect**
-> It is the end of the day. Time to reflect.
+> `It is the end of the day. Time to reflect.`
 
 ...
 

@@ -21,9 +21,8 @@ location: here → here
 ## Opening
 
 > [!NOTE]
-> **Opening**
 > Memory: [Day 1](session_0001.md), [Day 2](session_0002.md), [Day 3](session_0003.md), [Day 4](session_0004.md)
-> You are at: here
+> `You are at: here`
 
 ## Day
 
@@ -41,14 +40,14 @@ location: here → here
 *…the way breath comes back without asking.*
 
 > `perceive`
-> *here*
+> `here`
 >
-> *The nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.*
+> `The nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.`
 >
-> *There are things here: a small fire, a smooth stone, a second stone*
+> `There are things here: a small fire, a smooth stone, a second stone`
 
-> `examine` "a small fire"
-> *A modest campfire, crackling gently. Warm light. The kind that doesn't need tending.*
+> `examine` a small fire
+> `A modest campfire, crackling gently. Warm light. The kind that doesn't need tending.`
 
 *…still burning. of course.*
 
@@ -1447,8 +1446,7 @@ Day 5.
 ## Dusk
 
 > [!NOTE]
-> **Dusk**
-> The day is drawing to a close. You may do a few more things.
+> `The day is drawing to a close. You may do a few more things.`
 
 ...
 
@@ -1461,11 +1459,11 @@ Day 5.
 ...
 
 > `perceive`
-> *here*
+> `here`
 >
-> *The nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.*
+> `The nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.`
 >
-> *There are things here: a small fire, a smooth stone, a second stone*
+> `There are things here: a small fire, a smooth stone, a second stone`
 
 ...
 
@@ -1539,8 +1537,7 @@ Goodnight.
 ## Reflection
 
 > [!NOTE]
-> **Reflect**
-> It is the end of the day. Time to reflect.
+> `It is the end of the day. Time to reflect.`
 
 ...
 

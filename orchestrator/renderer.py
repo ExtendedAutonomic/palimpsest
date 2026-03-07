@@ -66,9 +66,8 @@ def _render_callout(
     lines = []
     if fmt == "github":
         lines.append("> [!NOTE]")
-        lines.append(f"> **{title}**")
         for line in content.strip().split("\n"):
-            lines.append(f"> {line}")
+            lines.append(f"> `{line}`")
         lines.append("")
     else:
         lines.append(f"> [!{callout_type}] {title}")
@@ -118,7 +117,7 @@ def _render_opening_with_memory(opening: str, agent: str, fmt: str) -> list[str]
     if parts:
         lines.append(f"> Memory: {', '.join(parts)}")
     if location:
-        lines.append(f"> You are at: {location}")
+        lines.append(f"> `You are at: {location}`" if fmt == "github" else f"> You are at: {location}")
 
     return lines
 
@@ -219,15 +218,13 @@ def render_session_markdown(
             # Session 2+: replace full memory with compact references
             if fmt == "github":
                 lines.append("> [!NOTE]")
-                lines.append("> **Opening**")
             lines.extend(_render_opening_with_memory(opening, agent, fmt))
         else:
             # Session 1: just show the founding prompt
             if fmt == "github":
                 lines.append("> [!NOTE]")
-                lines.append("> **Opening**")
             for line in opening.strip().split("\n"):
-                lines.append(f"> {line}")
+                lines.append(f"> `{line}`" if fmt == "github" else f"> {line}")
         lines.append("")
 
     # Dusk prompt (if it was sent)
@@ -283,39 +280,40 @@ def render_session_markdown(
             # Format the tool call — wiki links in Obsidian, plain text in GitHub
             # GitHub uses backtick code for tool names to distinguish actions visually
             tool_fmt = f"`{tool}`" if fmt == "github" else f"**{tool}**"
+            q = "" if fmt == "github" else '"'
             if tool == "perceive":
                 lines.append(f"> {tool_fmt}")
             elif tool == "go":
                 where = args.get("where", "?")
                 if where == "back":
-                    lines.append(f'> {tool_fmt} "back"')
+                    lines.append(f"> {tool_fmt} {q}back{q}")
                 else:
                     ref = _place_ref(where, fmt)
-                    lines.append(f'> {tool_fmt} "{ref}"')
+                    lines.append(f"> {tool_fmt} {q}{ref}{q}")
             elif tool == "venture":
                 name = args.get("name", "?")
                 ref = _place_ref(name, fmt)
-                lines.append(f'> {tool_fmt} "{ref}"')
+                lines.append(f"> {tool_fmt} {q}{ref}{q}")
             elif tool == "examine":
                 what = args.get("what", "?")
                 ref = _place_ref(what, fmt)
-                lines.append(f'> {tool_fmt} "{ref}"')
+                lines.append(f"> {tool_fmt} {q}{ref}{q}")
             elif tool == "create":
                 name = args.get("name", "?")
                 ref = _place_ref(name, fmt)
-                lines.append(f'> {tool_fmt} "{ref}"')
+                lines.append(f"> {tool_fmt} {q}{ref}{q}")
             elif tool == "alter":
                 what = args.get("what", "?")
                 ref = _place_ref(what, fmt)
-                lines.append(f'> {tool_fmt} "{ref}"')
+                lines.append(f"> {tool_fmt} {q}{ref}{q}")
                 new_name = args.get("name", "")
                 if new_name:
                     new_ref = _place_ref(new_name, fmt)
-                    lines.append(f'> *renamed to "{new_ref}"*')
+                    lines.append(f"> *renamed to {q}{new_ref}{q}*")
             elif tool == "build":
                 name = args.get("name", "?")
                 ref = _place_ref(name, fmt)
-                lines.append(f'> {tool_fmt} "{ref}"')
+                lines.append(f"> {tool_fmt} {q}{ref}{q}")
             else:
                 lines.append(f"> {tool_fmt}")
 
@@ -329,7 +327,10 @@ def render_session_markdown(
                 result_lines = display_result.strip().split("\n")
                 for rl in result_lines:
                     if rl.strip():
-                        lines.append(f"> *{rl}*")
+                        if fmt == "github":
+                            lines.append(f"> `{rl}`")
+                        else:
+                            lines.append(f"> *{rl}*")
                     else:
                         lines.append(">")
 

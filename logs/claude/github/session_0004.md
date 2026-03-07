@@ -21,9 +21,8 @@ location: here → here
 ## Opening
 
 > [!NOTE]
-> **Opening**
 > Memory: [Day 1](session_0001.md), [Day 2](session_0002.md), [Day 3](session_0003.md)
-> You are at: here
+> `You are at: here`
 
 ## Day
 
@@ -43,14 +42,14 @@ location: here → here
 [perceive]
 
 > `perceive`
-> *here*
+> `here`
 >
-> *The nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.*
+> `The nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.`
 >
-> *There are things here: a small fire, a smooth stone, a second stone*
+> `There are things here: a small fire, a smooth stone, a second stone`
 
-> `examine` "a second stone"
-> *Another smooth stone. A little different from the first — slightly darker, a little flatter. But the same river-worn kind. It sits well next to the other one.*
+> `examine` a second stone
+> `Another smooth stone. A little different from the first — slightly darker, a little flatter. But the same river-worn kind. It sits well next to the other one.`
 
 *…there they are. leaning together.*
 
@@ -841,8 +840,7 @@ Day 4.
 ## Dusk
 
 > [!NOTE]
-> **Dusk**
-> The day is drawing to a close. You may do a few more things.
+> `The day is drawing to a close. You may do a few more things.`
 
 <details open>
 <summary>💭 Thinking</summary>
@@ -877,11 +875,11 @@ Day 4.
 [perceive]
 
 > `perceive`
-> *here*
+> `here`
 >
-> *The nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.*
+> `The nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.`
 >
-> *There are things here: a small fire, a smooth stone, a second stone*
+> `There are things here: a small fire, a smooth stone, a second stone`
 
 ...
 
@@ -950,8 +948,7 @@ Goodnight.
 ## Reflection
 
 > [!NOTE]
-> **Reflect**
-> It is the end of the day. Time to reflect.
+> `It is the end of the day. Time to reflect.`
 
 ...
 
