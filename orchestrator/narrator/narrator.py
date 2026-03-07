@@ -248,6 +248,7 @@ async def run_narrator(
     model: str = NARRATOR_MODEL,
     sessions: tuple[int, ...] | None = None,
     agent: str | None = None,
+    chapter_override: int | None = None,
 ) -> Path:
     """
     Run the narrator for a given day.
@@ -285,7 +286,7 @@ async def run_narrator(
     previous_entries = get_previous_entries(narrator_output_path)
 
     # Determine chapter number
-    chapter_number = get_next_chapter_number(narrator_output_path)
+    chapter_number = chapter_override or get_next_chapter_number(narrator_output_path)
 
     # Build the input
     user_message = build_narrator_input(
