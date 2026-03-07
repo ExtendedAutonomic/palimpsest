@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 # Constants
 # ---------------------------------------------------------------------------
 
-RECENT_WINDOW = 3  # Number of recent sessions kept in full
+RECENT_WINDOW = 2  # Number of recent sessions kept in full
 BATCH_SIZE = 3  # Number of sessions per compression batch
 
 # Opus for compression — preserves voice and register better than Sonnet,
