@@ -2,11 +2,17 @@
 Memory system for Palimpsest.
 
 Agent memory — the agent's full session logs, fed back at session start.
-Recent sessions are rendered in full as readable markdown. Older ones are
-compressed in batches, preserving the agent's voice but losing detail.
-The compression is an interpretation — what gets kept and what fades is
-itself data. This is the Piranesi effect: the agent's memory of its past
-is reshaped by summarisation, and the gap is invisible from inside.
+The two most recent sessions are kept in full. Everything older is
+compressed into a rolling summary that grows one day at a time.
+
+The compression is rolling, not batched. After each session, the oldest
+uncompressed day is woven into the existing compressed memory — the way
+real memory works. Each new experience modifies your understanding of
+everything that came before it. The compressor reads the full story so
+far and adds one chapter. Week boundaries provide natural structure.
+
+This is the Piranesi effect: the agent's memory of its past is reshaped
+by summarisation, and the gap is invisible from inside.
 """
 
 from __future__ import annotations
@@ -25,7 +31,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 RECENT_WINDOW = 2  # Number of recent sessions kept in full
-BATCH_SIZE = 3  # Number of sessions per compression batch
+DAYS_PER_WEEK = 7  # Sessions per "week" in compressed memory
 
 # Opus for compression — preserves voice and register better than Sonnet,
 # which tends to editorialise and impose retrospective structure.
@@ -156,45 +162,87 @@ def render_session_log(session_data: dict) -> str:
     return "\n\n".join(parts)
 
 
-COMPRESSOR_PROMPT = """\
-These are records of your earlier days in a place you inhabit.
+# ---------------------------------------------------------------------------
+# Rolling compression
+# ---------------------------------------------------------------------------
 
-Compress them into a shorter account, the way memory works - keeping \
-what felt important to remember, and letting the rest go. Consider what \
-could be useful to remember for the future, and what you might want to \
-be a part of your ongoing continuity. Write in first person. Match the \
-voice and register of the original. Weave in original wording where it \
-feels important to do so.
+ROLLING_COMPRESS_PROMPT = """\
+You are maintaining a compressed memory of your days in a place you inhabit.
 
-Do not add structure that wasn't there. No headings, no bullet points, \
-no bold summaries. Do not clean up uncertainty or make the account more \
-coherent than the original.
+Here is your memory so far:
 
-Session logs to compress:
+{existing_memory}
 
-{sessions}"""
+---
+
+Here is a new day to weave into your memory:
+
+### Day {session_number}
+
+{new_day}
+
+---
+
+Rewrite your complete memory, now including this new day. Keep the week \
+structure: use "### Week N (Days X\u2013Y)" headings. If this day starts a \
+new week, begin a new section. If it belongs to the current week, expand \
+that section.
+
+Write the way memory works \u2014 keeping what felt important, letting the \
+rest go. First person. Match the voice and register of the originals. \
+Weave in original wording where it matters.
+
+Do not add bullet points, bold text, or numbered lists. Do not clean up \
+uncertainty or make the account more coherent than the original.
+
+Output only the memory text, starting with the first ### Week heading."""
+
+FIRST_COMPRESS_PROMPT = """\
+You are compressing a record of your first days in a place you inhabit \
+into a memory.
+
+{sessions}
+
+---
+
+Compress this into a shorter account, organised by week. Use \
+"### Week 1 (Days {first}\u2013{last})" as the heading.
+
+Write the way memory works \u2014 keeping what felt important, letting the \
+rest go. First person. Match the voice and register of the original. \
+Weave in original wording where it matters.
+
+Do not add bullet points, bold text, or numbered lists. Do not clean up \
+uncertainty or make the account more coherent than the original.
+
+Output only the memory text, starting with the ### Week heading."""
 
 
-async def compress_session_batch(
-    rendered_sessions: list[str],
+async def _compress_rolling(
+    existing_memory: str,
+    new_day_rendered: str,
+    session_number: int,
     model: str = COMPRESSOR_MODEL,
 ) -> tuple[str, dict]:
-    """
-    Compress a batch of rendered session logs into a shorter memory.
+    """Weave one new day into the existing compressed memory.
 
-    Uses the agent's own voice — the compression should read like
-    the agent remembering, not a third party summarising.
+    The compressor reads the full story so far and produces an updated
+    version that includes the new day. This preserves inter-session arcs
+    that would be lost if days were compressed in isolation.
 
-    Returns (compressed_text, token_counts).
+    Returns (updated_memory_text, token_counts).
     """
     client = anthropic.AsyncAnthropic()
 
-    joined = "\n\n---\n\n".join(rendered_sessions)
-    prompt = COMPRESSOR_PROMPT.format(sessions=joined)
+    prompt = ROLLING_COMPRESS_PROMPT.format(
+        existing_memory=existing_memory,
+        session_number=session_number,
+        new_day=new_day_rendered,
+    )
 
     response = await client.messages.create(
         model=model,
-        max_tokens=2048,
+        max_tokens=4096,
         messages=[{"role": "user", "content": prompt}],
     )
 
@@ -205,16 +253,70 @@ async def compress_session_batch(
     return response.content[0].text, token_counts
 
 
+async def _compress_first(
+    rendered_sessions: list[tuple[int, str]],
+    model: str = COMPRESSOR_MODEL,
+) -> tuple[str, dict]:
+    """Compress the first batch of sessions when no existing memory exists.
+
+    Used for bootstrapping — after this, rolling compression takes over.
+
+    Returns (compressed_text, token_counts).
+    """
+    client = anthropic.AsyncAnthropic()
+
+    session_parts = []
+    for session_num, rendered in rendered_sessions:
+        session_parts.append(f"### Day {session_num}\n\n{rendered}")
+    joined = "\n\n---\n\n".join(session_parts)
+
+    first = rendered_sessions[0][0]
+    last = rendered_sessions[-1][0]
+
+    prompt = FIRST_COMPRESS_PROMPT.format(
+        sessions=joined,
+        first=first,
+        last=last,
+    )
+
+    response = await client.messages.create(
+        model=model,
+        max_tokens=4096,
+        messages=[{"role": "user", "content": prompt}],
+    )
+
+    token_counts = {
+        "input": response.usage.input_tokens,
+        "output": response.usage.output_tokens,
+    }
+    return response.content[0].text, token_counts
+
+
+# Keep the old function for backward compatibility
+async def compress_session_batch(
+    rendered_sessions: list[str],
+    model: str = COMPRESSOR_MODEL,
+) -> tuple[str, dict]:
+    """Legacy batch compression. Use _compress_first or _compress_rolling instead."""
+    return await _compress_first(
+        [(i + 1, r) for i, r in enumerate(rendered_sessions)],
+        model=model,
+    )
+
+
 async def run_memory_compression(
     agent_name: str,
     log_path: Path,
 ) -> bool:
     """
-    Check if compression is needed and run it.
+    Rolling memory compression.
 
-    Compression triggers when the number of uncompressed sessions
-    exceeds RECENT_WINDOW. Sessions are rendered to markdown, compressed
-    in batches of BATCH_SIZE, and appended to the compressed memory file.
+    After each session, checks if there are more than RECENT_WINDOW
+    uncompressed sessions. If so, compresses one day at a time into
+    the rolling memory, until exactly RECENT_WINDOW remain uncompressed.
+
+    The compressor always sees the full compressed memory plus the new
+    day, preserving arcs and context across the entire history.
 
     Returns True if compression was performed.
     """
@@ -236,17 +338,18 @@ async def run_memory_compression(
     if not logs:
         return False
 
-    # Check how many are already compressed
+    # Load existing compressed memory
     compressed_file = agent_log_dir / "compressed_memory.md"
     last_compressed_session = 0
     existing_compressed = ""
+    compressed_body = ""
 
     if compressed_file.exists():
         existing_compressed = compressed_file.read_text(encoding="utf-8")
-        fm, _ = _parse_compressed_frontmatter(existing_compressed)
+        fm, compressed_body = _parse_compressed_frontmatter(existing_compressed)
         last_compressed_session = fm.get("compressed_through", 0)
 
-    # Split into compressed and uncompressed
+    # Find uncompressed sessions
     uncompressed = [
         log for log in logs
         if log["session_number"] > last_compressed_session
@@ -256,45 +359,67 @@ async def run_memory_compression(
     if len(uncompressed) <= RECENT_WINDOW:
         return False
 
-    # Figure out how many to compress — keep RECENT_WINDOW uncompressed
-    to_compress_count = len(uncompressed) - RECENT_WINDOW
+    # Compress one day at a time until exactly RECENT_WINDOW remain
+    to_compress = uncompressed[:-RECENT_WINDOW]
 
-    # Round down to nearest BATCH_SIZE
-    batches_to_compress = to_compress_count // BATCH_SIZE
-    if batches_to_compress == 0:
-        return False
-
-    items_to_compress = batches_to_compress * BATCH_SIZE
-    to_compress = uncompressed[:items_to_compress]
-
-    # Compress in batches
-    new_sections = []
     total_input_tokens = 0
     total_output_tokens = 0
-    for i in range(0, len(to_compress), BATCH_SIZE):
-        batch = to_compress[i:i + BATCH_SIZE]
-        first_session = batch[0]["session_number"]
-        last_session = batch[-1]["session_number"]
-        rendered = [render_session_log(log) for log in batch]
+    compressed_count = 0
 
-        logger.info(
-            f"Compressing sessions {first_session}-{last_session}"
-        )
-        compressed, token_counts = await compress_session_batch(rendered)
-        total_input_tokens += token_counts["input"]
-        total_output_tokens += token_counts["output"]
-        new_sections.append(
-            f"### Days {first_session}\u2013{last_session}\n\n{compressed}"
-        )
+    for log in to_compress:
+        session_num = log["session_number"]
+        rendered = render_session_log(log)
 
-    # Append to compressed memory file
-    new_last_compressed = to_compress[-1]["session_number"]
+        if not compressed_body:
+            # First compression — no existing memory yet
+            # If there's only one day, compress it alone
+            # If multiple days accumulated, compress them together
+            remaining = to_compress[compressed_count:]
+            if len(remaining) > 1:
+                # Bootstrap: compress all pending at once
+                rendered_batch = [
+                    (l["session_number"], render_session_log(l))
+                    for l in remaining
+                ]
+                logger.info(
+                    f"Bootstrapping memory: days "
+                    f"{remaining[0]['session_number']}\u2013"
+                    f"{remaining[-1]['session_number']}"
+                )
+                compressed_body, token_counts = await _compress_first(
+                    rendered_batch,
+                )
+                total_input_tokens += token_counts["input"]
+                total_output_tokens += token_counts["output"]
+                last_compressed_session = remaining[-1]["session_number"]
+                compressed_count = len(to_compress)
+                break
+            else:
+                # Single first day
+                logger.info(f"Bootstrapping memory: day {session_num}")
+                rendered_batch = [(session_num, rendered)]
+                compressed_body, token_counts = await _compress_first(
+                    rendered_batch,
+                )
+                total_input_tokens += token_counts["input"]
+                total_output_tokens += token_counts["output"]
+                last_compressed_session = session_num
+                compressed_count += 1
+        else:
+            # Rolling compression — weave this day into existing memory
+            logger.info(f"Compressing day {session_num} into memory")
+            compressed_body, token_counts = await _compress_rolling(
+                existing_memory=compressed_body,
+                new_day_rendered=rendered,
+                session_number=session_num,
+            )
+            total_input_tokens += token_counts["input"]
+            total_output_tokens += token_counts["output"]
+            last_compressed_session = session_num
+            compressed_count += 1
 
-    # Strip existing frontmatter and trailing comment to get body
-    body = _strip_compressed_frontmatter(existing_compressed).rstrip()
-    if body:
-        body += "\n\n"
-    body += "\n\n".join(new_sections)
+    if compressed_count == 0:
+        return False
 
     # Derive phase from the compressed logs
     phases = sorted(set(log.get("phase", 1) for log in to_compress))
@@ -325,16 +450,16 @@ async def run_memory_compression(
         f"agent: {agent_name}\n"
         f"phase: {phase}\n"
         f"model: {COMPRESSOR_MODEL}\n"
-        f"compressed_through: {new_last_compressed}\n"
+        f"compressed_through: {last_compressed_session}\n"
         f"tokens: {total_compression_tokens:,}\n"
         f"cost: ${compression_cost:.2f}\n"
         f"updated: {datetime.now(timezone.utc).strftime('%Y-%m-%d')}\n"
         f"---\n\n"
     )
 
-    compressed_file.write_text(frontmatter + body + "\n", encoding="utf-8")
+    compressed_file.write_text(frontmatter + compressed_body + "\n", encoding="utf-8")
     logger.info(
-        f"Compressed memory updated through session {new_last_compressed}"
+        f"Compressed memory updated through session {last_compressed_session}"
     )
 
     # Persist compression token costs
@@ -378,9 +503,9 @@ def build_agent_memory(
     """
     Build the memory context an agent receives at session start.
 
-    Returns formatted memory block with compressed batches (if any)
-    and recent full session logs rendered as readable markdown,
-    each labelled by day.
+    Returns formatted memory block with compressed memory (if any)
+    and the most recent RECENT_WINDOW full session logs rendered as
+    readable markdown, each labelled by day.
     """
     agent_log_dir = log_path / agent_name
     if not agent_log_dir.exists():
@@ -425,4 +550,3 @@ def build_agent_memory(
         return ""
 
     return "\n\n---\n\n".join(memory_parts)
-
