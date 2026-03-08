@@ -356,7 +356,7 @@ class PlaceInterface:
         self._add_link(self._current_location, name, "Spaces")
 
         self._current_location = name
-        return True, f"You have ventured to {name}. {description}"
+        return True, f"You are now at {name}. {description}"
 
     def examine(self, what: str) -> tuple[bool, str]:
         """Look closely at something."""
@@ -412,7 +412,7 @@ class PlaceInterface:
         self._write_note(name, build_thing_note(description, fm))
         self._add_link(self._current_location, name, "Things")
 
-        return True, f"You create {name}. {description}"
+        return True, f"{name} is here. {description}"
 
     def alter(self, what: str, description: str | None = None, name: str | None = None) -> tuple[bool, str]:
         """Change something that exists — content, name, or both."""
@@ -449,7 +449,7 @@ class PlaceInterface:
             new_description = description if description else note.description
             fm = self._update_frontmatter(note.frontmatter)
 
-            if description:
+            if description and not name:
                 parts.append("This space is now different.")
 
             if name:
@@ -501,7 +501,7 @@ class PlaceInterface:
             new_description = description if description else note.description
             fm = self._update_frontmatter(note.frontmatter)
 
-            if description:
+            if description and not name:
                 parts.append(f"{what} is different now.")
 
             if name:
@@ -572,7 +572,7 @@ class PlaceInterface:
         self._add_link("Inventory", what, "Things")
         self._carrying.append(what)
 
-        return True, f"You take {what}. It is with you now."
+        return True, f"{what} is with you now."
 
     def drop(self, what: str) -> tuple[bool, str]:
         """Put down something you are carrying."""
@@ -585,7 +585,7 @@ class PlaceInterface:
         self._remove_link("Inventory", what)
         self._add_link(self._current_location, what, "Things")
 
-        return True, f"You release {what}. It is here now."
+        return True, f"{what} is now at {self._current_location}."
 
     def execute_tool(self, tool_call: ToolCall) -> str:
         """Execute an action and return what the agent perceives."""
