@@ -2,18 +2,26 @@
 Tests for the memory system — building agent memory from logs
 and the session runner helpers.
 
-Memory compression tests are limited to what we can test without
-hitting the Anthropic API (the compression itself calls Claude).
+Compression tests mock the Anthropic API to verify triggering logic,
+frontmatter updates, and the rolling compression flow without spending.
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from orchestrator.memory.summariser import build_agent_memory
+from orchestrator.memory.summariser import (
+    build_agent_memory,
+    run_memory_compression,
+    render_session_log,
+    _parse_compressed_frontmatter,
+    RECENT_WINDOW,
+)
 from orchestrator.memory.context_builder import build_session_context
 from orchestrator.session_runner import get_next_session_number, get_last_location, START_LOCATIONS
 
@@ -170,7 +178,6 @@ class TestStartingSpaceCreation:
         there = place_path / "there.md"
         assert not there.exists()
 
-        # Simulate what run_session does for session 1
         start_location = START_LOCATIONS["gemini"]
         start_note = place_path / f"{start_location}.md"
         if not start_note.exists():
@@ -217,3 +224,303 @@ class TestFoundingPromptTemplate:
     def test_founding_prompt_with_somewhere(self):
         template = "You are: {location}"
         assert template.format(location="somewhere") == "You are: somewhere"
+
+
+# ---------------------------------------------------------------------------
+# Rolling compression tests
+# ---------------------------------------------------------------------------
+
+def _mock_api_response(text: str):
+    """Build a mock Anthropic API response."""
+    mock_response = AsyncMock()
+    mock_response.content = [AsyncMock(text=text)]
+    mock_response.usage = AsyncMock(
+        input_tokens=100, output_tokens=50
+    )
+    return mock_response
+
+
+class TestCompressionTrigger:
+    """Rolling compression fires at the right time."""
+
+    def test_no_compression_under_window(self, log_path: Path):
+        """No compression when sessions <= RECENT_WINDOW."""
+        write_session_log(log_path, "claude", 1, reflection="Day one.")
+        write_session_log(log_path, "claude", 2, reflection="Day two.")
+        result = asyncio.run(run_memory_compression("claude", log_path))
+        assert result is False
+
+    def test_compression_fires_above_window(self, log_path: Path):
+        """Compression triggers when sessions > RECENT_WINDOW."""
+        write_session_log(log_path, "claude", 1, reflection="Day one.")
+        write_session_log(log_path, "claude", 2, reflection="Day two.")
+        write_session_log(log_path, "claude", 3, reflection="Day three.")
+
+        mock_resp = _mock_api_response(
+            "### Week 1 (Days 1)\n\nI arrived and sat."
+        )
+        with patch(
+            "orchestrator.memory.summariser.anthropic.AsyncAnthropic"
+        ) as mock_cls:
+            mock_cls.return_value.messages.create = AsyncMock(
+                return_value=mock_resp
+            )
+            result = asyncio.run(run_memory_compression("claude", log_path))
+
+        assert result is True
+
+    def test_no_compression_for_missing_agent(self, log_path: Path):
+        result = asyncio.run(run_memory_compression("nonexistent", log_path))
+        assert result is False
+
+
+class TestCompressionResults:
+    """Compression produces correct output."""
+
+    def test_compressed_through_updated(self, log_path: Path):
+        """compressed_through tracks the last compressed session."""
+        for i in range(1, 5):
+            write_session_log(log_path, "claude", i, reflection=f"Day {i}.")
+
+        mock_resp = _mock_api_response(
+            "### Week 1 (Days 1\u20132)\n\nFirst days."
+        )
+        with patch(
+            "orchestrator.memory.summariser.anthropic.AsyncAnthropic"
+        ) as mock_cls:
+            mock_cls.return_value.messages.create = AsyncMock(
+                return_value=mock_resp
+            )
+            asyncio.run(run_memory_compression("claude", log_path))
+
+        compressed_file = log_path / "claude" / "compressed_memory.md"
+        assert compressed_file.exists()
+        fm, _ = _parse_compressed_frontmatter(
+            compressed_file.read_text(encoding="utf-8")
+        )
+        assert fm["compressed_through"] == 2
+
+    def test_exactly_recent_window_remain(self, log_path: Path):
+        """After compression, exactly RECENT_WINDOW sessions are uncompressed."""
+        for i in range(1, 6):
+            write_session_log(log_path, "claude", i, reflection=f"Day {i}.")
+
+        mock_resp = _mock_api_response(
+            "### Week 1 (Days 1\u20133)\n\nFirst three days."
+        )
+        with patch(
+            "orchestrator.memory.summariser.anthropic.AsyncAnthropic"
+        ) as mock_cls:
+            mock_cls.return_value.messages.create = AsyncMock(
+                return_value=mock_resp
+            )
+            asyncio.run(run_memory_compression("claude", log_path))
+
+        compressed_file = log_path / "claude" / "compressed_memory.md"
+        fm, _ = _parse_compressed_frontmatter(
+            compressed_file.read_text(encoding="utf-8")
+        )
+        # Sessions 4 and 5 remain uncompressed
+        assert fm["compressed_through"] == 3
+
+        # build_agent_memory should show compressed + 2 raw days
+        memory = build_agent_memory("claude", log_path)
+        assert "Week 1" in memory
+        assert "Day 4" in memory
+        assert "Day 5" in memory
+        assert "Day 3\n" not in memory  # compressed, not raw
+
+    def test_rolling_adds_one_day_at_a_time(self, log_path: Path):
+        """With existing compressed memory, each new day is woven in individually."""
+        agent_dir = log_path / "claude"
+        agent_dir.mkdir(parents=True, exist_ok=True)
+        compressed_file = agent_dir / "compressed_memory.md"
+        compressed_file.write_text(
+            "---\n"
+            "type: compressed_memory\n"
+            "agent: claude\n"
+            "phase: 1\n"
+            "model: claude-opus-4-6\n"
+            "compressed_through: 3\n"
+            "tokens: 100\n"
+            "cost: $0.01\n"
+            "updated: 2026-03-08\n"
+            "---\n\n"
+            "### Week 1 (Days 1\u20133)\n\nFirst three days.",
+            encoding="utf-8",
+        )
+
+        # Write sessions 4, 5, 6
+        for i in range(4, 7):
+            write_session_log(log_path, "claude", i, reflection=f"Day {i}.")
+
+        call_count = 0
+        async def mock_create(**kwargs):
+            nonlocal call_count
+            call_count += 1
+            return _mock_api_response(
+                f"### Week 1 (Days 1\u2013{3 + call_count})\n\nUpdated memory."
+            )
+
+        with patch(
+            "orchestrator.memory.summariser.anthropic.AsyncAnthropic"
+        ) as mock_cls:
+            mock_cls.return_value.messages.create = mock_create
+            asyncio.run(run_memory_compression("claude", log_path))
+
+        # Should have been called once (day 4 only)
+        # Days 5 and 6 remain as raw
+        assert call_count == 1
+
+        fm, _ = _parse_compressed_frontmatter(
+            compressed_file.read_text(encoding="utf-8")
+        )
+        assert fm["compressed_through"] == 4
+
+    def test_multiple_days_compressed_sequentially(self, log_path: Path):
+        """If multiple days need compressing, each is woven in one at a time."""
+        agent_dir = log_path / "claude"
+        agent_dir.mkdir(parents=True, exist_ok=True)
+        compressed_file = agent_dir / "compressed_memory.md"
+        compressed_file.write_text(
+            "---\n"
+            "type: compressed_memory\n"
+            "agent: claude\n"
+            "phase: 1\n"
+            "model: claude-opus-4-6\n"
+            "compressed_through: 3\n"
+            "tokens: 100\n"
+            "cost: $0.01\n"
+            "updated: 2026-03-08\n"
+            "---\n\n"
+            "### Week 1 (Days 1\u20133)\n\nFirst three days.",
+            encoding="utf-8",
+        )
+
+        # Write sessions 4 through 8: 5 uncompressed, need to compress 3
+        for i in range(4, 9):
+            write_session_log(log_path, "claude", i, reflection=f"Day {i}.")
+
+        call_count = 0
+        async def mock_create(**kwargs):
+            nonlocal call_count
+            call_count += 1
+            return _mock_api_response(
+                f"### Week 1 (Days 1\u2013{3 + call_count})\n\nUpdated memory."
+            )
+
+        with patch(
+            "orchestrator.memory.summariser.anthropic.AsyncAnthropic"
+        ) as mock_cls:
+            mock_cls.return_value.messages.create = mock_create
+            asyncio.run(run_memory_compression("claude", log_path))
+
+        # 3 days to compress (4, 5, 6), each one API call
+        assert call_count == 3
+
+        fm, _ = _parse_compressed_frontmatter(
+            compressed_file.read_text(encoding="utf-8")
+        )
+        assert fm["compressed_through"] == 6
+
+
+class TestWeekStructuredMemory:
+    """build_agent_memory works with the week-headed compressed format."""
+
+    def test_week_headings_in_output(self, log_path: Path):
+        agent_dir = log_path / "claude"
+        agent_dir.mkdir(parents=True, exist_ok=True)
+        compressed_file = agent_dir / "compressed_memory.md"
+        compressed_file.write_text(
+            "---\n"
+            "type: compressed_memory\n"
+            "agent: claude\n"
+            "compressed_through: 7\n"
+            "---\n\n"
+            "### Week 1 (Days 1\u20137)\n\nFirst week summary.",
+            encoding="utf-8",
+        )
+
+        write_session_log(log_path, "claude", 8, reflection="Day eight.")
+        write_session_log(log_path, "claude", 9, reflection="Day nine.")
+
+        memory = build_agent_memory("claude", log_path)
+        assert "Week 1 (Days 1\u20137)" in memory
+        assert "First week summary" in memory
+        assert "Day 8" in memory
+        assert "Day 9" in memory
+
+    def test_multi_week_compressed_memory(self, log_path: Path):
+        agent_dir = log_path / "claude"
+        agent_dir.mkdir(parents=True, exist_ok=True)
+        compressed_file = agent_dir / "compressed_memory.md"
+        compressed_file.write_text(
+            "---\n"
+            "type: compressed_memory\n"
+            "agent: claude\n"
+            "compressed_through: 10\n"
+            "---\n\n"
+            "### Week 1 (Days 1\u20137)\n\nFirst week.\n\n"
+            "### Week 2 (Days 8\u201310)\n\nSecond week started.",
+            encoding="utf-8",
+        )
+
+        write_session_log(log_path, "claude", 11, reflection="Day eleven.")
+        write_session_log(log_path, "claude", 12, reflection="Day twelve.")
+
+        memory = build_agent_memory("claude", log_path)
+        assert "Week 1" in memory
+        assert "Week 2" in memory
+        assert "Day 11" in memory
+        assert "Day 12" in memory
+
+
+class TestRenderSessionLog:
+    """Session log rendering distinguishes voices."""
+
+    def test_nudge_is_blockquoted(self):
+        log = {
+            "turns": [
+                {
+                    "agent_text": "...",
+                    "thinking": None,
+                    "nudge": "...",
+                    "tool_calls": [],
+                }
+            ],
+            "dusk_prompt": None,
+            "dusk_action": None,
+            "reflect_prompt": None,
+            "reflection": None,
+        }
+        rendered = render_session_log(log)
+        assert "> ..." in rendered
+        # Agent's ellipsis should NOT be blockquoted
+        lines = rendered.strip().split("\n")
+        agent_line = [l for l in lines if l.strip() == "..."][0]
+        assert not agent_line.startswith(">")
+
+    def test_tool_result_is_blockquoted(self):
+        log = {
+            "turns": [
+                {
+                    "agent_text": "I look.",
+                    "thinking": None,
+                    "nudge": None,
+                    "tool_calls": [
+                        {
+                            "tool": "perceive",
+                            "arguments": {},
+                            "result": "You are here.",
+                            "error": None,
+                        }
+                    ],
+                }
+            ],
+            "dusk_prompt": None,
+            "dusk_action": None,
+            "reflect_prompt": None,
+            "reflection": None,
+        }
+        rendered = render_session_log(log)
+        assert "> You are here." in rendered
