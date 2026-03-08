@@ -20,7 +20,6 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Any
 
 import anthropic
 
@@ -78,14 +77,7 @@ def _parse_compressed_frontmatter(text: str) -> tuple[dict, str]:
     return fm, body
 
 
-def _strip_compressed_frontmatter(text: str) -> str:
-    """Return the body of a compressed memory file, stripping frontmatter
-    and legacy HTML comments."""
-    _, body = _parse_compressed_frontmatter(text)
-    return body
-
-
-def _natural_action(tool_name: str, args: dict, success: bool) -> str | None:
+def natural_action(tool_name: str, args: dict, success: bool) -> str | None:
     """Return a natural-language action line for a tool call.
 
     Uses declarative voice on success (*You alter X.*) and attempt
@@ -149,13 +141,15 @@ def render_session_log(session_data: dict) -> str:
     for turn_idx, turn in enumerate(session_data.get("turns", [])):
         # Insert dusk prompt before the turn that responded to it
         if dusk_prompt and not dusk_inserted and dusk_turn is not None and turn_idx >= dusk_turn:
-            parts.append(dusk_prompt)
+            parts.append(f"> {dusk_prompt}")
             dusk_inserted = True
 
         # Thinking
         thinking = turn.get("thinking", "").strip() if turn.get("thinking") else ""
         if thinking:
+            parts.append("---")
             parts.append(f"*Thinking: {thinking}*")
+            parts.append("---")
 
         # Agent's words
         agent_text = turn.get("agent_text", "").strip()
@@ -184,7 +178,7 @@ def render_session_log(session_data: dict) -> str:
             # Natural-language action line — experiential context without
             # exposing function-call syntax (which Gemini mimics as text
             # output when it sees it in memory).
-            action_line = _natural_action(tool_name, args, success)
+            action_line = natural_action(tool_name, args, success)
             if action_line:
                 parts.append(action_line)
 
@@ -199,7 +193,7 @@ def render_session_log(session_data: dict) -> str:
     # Reflect prompt and reflection at the end
     reflect_prompt = (session_data.get("reflect_prompt") or "").strip()
     if reflect_prompt:
-        parts.append(reflect_prompt)
+        parts.append(f"> {reflect_prompt}")
 
     reflection = (session_data.get("reflection") or "").strip()
     if reflection:
@@ -337,18 +331,6 @@ async def _compress_first(
         "output": response.usage.output_tokens,
     }
     return response.content[0].text, token_counts
-
-
-# Keep the old function for backward compatibility
-async def compress_session_batch(
-    rendered_sessions: list[str],
-    model: str = COMPRESSOR_MODEL,
-) -> tuple[str, dict]:
-    """Legacy batch compression. Use _compress_first or _compress_rolling instead."""
-    return await _compress_first(
-        [(i + 1, r) for i, r in enumerate(rendered_sessions)],
-        model=model,
-    )
 
 
 async def run_memory_compression(
