@@ -608,7 +608,7 @@ class TestRenderSessionLog:
         assert "\u2192" not in rendered
 
     def test_natural_action_for_create(self):
-        """Successful create shows *You create X.*."""
+        """Successful create shows action line + world response."""
         log = {
             "turns": [
                 {
@@ -619,7 +619,7 @@ class TestRenderSessionLog:
                         {
                             "tool": "create",
                             "arguments": {"name": "a spark", "description": "tiny light"},
-                            "result": "You create a spark. tiny light",
+                            "result": "a spark is here. tiny light",
                             "success": True,
                             "error": None,
                         }
@@ -633,7 +633,7 @@ class TestRenderSessionLog:
         }
         rendered = render_session_log(log)
         assert "*You create a spark.*" in rendered
-        assert "create(" not in rendered
+        assert "> a spark is here. tiny light" in rendered
 
     def test_natural_action_for_go(self):
         """Successful go shows *You go to X.*."""

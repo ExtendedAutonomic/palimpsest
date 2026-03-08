@@ -106,7 +106,7 @@ class TestCreate:
 
     def test_create_thing(self, place: PlaceInterface):
         _, result = place.create("a stone", "Grey and smooth, cold to the touch.")
-        assert "a stone" in result
+        assert "a stone is here" in result
         assert "Grey and smooth" in result
 
     def test_create_makes_file(self, place: PlaceInterface, place_path: Path):
@@ -442,7 +442,7 @@ class TestTakeAndDrop:
         place.take("a stone")
         place.venture("the shore", "A grey shore.")
         _, result = place.drop("a stone")
-        assert "here now" in result.lower()
+        assert "the shore" in result.lower()
         assert "a stone" not in place._carrying
         # Thing should be linked in the new space
         note = place._read_note("the shore")

@@ -45,7 +45,7 @@ class TestRenderSessionMarkdown:
         log_file.write_text(json.dumps(log_data), encoding="utf-8")
 
         md = render_session_markdown(log_file)
-        assert "**perceive**" in md
+        assert "*You perceive.*" in md
 
     def test_renders_reflection(self, tmp_path: Path):
         log_data = make_session_log(reflection="The silence was profound.")
