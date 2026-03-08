@@ -85,6 +85,47 @@ def _strip_compressed_frontmatter(text: str) -> str:
     return body
 
 
+def _natural_action(tool_name: str, args: dict, success: bool) -> str | None:
+    """Return a natural-language action line for a tool call.
+
+    Uses declarative voice on success (*You alter X.*) and attempt
+    language on failure (*You try to alter X.*) so the action line
+    doesn't imply success when the world rejected the action.
+
+    The success bool comes from the Place — each tool method returns
+    (success, message) and execute_tool stores it on the ToolCall.
+    """
+    verb_prefix = "" if success else "try to "
+
+    if tool_name == "perceive":
+        return f"*You {verb_prefix}perceive.*"
+    elif tool_name == "go":
+        where = args.get("where", "?")
+        return f"*You {verb_prefix}go to {where}.*"
+    elif tool_name == "examine":
+        what = args.get("what", "?")
+        return f"*You {verb_prefix}examine {what}.*"
+    elif tool_name == "create":
+        name = args.get("name", "?")
+        return f"*You {verb_prefix}create {name}.*"
+    elif tool_name == "alter":
+        what = args.get("what", "?")
+        new_name = args.get("name")
+        if new_name:
+            return f"*You {verb_prefix}alter {what} → {new_name}.*"
+        return f"*You {verb_prefix}alter {what}.*"
+    elif tool_name == "venture":
+        name = args.get("name", "?")
+        return f"*You {verb_prefix}venture toward {name}.*"
+    elif tool_name == "take":
+        what = args.get("what", "?")
+        return f"*You {verb_prefix}take {what}.*"
+    elif tool_name == "drop":
+        what = args.get("what", "?")
+        return f"*You {verb_prefix}drop {what}.*"
+    return None
+
+
 def render_session_log(session_data: dict) -> str:
     """
     Render a session JSON into readable markdown for the agent's memory.
@@ -92,6 +133,11 @@ def render_session_log(session_data: dict) -> str:
     Shows the agent's thinking, words, actions, and results — the complete
     experience of a session as the agent lived it. Dusk prompt included
     at the correct point. Reflect prompt and reflection included at the end.
+
+    Tool calls are rendered as natural-language action lines (*You alter X.*)
+    with attempt language on failure (*You try to alter X.*). The success
+    bool is read from the session JSON (set by the Place at execution time).
+    Old logs without the success field default to True for compatibility.
     """
     parts = []
 
@@ -131,19 +177,19 @@ def render_session_log(session_data: dict) -> str:
             tool_name = tc.get("tool", "")
             args = tc.get("arguments", {})
 
-            # Format as function call syntax — bracket notation caused
-            # Gemini to mimic it as text output instead of generating
-            # actual API tool calls
-            if args:
-                arg_parts = [f'{k}="{v}"' for k, v in args.items()]
-                parts.append(f"{tool_name}({', '.join(arg_parts)})")
-            else:
-                parts.append(f"{tool_name}()")
+            result = tc.get("result", "")
+            error = tc.get("error", "")
+            success = tc.get("success", True)  # Old logs lack this field
+
+            # Natural-language action line — experiential context without
+            # exposing function-call syntax (which Gemini mimics as text
+            # output when it sees it in memory).
+            action_line = _natural_action(tool_name, args, success)
+            if action_line:
+                parts.append(action_line)
 
             # Result — blockquoted as the world's response, distinct
             # from the agent's own words
-            result = tc.get("result", "")
-            error = tc.get("error", "")
             if error:
                 parts.append(f"> {error}")
             elif result:
@@ -183,10 +229,11 @@ Here is a new day to weave into your memory:
 
 ---
 
-Rewrite your complete memory, now including this new day. Keep the week \
+Update your memory to include this new day. Keep the week \
 structure: use "### Week N (Days X\u2013Y)" headings. If this day starts a \
-new week, begin a new section. If it belongs to the current week, expand \
-that section.
+new week, begin a new section. Do not modify completed week sections \
+— they are settled memory. Only update the current (most recent) week \
+section to include the new day.
 
 Write the way memory works \u2014 keeping what felt important, letting the \
 rest go. First person. Match the voice and register of the originals. \

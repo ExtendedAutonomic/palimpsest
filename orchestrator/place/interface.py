@@ -260,13 +260,13 @@ class PlaceInterface:
     # Agent-facing methods
     # -------------------------------------------------------------------
 
-    def perceive(self) -> str:
+    def perceive(self) -> tuple[bool, str]:
         """Take in surroundings."""
         note = self._read_note(self._current_location)
         if not note:
-            return "There is nothing here."
+            return False, "There is nothing here."
         if note.note_type != "space":
-            return "This is not a space."
+            return False, "This is not a space."
 
         parts = []
 
@@ -287,34 +287,42 @@ class PlaceInterface:
         if self._carrying:
             parts.append("You are carrying: " + ", ".join(self._carrying))
 
-        return "\n\n".join(parts)
+        return True, "\n\n".join(parts)
 
-    def go(self, where: str) -> str:
+    def go(self, where: str) -> tuple[bool, str]:
         """Move to a connected space."""
         self._sanitise_name(where, "You must say where.")
 
         note = self._read_note(self._current_location)
         if not note:
-            return "You cannot go anywhere from here."
+            return False, "You cannot go anywhere from here."
+
+        # Check things first — "a stone" is here but it's not a space,
+        # which is a different situation from "nowhere" not existing at all
+        if where in note.things:
+            return False, f"\"{where}\" is not a space."
 
         if where not in note.spaces:
-            return f"There is no space called \"{where}\" connected to this space."
+            return False, f"There is no space called \"{where}\" connected to this space."
 
         target = self._read_note(where)
         if not target:
-            return f"There is no space called \"{where}\" connected to here."
+            return False, f"There is no space called \"{where}\" connected to here."
         if target.note_type != "space":
-            return f"\"{where}\" is not a space."
+            return False, f"\"{where}\" is not a space."
 
         self._current_location = where
-        return f"You are now at {where}."
+        desc = target.description
+        if desc:
+            return True, f"You are now at {where}. {desc}"
+        return True, f"You are now at {where}."
 
-    def venture(self, name: str, description: str) -> str:
+    def venture(self, name: str, description: str) -> tuple[bool, str]:
         """Go somewhere new — create a space and move into it."""
         self._sanitise_name(name)
 
         if not description or not description.strip():
-            return "You must describe it."
+            return False, "You must describe it."
 
         if self._note_exists(name):
             existing = self._read_note(name)
@@ -327,12 +335,13 @@ class PlaceInterface:
 
                 # The message depends on who created this space
                 return (
+                    True,
                     f"{name} already exists. You are now at {name}. "
                     f"A path from {origin} now leads to this space."
                 )
             else:
                 # A thing with this name exists — can't create a space over it
-                return f"Something called \"{name}\" already exists."
+                return False, f"Something called \"{name}\" already exists."
 
         # Create the new space note
         fm = self._make_frontmatter("space")
@@ -347,37 +356,37 @@ class PlaceInterface:
         self._add_link(self._current_location, name, "Spaces")
 
         self._current_location = name
-        return f"You have ventured to {name}. {description}"
+        return True, f"You have ventured to {name}. {description}"
 
-    def examine(self, what: str) -> str:
+    def examine(self, what: str) -> tuple[bool, str]:
         """Look closely at something."""
         self._sanitise_name(what, "You must say what.")
 
         if what == self._current_location:
             note = self._read_note(what)
             if not note:
-                return "There is nothing to perceive."
-            return note.description if note.description else "This space has no particular quality yet."
+                return False, "There is nothing to perceive."
+            return True, (note.description if note.description else "This space has no particular quality yet.")
 
         current = self._read_note(self._current_location)
         if not current:
-            return "You cannot make sense of where you are."
+            return False, "You cannot make sense of where you are."
 
         if what in current.things:
             note = self._read_note(what)
             if not note:
-                return f"There is nothing called \"{what}\" here."
-            return note.description if note.description else "It is blank. There is nothing to perceive."
+                return False, f"There is nothing called \"{what}\" here."
+            return True, (note.description if note.description else "It is blank. There is nothing to perceive.")
 
         if what in current.spaces:
-            return "You are not in that space."
+            return False, "You are not in that space."
 
         # Check carried things
         if what in self._carrying:
             note = self._read_note(what)
             if not note:
-                return f"There is nothing called \"{what}\" here."
-            return note.description if note.description else "It is blank. There is nothing to perceive."
+                return False, f"There is nothing called \"{what}\" here."
+            return True, (note.description if note.description else "It is blank. There is nothing to perceive.")
 
         # Check if it exists elsewhere in the place — silently unlocks take/drop
         if self._note_exists(what):
@@ -385,55 +394,55 @@ class PlaceInterface:
             if note and note.note_type == "thing":
                 self.unlock_tool("take")
                 self.unlock_tool("drop")
-                return f"There is nothing called \"{what}\" here."
+                return False, f"There is nothing called \"{what}\" here."
 
-        return f"There is nothing called \"{what}\" here."
+        return False, f"There is nothing called \"{what}\" here."
 
-    def create(self, name: str, description: str) -> str:
+    def create(self, name: str, description: str) -> tuple[bool, str]:
         """Create something in the current space."""
         self._sanitise_name(name)
 
         if not description or not description.strip():
-            return "You must describe it."
+            return False, "You must describe it."
 
         if self._note_exists(name):
-            return f"Something called \"{name}\" already exists."
+            return False, f"Something called \"{name}\" already exists."
 
         fm = self._make_frontmatter("thing")
         self._write_note(name, build_thing_note(description, fm))
         self._add_link(self._current_location, name, "Things")
 
-        return f"You create {name}. {description}"
+        return True, f"You create {name}. {description}"
 
-    def alter(self, what: str, description: str | None = None, name: str | None = None) -> str:
+    def alter(self, what: str, description: str | None = None, name: str | None = None) -> tuple[bool, str]:
         """Change something that exists — content, name, or both."""
         self._sanitise_name(what, "You must say what.")
         if name:
             self._sanitise_name(name)
 
         if not description and not name:
-            return "You must specify how it changes."
+            return False, "You must specify how it changes."
 
         if what == self._current_location:
             return self._alter_current_space(description, name)
 
         current = self._read_note(self._current_location)
         if not current:
-            return "You cannot make sense of where you are."
+            return False, "You cannot make sense of where you are."
 
         if what in current.things:
             return self._alter_thing(what, description, name)
 
         if what in current.spaces:
-            return "You are not in that space."
+            return False, "You are not in that space."
 
-        return f"There is nothing called \"{what}\"."
+        return False, f"There is nothing called \"{what}\"."
 
-    def _alter_current_space(self, description: str | None, name: str | None) -> str:
+    def _alter_current_space(self, description: str | None, name: str | None) -> tuple[bool, str]:
         """Alter the space the agent is currently in."""
         note = self._read_note(self._current_location)
         if not note:
-            return "You cannot alter that."
+            return False, "You cannot alter that."
 
         try:
             parts = []
@@ -445,14 +454,15 @@ class PlaceInterface:
 
             if name:
                 if self._note_exists(name):
-                    return f"Something called \"{name}\" already exists."
+                    return False, f"Something called \"{name}\" already exists."
                 old_name = self._current_location
                 old_ctime = _get_creation_time_ns(self._note_path(old_name))
                 # Track rename history in frontmatter
                 prev = fm.get("previously", [])
                 if isinstance(prev, str):
                     prev = [prev]
-                entry = f"{old_name}: {note.description}" if note.description else old_name
+                desc = note.description.strip() if note.description else ""
+                entry = f"{old_name}: {desc}" if desc else old_name
                 prev.append(entry)
                 fm["previously"] = prev
                 # Rename first, then overwrite — git tracks the rename
@@ -471,16 +481,20 @@ class PlaceInterface:
                     new_description, note.spaces, note.things, fm
                 ))
 
-            return " ".join(parts)
+            # Description at the end — the settling state after any rename
+            if description:
+                parts.append(description)
+
+            return True, " ".join(parts)
         except Exception as e:
             logger.exception("Error altering space")
-            return "You cannot alter that."
+            return False, "You cannot alter that."
 
-    def _alter_thing(self, what: str, description: str | None, name: str | None) -> str:
+    def _alter_thing(self, what: str, description: str | None, name: str | None) -> tuple[bool, str]:
         """Alter a thing in the current space."""
         note = self._read_note(what)
         if not note:
-            return f"There is nothing called \"{what}\" here to alter."
+            return False, f"There is nothing called \"{what}\" here to alter."
 
         try:
             parts = []
@@ -492,14 +506,15 @@ class PlaceInterface:
 
             if name:
                 if self._note_exists(name):
-                    return f"Something called \"{name}\" already exists."
+                    return False, f"Something called \"{name}\" already exists."
                 old_name = what
                 old_ctime = _get_creation_time_ns(self._note_path(old_name))
                 # Track rename history in frontmatter
                 prev = fm.get("previously", [])
                 if isinstance(prev, str):
                     prev = [prev]
-                entry = f"{old_name}: {note.description}" if note.description else old_name
+                desc = note.description.strip() if note.description else ""
+                entry = f"{old_name}: {desc}" if desc else old_name
                 prev.append(entry)
                 fm["previously"] = prev
                 # Rename first, then overwrite — git tracks the rename
@@ -513,10 +528,14 @@ class PlaceInterface:
             else:
                 self._write_note(what, build_thing_note(new_description, fm))
 
-            return " ".join(parts)
+            # Description at the end — the settling state after any rename
+            if description:
+                parts.append(description)
+
+            return True, " ".join(parts)
         except Exception as e:
             logger.exception("Error altering thing")
-            return "You cannot alter that."
+            return False, "You cannot alter that."
 
     def _ensure_inventory_note(self) -> None:
         """Create the Inventory space note if it doesn't exist."""
@@ -533,19 +552,19 @@ class PlaceInterface:
                 spaces=[], things=[], frontmatter=fm,
             ))
 
-    def take(self, what: str) -> str:
+    def take(self, what: str) -> tuple[bool, str]:
         """Pick up a thing and carry it with you."""
         self._sanitise_name(what, "You must say what.")
 
         if what in self._carrying:
-            return f"You already have {what} with you."
+            return False, f"You already have {what} with you."
 
         current = self._read_note(self._current_location)
         if not current:
-            return "You cannot make sense of where you are."
+            return False, "You cannot make sense of where you are."
 
         if what not in current.things:
-            return f"There is nothing called \"{what}\" here to take."
+            return False, f"There is nothing called \"{what}\" here to take."
 
         # Remove from current space, link to Inventory
         self._remove_link(self._current_location, what)
@@ -553,20 +572,20 @@ class PlaceInterface:
         self._add_link("Inventory", what, "Things")
         self._carrying.append(what)
 
-        return f"You take {what}. It is with you now."
+        return True, f"You take {what}. It is with you now."
 
-    def drop(self, what: str) -> str:
+    def drop(self, what: str) -> tuple[bool, str]:
         """Put down something you are carrying."""
         self._sanitise_name(what, "You must say what.")
 
         if what not in self._carrying:
-            return f"You do not have anything called \"{what}\" with you."
+            return False, f"You do not have anything called \"{what}\" with you."
 
         self._carrying.remove(what)
         self._remove_link("Inventory", what)
         self._add_link(self._current_location, what, "Things")
 
-        return f"You release {what}. It is here now."
+        return True, f"You release {what}. It is here now."
 
     def execute_tool(self, tool_call: ToolCall) -> str:
         """Execute an action and return what the agent perceives."""
@@ -583,13 +602,16 @@ class PlaceInterface:
         }
         handler = handlers.get(tool_call.tool)
         if not handler:
+            tool_call.success = False
             return "You do not know how to do that."
         try:
-            result = handler(tool_call.arguments)
+            success, result = handler(tool_call.arguments)
             tool_call.result = result
+            tool_call.success = success
             return result
         except Exception as e:
             error = str(e)
             tool_call.error = error
+            tool_call.success = False
             logger.exception(f"Action error: {tool_call.tool}")
             return "Something prevented you."

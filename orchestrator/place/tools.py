@@ -233,5 +233,6 @@ class ToolCall:
     tool: ToolName
     arguments: dict[str, str]
     result: str | None = None
+    success: bool = True
     error: str | None = None
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))

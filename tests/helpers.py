@@ -44,6 +44,7 @@ def make_session_log(
                         "tool": "perceive",
                         "arguments": {},
                         "result": "This space is empty.",
+                        "success": True,
                         "error": None,
                         "timestamp": "2026-03-01T10:01:00+00:00",
                     }

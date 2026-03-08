@@ -23,7 +23,7 @@ class TestFoundingSpace:
         assert place.current_location == "here"
 
     def test_perceive_empty_here(self, place: PlaceInterface):
-        result = place.perceive()
+        _, result = place.perceive()
         assert result == "here"
 
     def test_here_md_exists(self, place_path: Path):
@@ -38,7 +38,7 @@ class TestVenture:
     """Venturing creates new spaces and links them bidirectionally."""
 
     def test_venture_creates_space_and_moves(self, place: PlaceInterface):
-        result = place.venture("the garden", "A quiet place with tall grass.")
+        _, result = place.venture("the garden", "A quiet place with tall grass.")
         assert "the garden" in result
         assert place.current_location == "the garden"
 
@@ -68,7 +68,7 @@ class TestVenture:
         place.venture("the garden", "A quiet place.")
         place.go("here")
         place.venture("the library", "Shelves of dust.")
-        result = place.venture("the garden", "Something different.")
+        _, result = place.venture("the garden", "Something different.")
         assert "already exists" in result
         assert "You are now at the garden" in result
         assert place.current_location == "the garden"
@@ -88,7 +88,7 @@ class TestVenture:
             build_space_note("A room you did not make.", [], [], fm),
             encoding="utf-8",
         )
-        result = place.venture("the quiet room", "Something.")
+        _, result = place.venture("the quiet room", "Something.")
         assert "already exists" in result
         assert "You are now at the quiet room" in result
         assert place.current_location == "the quiet room"
@@ -96,7 +96,7 @@ class TestVenture:
     def test_venture_into_existing_thing_fails(self, place: PlaceInterface):
         """Can't create a space with the same name as an existing thing."""
         place.create("a stone", "Grey and smooth.")
-        result = place.venture("a stone", "A rocky chamber.")
+        _, result = place.venture("a stone", "A rocky chamber.")
         assert "already exists" in result
         assert place.current_location == "here"  # Didn't move
 
@@ -105,7 +105,7 @@ class TestCreate:
     """Creating makes things that persist in the current space."""
 
     def test_create_thing(self, place: PlaceInterface):
-        result = place.create("a stone", "Grey and smooth, cold to the touch.")
+        _, result = place.create("a stone", "Grey and smooth, cold to the touch.")
         assert "a stone" in result
         assert "Grey and smooth" in result
 
@@ -125,7 +125,7 @@ class TestCreate:
 
     def test_create_duplicate_fails(self, place: PlaceInterface):
         place.create("a stone", "Grey and smooth.")
-        result = place.create("a stone", "A different stone.")
+        _, result = place.create("a stone", "A different stone.")
         assert "already exists" in result
 
     def test_create_in_ventured_space(self, place: PlaceInterface, place_path: Path):
@@ -145,26 +145,26 @@ class TestExamine:
 
     def test_examine_thing(self, place: PlaceInterface):
         place.create("a stone", "Grey and smooth, cold to the touch.")
-        result = place.examine("a stone")
+        _, result = place.examine("a stone")
         assert "Grey and smooth" in result
 
     def test_examine_current_space(self, place: PlaceInterface):
         place.venture("the garden", "Tall grass and wildflowers.")
-        result = place.examine("the garden")
+        _, result = place.examine("the garden")
         assert "Tall grass" in result
 
     def test_examine_empty_space(self, place: PlaceInterface):
-        result = place.examine("here")
+        _, result = place.examine("here")
         assert "no particular quality" in result.lower()
 
     def test_examine_nonexistent(self, place: PlaceInterface):
-        result = place.examine("nothing")
+        _, result = place.examine("nothing")
         assert "nothing called" in result.lower()
 
     def test_examine_connected_space_not_here(self, place: PlaceInterface):
         place.venture("the garden", "A quiet place.")
         place.go("here")
-        result = place.examine("the garden")
+        _, result = place.examine("the garden")
         assert "not in that space" in result.lower()
 
     def test_examine_thing_in_other_space_not_visible(self, place: PlaceInterface):
@@ -172,7 +172,7 @@ class TestExamine:
         place.venture("the garden", "A quiet place.")
         place.create("a flower", "Red.")
         place.go("here")
-        result = place.examine("a flower")
+        _, result = place.examine("a flower")
         assert "nothing called" in result.lower()
 
 
@@ -182,13 +182,22 @@ class TestGo:
     def test_go_to_connected_space(self, place: PlaceInterface):
         place.venture("the garden", "A quiet place.")
         place.go("here")
-        result = place.go("the garden")
+        _, result = place.go("the garden")
         assert "the garden" in result
+        assert "A quiet place" in result
         assert place.current_location == "the garden"
 
     def test_go_to_unconnected_space_fails(self, place: PlaceInterface):
-        result = place.go("nowhere")
+        _, result = place.go("nowhere")
         assert "no space" in result.lower()
+        assert place.current_location == "here"
+
+    def test_go_to_thing_fails(self, place: PlaceInterface):
+        """Trying to go to a thing gives a specific error, not the generic 'no space' message."""
+        place.create("a stone", "Grey and smooth.")
+        _, result = place.go("a stone")
+        assert "is not a space" in result.lower()
+        assert "no space called" not in result.lower()
         assert place.current_location == "here"
 
     def test_go_back_and_forth(self, place: PlaceInterface):
@@ -205,13 +214,14 @@ class TestAlter:
 
     def test_alter_thing_description(self, place: PlaceInterface):
         place.create("a stone", "Grey and smooth.")
-        result = place.alter("a stone", description="Now cracked and warm.")
+        _, result = place.alter("a stone", description="Now cracked and warm.")
         assert "different" in result
+        assert "Now cracked and warm" in result
 
     def test_alter_thing_content_changes(self, place: PlaceInterface):
         place.create("a stone", "Grey and smooth.")
         place.alter("a stone", description="Now cracked and warm.")
-        result = place.examine("a stone")
+        _, result = place.examine("a stone")
         assert "cracked and warm" in result
         assert "Grey" not in result
 
@@ -230,8 +240,9 @@ class TestAlter:
 
     def test_alter_current_space_description(self, place: PlaceInterface):
         place.venture("the garden", "A quiet place.")
-        result = place.alter("the garden", description="Now overgrown and wild.")
+        _, result = place.alter("the garden", description="Now overgrown and wild.")
         assert "different" in result
+        assert "Now overgrown and wild" in result
 
     def test_alter_current_space_name(self, place: PlaceInterface):
         place.venture("the garden", "A quiet place.")
@@ -239,18 +250,18 @@ class TestAlter:
         assert place.current_location == "the wilderness"
 
     def test_alter_nonexistent_fails(self, place: PlaceInterface):
-        result = place.alter("nothing", description="Something.")
+        _, result = place.alter("nothing", description="Something.")
         assert "nothing called" in result.lower()
 
     def test_alter_with_no_changes_fails(self, place: PlaceInterface):
         place.create("a stone", "Grey.")
-        result = place.alter("a stone")
+        _, result = place.alter("a stone")
         assert "must specify" in result.lower()
 
     def test_alter_to_existing_name_fails(self, place: PlaceInterface):
         place.create("a stone", "Grey.")
         place.create("a pebble", "Small.")
-        result = place.alter("a stone", name="a pebble")
+        _, result = place.alter("a stone", name="a pebble")
         assert "already exists" in result
 
 
@@ -260,30 +271,30 @@ class TestPerceive:
     def test_perceive_shows_spaces(self, place: PlaceInterface):
         place.venture("the garden", "A quiet place.")
         place.go("here")
-        result = place.perceive()
+        _, result = place.perceive()
         assert "connected to" in result
         assert "the garden" in result
 
     def test_perceive_shows_things(self, place: PlaceInterface):
         place.create("a stone", "Grey.")
-        result = place.perceive()
+        _, result = place.perceive()
         assert "a stone" in result
 
     def test_perceive_shows_space_name(self, place: PlaceInterface):
         place.venture("the garden", "Tall grass and wildflowers.")
-        result = place.perceive()
+        _, result = place.perceive()
         assert result.startswith("the garden")
 
     def test_perceive_shows_description(self, place: PlaceInterface):
         place.venture("the garden", "Tall grass and wildflowers.")
-        result = place.perceive()
+        _, result = place.perceive()
         assert "Tall grass" in result
 
     def test_perceive_shows_both_spaces_and_things(self, place: PlaceInterface):
         place.venture("the garden", "A quiet place.")
         place.go("here")
         place.create("a stone", "Grey.")
-        result = place.perceive()
+        _, result = place.perceive()
         assert "the garden" in result
         assert "a stone" in result
 
@@ -301,7 +312,7 @@ class TestMultiStepJourney:
         place.go("here")
 
         # From here, the seed shouldn't be visible
-        perceive_result = place.perceive()
+        _, perceive_result = place.perceive()
         assert "a seed" not in perceive_result
 
         # But the garden should be
@@ -309,7 +320,7 @@ class TestMultiStepJourney:
 
         # Go back and the seed is there
         place.go("the garden")
-        result = place.perceive()
+        _, result = place.perceive()
         assert "a seed" in result
 
     def test_build_a_topology(self, place: PlaceInterface, place_path: Path):
@@ -335,7 +346,7 @@ class TestMultiStepJourney:
         """Create, alter, then verify the change persists."""
         place.create("a message", "Hello.")
         place.alter("a message", description="Goodbye.")
-        result = place.examine("a message")
+        _, result = place.examine("a message")
         assert "Goodbye" in result
         assert "Hello" not in result
 
@@ -389,14 +400,14 @@ class TestTakeAndDrop:
 
     def test_examine_thing_in_other_space_unlocks_take(self, place: PlaceInterface):
         self._setup_two_spaces_with_thing(place)
-        result = place.examine("a stone")
+        _, result = place.examine("a stone")
         assert "nothing called" in result.lower()
         assert "take" in place._unlocked_tools
         assert "drop" in place._unlocked_tools
 
     def test_examine_nonexistent_thing_does_not_unlock(self, place: PlaceInterface):
         self._setup_two_spaces_with_thing(place)
-        result = place.examine("a fish")
+        _, result = place.examine("a fish")
         assert "nothing called" in result.lower()
         assert len(place._unlocked_tools) == 0
 
@@ -404,12 +415,12 @@ class TestTakeAndDrop:
         """Only things trigger the unlock, not spaces."""
         self._setup_two_spaces_with_thing(place)
         # "here" exists but is a space, not a thing
-        result = place.examine("here")
+        _, result = place.examine("here")
         assert "take" not in place._unlocked_tools
 
     def test_take_thing_from_current_space(self, place: PlaceInterface):
         place.create("a stone", "A smooth dark stone.")
-        result = place.take("a stone")
+        _, result = place.take("a stone")
         assert "with you" in result.lower()
         assert "a stone" in place._carrying
         # Thing should be removed from space
@@ -417,20 +428,20 @@ class TestTakeAndDrop:
         assert "a stone" not in note.things
 
     def test_take_thing_not_here(self, place: PlaceInterface):
-        result = place.take("a stone")
+        _, result = place.take("a stone")
         assert "nothing" in result.lower()
 
     def test_take_already_carrying(self, place: PlaceInterface):
         place.create("a stone", "A smooth dark stone.")
         place.take("a stone")
-        result = place.take("a stone")
+        _, result = place.take("a stone")
         assert "already have" in result.lower()
 
     def test_drop_thing(self, place: PlaceInterface):
         place.create("a stone", "A smooth dark stone.")
         place.take("a stone")
         place.venture("the shore", "A grey shore.")
-        result = place.drop("a stone")
+        _, result = place.drop("a stone")
         assert "here now" in result.lower()
         assert "a stone" not in place._carrying
         # Thing should be linked in the new space
@@ -438,25 +449,25 @@ class TestTakeAndDrop:
         assert "a stone" in note.things
 
     def test_drop_not_carrying(self, place: PlaceInterface):
-        result = place.drop("a stone")
+        _, result = place.drop("a stone")
         assert "do not have" in result.lower()
 
     def test_perceive_shows_carried_things(self, place: PlaceInterface):
         place.create("a stone", "A smooth dark stone.")
         place.take("a stone")
-        result = place.perceive()
+        _, result = place.perceive()
         assert "carrying" in result.lower()
         assert "a stone" in result
 
     def test_perceive_without_carried_things(self, place: PlaceInterface):
-        result = place.perceive()
+        _, result = place.perceive()
         assert "carrying" not in result.lower()
 
     def test_examine_carried_thing_in_different_space(self, place: PlaceInterface):
         place.create("a stone", "A smooth dark stone.")
         place.take("a stone")
         place.venture("the shore", "A grey shore.")
-        result = place.examine("a stone")
+        _, result = place.examine("a stone")
         assert "smooth dark stone" in result.lower()
 
     def test_take_links_to_inventory(self, place: PlaceInterface, place_path: Path):
@@ -493,10 +504,10 @@ class TestTakeAndDrop:
         place.take("the compass")
         place.venture("the island", "A dark island.")
         # Can examine while carrying
-        result = place.examine("the compass")
+        _, result = place.examine("the compass")
         assert "black glass" in result.lower()
         # Perceive shows it
-        result = place.perceive()
+        _, result = place.perceive()
         assert "the compass" in result
         assert "carrying" in result.lower()
         # Drop it here

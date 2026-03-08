@@ -108,6 +108,7 @@ class SessionLog:
                             "tool": tc.tool,
                             "arguments": tc.arguments,
                             "result": tc.result,
+                            "success": tc.success,
                             "error": tc.error,
                             "timestamp": tc.timestamp.isoformat(),
                         }
