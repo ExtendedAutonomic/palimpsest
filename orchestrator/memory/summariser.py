@@ -421,10 +421,6 @@ async def run_memory_compression(
     if compressed_count == 0:
         return False
 
-    # Derive phase from the compressed logs
-    phases = sorted(set(log.get("phase", 1) for log in to_compress))
-    phase = phases[-1] if phases else 1
-
     # Calculate compression cost (cumulative across all runs)
     from ..pricing import calculate_cost
     run_cost = calculate_cost(
@@ -448,7 +444,6 @@ async def run_memory_compression(
         f"---\n"
         f"type: compressed_memory\n"
         f"agent: {agent_name}\n"
-        f"phase: {phase}\n"
         f"model: {COMPRESSOR_MODEL}\n"
         f"compressed_through: {last_compressed_session}\n"
         f"tokens: {total_compression_tokens:,}\n"

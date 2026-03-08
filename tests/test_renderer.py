@@ -103,13 +103,35 @@ class TestRenderSessionMarkdown:
         log_file.write_text(json.dumps(log_data), encoding="utf-8")
 
         md = render_session_markdown(log_file)
-        assert "Days 1\u20133 (compressed)" in md
+        assert "[[logs/claude/compressed_memory|Days 1\u20133 (compressed)]]" in md
         assert "[[logs/claude/obsidian_logs/session_0004|Day 4]]" in md
         assert "[[logs/claude/obsidian_logs/session_0005|Day 5]]" in md
         assert "[[logs/claude/obsidian_logs/session_0006|Day 6]]" in md
         assert "> You are at: the garden" in md
         assert "compressed stuff" not in md
         assert "full log 4" not in md
+
+
+    def test_renders_week_format_compressed_memory(self, tmp_path: Path):
+        log_data = make_session_log(session_number=11)
+        log_data["opening_prompt"] = (
+            "## Memory\n\n---\n\n"
+            "### Week 1 (Days 1\u20137)\n\nFirst week summary.\n\n"
+            "### Week 2 (Days 8)\n\nDay eight.\n\nDay 8.\n\n---\n\n"
+            "### Day 9\n\nfull log 9\n\n---\n\n"
+            "### Day 10\n\nfull log 10\n\n"
+            "You are at: here"
+        )
+        log_file = tmp_path / "session_0011.json"
+        log_file.write_text(json.dumps(log_data), encoding="utf-8")
+
+        md = render_session_markdown(log_file)
+        assert "[[logs/claude/compressed_memory|Days 1\u20138 (compressed)]]" in md
+        assert "[[logs/claude/obsidian_logs/session_0009|Day 9]]" in md
+        assert "[[logs/claude/obsidian_logs/session_0010|Day 10]]" in md
+        assert "first week summary" not in md.lower()  # compressed body not shown
+        # "Day 8" from inside compressed memory should not appear as raw link
+        assert "session_0008" not in md
 
 
 class TestSaveReadableLog:
