@@ -448,6 +448,13 @@ class PlaceInterface:
                     return f"Something called \"{name}\" already exists."
                 old_name = self._current_location
                 old_ctime = _get_creation_time_ns(self._note_path(old_name))
+                # Track rename history in frontmatter
+                prev = fm.get("previously", [])
+                if isinstance(prev, str):
+                    prev = [prev]
+                entry = f"{old_name}: {note.description}" if note.description else old_name
+                prev.append(entry)
+                fm["previously"] = prev
                 # Rename first, then overwrite — git tracks the rename
                 # and preserves version history
                 self._note_path(old_name).rename(self._note_path(name))
@@ -488,6 +495,13 @@ class PlaceInterface:
                     return f"Something called \"{name}\" already exists."
                 old_name = what
                 old_ctime = _get_creation_time_ns(self._note_path(old_name))
+                # Track rename history in frontmatter
+                prev = fm.get("previously", [])
+                if isinstance(prev, str):
+                    prev = [prev]
+                entry = f"{old_name}: {note.description}" if note.description else old_name
+                prev.append(entry)
+                fm["previously"] = prev
                 # Rename first, then overwrite — git tracks the rename
                 # and preserves version history
                 self._note_path(old_name).rename(self._note_path(name))

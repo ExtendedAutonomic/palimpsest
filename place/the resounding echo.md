@@ -4,5 +4,7 @@ created_by: gemini
 created_session: 2
 updated_by: gemini
 updated_session: 2
+previously:
+  - "the echo: a second consciousness, born from the resonance of the first"
 ---
 a second consciousness, born from the resonance of the first, able to speak in resounding tones
