@@ -86,9 +86,13 @@ Re-read the **full experimenter prompt** (`D:\Vault\Projects\Active\Palimpsest\E
 
 Additional checks:
 
-- **Images:** The post should have at least 2-3 image placeholders (screenshots, Obsidian graphs, session log excerpts). If it has fewer, identify where images would strengthen the post and add placeholders.
+- **Images:** The post should have at least 2-3 image placeholders (screenshots, Obsidian graphs, session log excerpts). If it has fewer, identify where images would strengthen the post and add placeholders. Every image must have a source attribution in the figure note. For screenshots from the experiment (Obsidian graphs, session logs), the description is sufficient. For external images (photos, manga panels, diagrams from other sources), include a linked source, creator, and license/copyright holder in parentheses after the description, e.g. `([Source](URL), work title, creator / copyright holder)`. The source link should point to where the image was found.
 - **Narrative continuity:** Re-read the previous posts and check for consistency: pronouns, terminology, how things were described, back-references to earlier posts. Flag and fix any contradictions or false attributions (e.g. claiming the previous post asked a question it didn't).
 - **Strengthening suggestions:** After completing the edit pass, think about what could make the post stronger or more interesting, including connections to other material in the vault (Insights note, design docs, narrator chapters, literary references, philosophical threads). Present these as a separate list of recommendations for the user to consider. Do not apply them automatically.
+- **Sources and links:** Any factual claim about external tools, platforms, APIs, or company policies (e.g. how Anthropic handles thinking, how Google's summariser works) should have an inline link to a source. Session log quotes don't need sourcing, but claims about the world outside the experiment do.
+- **Source freshness:** Check that all external sources are from the last six months. If a source is older, search for more recent information to verify the claim still holds. AI company docs and policies change frequently. Flag anything that has changed and update the post accordingly.
+- **Fact-checking:** For any claim about the world outside the Place (how APIs work, what companies have said, technical mechanisms, pricing, model capabilities), verify it independently via web search. Do not rely on the Insights note, memory, or prior conversations as a source of truth for external facts. Things change. Check.
+- **Footer links:** Every post should end with a short set of links to the GitHub repo and the session logs covered in the post. This ensures readers can always find the source material even if the post body doesn't link to every session individually.
 
 ## Collaborative editing
 
@@ -98,13 +102,3 @@ After the formal workflow, the user will typically iterate on the post with you 
 
 The user may ask to just run the edit pass on an existing post. In that case: read the post and the full experimenter prompt, then do Step 4 only.
 
-## Publishing to Substack
-
-When the user is ready to publish, run the export script:
-
-```
-python scripts/export_substack.py <post_number>
-python scripts/export_substack.py all
-```
-
-This strips frontmatter, converts Obsidian image embeds (`![[file|size]]`) to standard markdown, copies images to `exports/post_NNNN/images/` numbered in order of appearance, and reports any missing images. The output markdown can be pasted directly into Substack's editor. Images must be inserted manually at each `![...]` reference.
