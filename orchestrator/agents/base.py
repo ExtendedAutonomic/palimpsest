@@ -250,6 +250,13 @@ class BaseAgent(ABC):
 
             # Track tokens
             usage = response.get("usage", {})
+            tool_count = len(response.get("tool_calls", []))
+            logger.info(
+                f"{self.name} turn {turn_idx}: "
+                f"{usage.get('input_tokens', 0)} in / "
+                f"{usage.get('output_tokens', 0)} out, "
+                f"{tool_count} tool call(s)"
+            )
             turn_input = usage.get("input_tokens", 0)
             turn_cache_create = usage.get("cache_creation_input_tokens", 0)
             turn_cache_read = usage.get("cache_read_input_tokens", 0)

@@ -87,16 +87,7 @@ class GeminiAgent(BaseAgent):
                     contents=contents,
                     config=config,
                 )
-                # Log success with token counts
-                parsed = self._parse_response(response)
-                usage = parsed.get("usage", {})
-                tool_count = len(parsed.get("tool_calls", []))
-                logger.info(
-                    f"Gemini response: {usage.get('input_tokens', 0)} in / "
-                    f"{usage.get('output_tokens', 0)} out, "
-                    f"{tool_count} tool call(s)"
-                )
-                return parsed
+                return self._parse_response(response)
             except Exception as e:
                 error_str = str(e)
                 retryable = "429" in error_str or "503" in error_str
