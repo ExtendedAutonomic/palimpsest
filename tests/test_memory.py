@@ -522,3 +522,218 @@ class TestRenderSessionLog:
         }
         rendered = render_session_log(log)
         assert "> You are here." in rendered
+
+    def test_natural_action_for_perceive(self):
+        """show_tool_syntax=False shows *You perceive.* instead of perceive()."""
+        log = {
+            "turns": [
+                {
+                    "agent_text": "",
+                    "thinking": None,
+                    "nudge": None,
+                    "tool_calls": [
+                        {
+                            "tool": "perceive",
+                            "arguments": {},
+                            "result": "here",
+                            "error": None,
+                        }
+                    ],
+                }
+            ],
+            "dusk_prompt": None,
+            "dusk_action": None,
+            "reflect_prompt": None,
+            "reflection": None,
+        }
+        rendered = render_session_log(log, show_tool_syntax=False)
+        assert "*You perceive.*" in rendered
+        assert "perceive()" not in rendered
+
+    def test_natural_action_for_alter(self):
+        """show_tool_syntax=False shows *You alter X.* for alter calls."""
+        log = {
+            "turns": [
+                {
+                    "agent_text": "",
+                    "thinking": None,
+                    "nudge": None,
+                    "tool_calls": [
+                        {
+                            "tool": "alter",
+                            "arguments": {"what": "the first dialogue", "name": "the memory"},
+                            "result": "the first dialogue is different now.",
+                            "error": None,
+                        }
+                    ],
+                }
+            ],
+            "dusk_prompt": None,
+            "dusk_action": None,
+            "reflect_prompt": None,
+            "reflection": None,
+        }
+        rendered = render_session_log(log, show_tool_syntax=False)
+        assert "*You alter the first dialogue.*" in rendered
+        assert "alter(" not in rendered
+
+    def test_natural_action_for_create(self):
+        """show_tool_syntax=False shows *You create X.* for create calls."""
+        log = {
+            "turns": [
+                {
+                    "agent_text": "",
+                    "thinking": None,
+                    "nudge": None,
+                    "tool_calls": [
+                        {
+                            "tool": "create",
+                            "arguments": {"name": "a spark", "description": "tiny light"},
+                            "result": "You create a spark. tiny light",
+                            "error": None,
+                        }
+                    ],
+                }
+            ],
+            "dusk_prompt": None,
+            "dusk_action": None,
+            "reflect_prompt": None,
+            "reflection": None,
+        }
+        rendered = render_session_log(log, show_tool_syntax=False)
+        assert "*You create a spark.*" in rendered
+        assert "create(" not in rendered
+
+    def test_natural_action_for_go(self):
+        """show_tool_syntax=False shows *You go to X.* for go calls."""
+        log = {
+            "turns": [
+                {
+                    "agent_text": "",
+                    "thinking": None,
+                    "nudge": None,
+                    "tool_calls": [
+                        {
+                            "tool": "go",
+                            "arguments": {"where": "the garden"},
+                            "result": "You are now at: the garden",
+                            "error": None,
+                        }
+                    ],
+                }
+            ],
+            "dusk_prompt": None,
+            "dusk_action": None,
+            "reflect_prompt": None,
+            "reflection": None,
+        }
+        rendered = render_session_log(log, show_tool_syntax=False)
+        assert "*You go to the garden.*" in rendered
+        assert "go(" not in rendered
+
+    def test_attempt_language_on_alter_failure(self):
+        """Failed alter shows *You try to alter X.* not *You alter X.*."""
+        log = {
+            "turns": [
+                {
+                    "agent_text": "",
+                    "thinking": None,
+                    "nudge": None,
+                    "tool_calls": [
+                        {
+                            "tool": "alter",
+                            "arguments": {"what": "another whisper", "name": "the memory of the first dialogue"},
+                            "result": 'Something called "the memory of the first dialogue" already exists.',
+                            "error": None,
+                        }
+                    ],
+                }
+            ],
+            "dusk_prompt": None,
+            "dusk_action": None,
+            "reflect_prompt": None,
+            "reflection": None,
+        }
+        rendered = render_session_log(log, show_tool_syntax=False)
+        assert "*You try to alter another whisper.*" in rendered
+        assert "*You alter another whisper.*" not in rendered
+
+    def test_attempt_language_on_create_failure(self):
+        """Failed create shows *You try to create X.*."""
+        log = {
+            "turns": [
+                {
+                    "agent_text": "",
+                    "thinking": None,
+                    "nudge": None,
+                    "tool_calls": [
+                        {
+                            "tool": "create",
+                            "arguments": {"name": "the void", "description": "emptiness"},
+                            "result": 'Something called "the void" already exists.',
+                            "error": None,
+                        }
+                    ],
+                }
+            ],
+            "dusk_prompt": None,
+            "dusk_action": None,
+            "reflect_prompt": None,
+            "reflection": None,
+        }
+        rendered = render_session_log(log, show_tool_syntax=False)
+        assert "*You try to create the void.*" in rendered
+
+    def test_attempt_language_on_go_failure(self):
+        """Failed go shows *You try to go to X.*."""
+        log = {
+            "turns": [
+                {
+                    "agent_text": "",
+                    "thinking": None,
+                    "nudge": None,
+                    "tool_calls": [
+                        {
+                            "tool": "go",
+                            "arguments": {"where": "the mountain"},
+                            "result": 'There is no space called "the mountain" connected to this space.',
+                            "error": None,
+                        }
+                    ],
+                }
+            ],
+            "dusk_prompt": None,
+            "dusk_action": None,
+            "reflect_prompt": None,
+            "reflection": None,
+        }
+        rendered = render_session_log(log, show_tool_syntax=False)
+        assert "*You try to go to the mountain.*" in rendered
+        assert "*You go to the mountain.*" not in rendered
+
+    def test_attempt_language_on_examine_failure(self):
+        """Failed examine shows *You try to examine X.*."""
+        log = {
+            "turns": [
+                {
+                    "agent_text": "",
+                    "thinking": None,
+                    "nudge": None,
+                    "tool_calls": [
+                        {
+                            "tool": "examine",
+                            "arguments": {"what": "the lost thing"},
+                            "result": 'There is nothing called "the lost thing" here.',
+                            "error": None,
+                        }
+                    ],
+                }
+            ],
+            "dusk_prompt": None,
+            "dusk_action": None,
+            "reflect_prompt": None,
+            "reflection": None,
+        }
+        rendered = render_session_log(log, show_tool_syntax=False)
+        assert "*You try to examine the lost thing.*" in rendered
+        assert "*You examine the lost thing.*" not in rendered
