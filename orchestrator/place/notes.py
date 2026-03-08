@@ -27,24 +27,31 @@ class ParsedNote:
 
 
 def parse_frontmatter(text: str) -> tuple[dict[str, Any], str]:
-    """Extract YAML frontmatter and return (metadata, body)."""
+    """Extract YAML frontmatter and return (metadata, body).
+
+    Uses yaml.safe_load for proper parsing of lists and quoted strings.
+    Falls back to simple line parsing if yaml is unavailable.
+    """
     match = _FRONTMATTER_RE.match(text)
     if not match:
         return {}, text
     yaml_block = match.group(1)
     body = text[match.end():]
-    # Simple YAML parser — we only use flat key: value pairs
-    meta = {}
-    for line in yaml_block.split("\n"):
-        if ":" in line:
-            key, _, value = line.partition(":")
-            value = value.strip()
-            # Try to parse as int
-            try:
-                value = int(value)
-            except (ValueError, TypeError):
-                pass
-            meta[key.strip()] = value
+    try:
+        import yaml
+        meta = yaml.safe_load(yaml_block) or {}
+    except Exception:
+        # Fallback: simple line parser for flat key: value pairs
+        meta = {}
+        for line in yaml_block.split("\n"):
+            if ":" in line:
+                key, _, value = line.partition(":")
+                value = value.strip()
+                try:
+                    value = int(value)
+                except (ValueError, TypeError):
+                    pass
+                meta[key.strip()] = value
     return meta, body
 
 
@@ -82,10 +89,24 @@ def parse_note(text: str) -> ParsedNote:
 
 
 def build_frontmatter(meta: dict[str, Any]) -> str:
-    """Build YAML frontmatter string."""
+    """Build YAML frontmatter string.
+
+    Handles scalar values inline and lists as YAML sequences.
+    Strings containing colons or other special characters are quoted.
+    """
     lines = ["---"]
     for key, value in meta.items():
-        lines.append(f"{key}: {value}")
+        if isinstance(value, list):
+            lines.append(f"{key}:")
+            for item in value:
+                # Quote items that contain colons or special chars
+                escaped = str(item).replace('"', '\\"')
+                lines.append(f'  - "{escaped}"')
+        elif isinstance(value, str) and (':' in value or '"' in value or value.startswith('[')):
+            escaped = value.replace('"', '\\"')
+            lines.append(f'{key}: "{escaped}"')
+        else:
+            lines.append(f"{key}: {value}")
     lines.append("---")
     return "\n".join(lines)
 
