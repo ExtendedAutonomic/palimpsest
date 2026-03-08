@@ -18,9 +18,20 @@ Write narrator chapters chronicling the Palimpsest experiment. Replaces the `pal
 
 ## Workflow
 
+### Step 0: Clarify scope
+
+Before reading any files, confirm the following with the user:
+
+1. **Which sessions to cover** (e.g. "Claude 2-3" or "Gemini 1"). If not specified, ask.
+2. **Which agent** — if not obvious from the sessions specified.
+3. **Chapter number** — check the progress note or ask if unsure. The narrator chapters table in `Palimpsest - Progress.md` has the planned mapping.
+4. **Anything to exclude or emphasise** — specific moments, themes, or material the user wants handled in a particular way.
+
+Do not proceed to Step 1 until scope is confirmed.
+
 ### Step 1: Gather context
 
-The user will specify which session(s) to narrate (e.g. "session 3" or "sessions 3 and 4").
+The user will have specified which sessions to cover in Step 0.
 
 Read the following files:
 

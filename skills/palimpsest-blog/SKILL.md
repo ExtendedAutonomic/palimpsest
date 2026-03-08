@@ -26,9 +26,20 @@ Write blog posts about the Palimpsest experiment. Replaces the `palimpsest blog`
 
 ## Workflow
 
+### Step 0: Clarify scope
+
+Before reading any files, confirm the following with the user:
+
+1. **Which sessions to cover** (e.g. "Claude 1 + Gemini 1"). If not specified, ask.
+2. **Point in time** — what does the writer know at the time of writing? The post should not reference sessions or events beyond this point. If not specified, ask. For example: "written after Claude session 6 and Gemini session 1" means no references to Claude 7+ or Gemini 2+.
+3. **Topic or angle** — is there a specific focus, or should the post find its own shape from the material?
+4. **Anything to exclude** — specific sessions, topics, or material the user wants left out.
+
+Do not proceed to Step 1 until scope is confirmed.
+
 ### Step 1: Gather context
 
-The user will specify which sessions to cover (e.g. "sessions 3-6") and optionally a topic. If it's not clear, ask.
+The user will have specified which sessions to cover and the temporal scope in Step 0.
 
 Read the following files:
 
@@ -72,6 +83,12 @@ Save the draft to `D:\Code\palimpsest\logs\experimenter\post_NNNN.md` and tell t
 ### Step 4: Edit pass
 
 Re-read the **full experimenter prompt** (`D:\Vault\Projects\Active\Palimpsest\Experimenter Blog Prompt.md`). Go through the draft and audit it against every section. For each violation, fix it. Save the edited version over the draft file and tell the user what you changed.
+
+Additional checks:
+
+- **Images:** The post should have at least 2-3 image placeholders (screenshots, Obsidian graphs, session log excerpts). If it has fewer, identify where images would strengthen the post and add placeholders.
+- **Narrative continuity:** Re-read the previous posts and check for consistency: pronouns, terminology, how things were described, back-references to earlier posts. Flag and fix any contradictions or false attributions (e.g. claiming the previous post asked a question it didn't).
+- **Strengthening suggestions:** After completing the edit pass, think about what could make the post stronger or more interesting, including connections to other material in the vault (Insights note, design docs, narrator chapters, literary references, philosophical threads). Present these as a separate list of recommendations for the user to consider. Do not apply them automatically.
 
 ## Collaborative editing
 
