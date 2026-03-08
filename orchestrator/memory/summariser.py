@@ -141,7 +141,7 @@ def render_session_log(session_data: dict) -> str:
     for turn_idx, turn in enumerate(session_data.get("turns", [])):
         # Insert dusk prompt before the turn that responded to it
         if dusk_prompt and not dusk_inserted and dusk_turn is not None and turn_idx >= dusk_turn:
-            parts.append(f"> {dusk_prompt}")
+            parts.append(f"[{dusk_prompt}]")
             dusk_inserted = True
 
         # Thinking
@@ -164,7 +164,7 @@ def render_session_log(session_data: dict) -> str:
         # memory of undifferentiated silence
         nudge = turn.get("nudge")
         if nudge:
-            parts.append(f"> {nudge}")
+            parts.append(f"[{nudge}]")
 
         # Tool calls and results
         for tc in turn.get("tool_calls", []):
@@ -193,7 +193,7 @@ def render_session_log(session_data: dict) -> str:
     # Reflect prompt and reflection at the end
     reflect_prompt = (session_data.get("reflect_prompt") or "").strip()
     if reflect_prompt:
-        parts.append(f"> {reflect_prompt}")
+        parts.append(f"[{reflect_prompt}]")
 
     reflection = (session_data.get("reflection") or "").strip()
     if reflection:
