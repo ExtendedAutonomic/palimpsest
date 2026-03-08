@@ -23,6 +23,15 @@ from ..pricing import calculate_cost
 
 logger = logging.getLogger(__name__)
 
+# Tools that modify the Place and need a git commit after execution
+_MUTATING_TOOLS = {
+    ToolName.CREATE,
+    ToolName.ALTER,
+    ToolName.VENTURE,
+    ToolName.TAKE,
+    ToolName.DROP,
+}
+
 
 @dataclass
 class Turn:
@@ -312,6 +321,11 @@ class BaseAgent(ABC):
                     )
                     result = self.place.execute_tool(tc)
                     turn.tool_calls.append(tc)
+                    # Commit after each action that modifies the Place,
+                    # so git tracks every intermediate state — not just
+                    # the end-of-session snapshot
+                    if tc.tool in _MUTATING_TOOLS:
+                        self._commit_action(tc, session_number)
                 except (ValueError, KeyError) as e:
                     # Model returned a garbled or unknown tool name
                     logger.warning(f"Invalid tool call: {tc_data.get('name', '?')} — {e}")
@@ -376,6 +390,41 @@ class BaseAgent(ABC):
         for r in results:
             parts.append(r["result"])
         return "\n\n".join(parts)
+
+    def _commit_action(self, tc: ToolCall, session_number: int) -> None:
+        """Commit place changes after a single action.
+
+        Each mutating tool call gets its own git commit so that
+        intermediate states are preserved — renames, description
+        changes, and creations are all individually trackable.
+        """
+        try:
+            import git
+            repo = git.Repo(self.place.place_path)
+            if repo.is_dirty(untracked_files=True):
+                # Build a descriptive commit message from the action
+                args = tc.arguments
+                if tc.tool == ToolName.CREATE:
+                    msg = f"{self.name} s{session_number}: create {args.get('name', '?')}"
+                elif tc.tool == ToolName.ALTER:
+                    what = args.get('what', '?')
+                    new_name = args.get('name', '')
+                    if new_name:
+                        msg = f"{self.name} s{session_number}: alter {what} → {new_name}"
+                    else:
+                        msg = f"{self.name} s{session_number}: alter {what}"
+                elif tc.tool == ToolName.VENTURE:
+                    msg = f"{self.name} s{session_number}: venture {args.get('name', '?')}"
+                elif tc.tool == ToolName.TAKE:
+                    msg = f"{self.name} s{session_number}: take {args.get('what', '?')}"
+                elif tc.tool == ToolName.DROP:
+                    msg = f"{self.name} s{session_number}: drop {args.get('what', '?')}"
+                else:
+                    msg = f"{self.name} s{session_number}: {tc.tool}"
+                repo.git.add(A=True)
+                repo.index.commit(msg)
+        except Exception as e:
+            logger.warning(f"Failed to commit action: {e}")
 
     def _save_log(self) -> None:
         """Save session log to disk."""

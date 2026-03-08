@@ -448,10 +448,12 @@ class PlaceInterface:
                     return f"Something called \"{name}\" already exists."
                 old_name = self._current_location
                 old_ctime = _get_creation_time_ns(self._note_path(old_name))
+                # Rename first, then overwrite — git tracks the rename
+                # and preserves version history
+                self._note_path(old_name).rename(self._note_path(name))
                 self._write_note(name, build_space_note(
                     new_description, note.spaces, note.things, fm
-                ), preserve_ctime=False)
-                self._note_path(old_name).unlink()
+                ))
                 self._rename_all_links(old_name, name)
                 if old_ctime is not None:
                     _set_creation_time(self._note_path(name), old_ctime)
@@ -486,9 +488,10 @@ class PlaceInterface:
                     return f"Something called \"{name}\" already exists."
                 old_name = what
                 old_ctime = _get_creation_time_ns(self._note_path(old_name))
-                self._write_note(name, build_thing_note(new_description, fm),
-                                 preserve_ctime=False)
-                self._note_path(old_name).unlink()
+                # Rename first, then overwrite — git tracks the rename
+                # and preserves version history
+                self._note_path(old_name).rename(self._note_path(name))
+                self._write_note(name, build_thing_note(new_description, fm))
                 self._rename_all_links(old_name, name)
                 if old_ctime is not None:
                     _set_creation_time(self._note_path(name), old_ctime)

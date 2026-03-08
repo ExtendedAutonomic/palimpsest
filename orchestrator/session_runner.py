@@ -221,7 +221,8 @@ async def run_session(
                 encoding="utf-8",
             )
 
-    # Commit place changes to git
+    # Safety net — individual actions are now committed during the
+    # session, but this catches anything that slipped through
     commit_place_changes(place_path, agent_name, session_num)
 
     # Run memory compression if needed
