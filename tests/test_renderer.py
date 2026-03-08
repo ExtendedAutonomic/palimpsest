@@ -84,7 +84,7 @@ class TestRenderSessionMarkdown:
         log_file.write_text(json.dumps(log_data), encoding="utf-8")
 
         md = render_session_markdown(log_file)
-        assert "[[Claude \u2014 Session 1|Day 1]]" in md
+        assert "[[logs/claude/obsidian_logs/session_0001|Day 1]]" in md
         assert "> You are at: here" in md
         # Full memory content should NOT appear
         assert "I explored the place." not in md
@@ -104,9 +104,9 @@ class TestRenderSessionMarkdown:
 
         md = render_session_markdown(log_file)
         assert "Days 1\u20133 (compressed)" in md
-        assert "[[Claude \u2014 Session 4|Day 4]]" in md
-        assert "[[Claude \u2014 Session 5|Day 5]]" in md
-        assert "[[Claude \u2014 Session 6|Day 6]]" in md
+        assert "[[logs/claude/obsidian_logs/session_0004|Day 4]]" in md
+        assert "[[logs/claude/obsidian_logs/session_0005|Day 5]]" in md
+        assert "[[logs/claude/obsidian_logs/session_0006|Day 6]]" in md
         assert "> You are at: the garden" in md
         assert "compressed stuff" not in md
         assert "full log 4" not in md

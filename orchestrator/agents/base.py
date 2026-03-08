@@ -359,6 +359,7 @@ class BaseAgent(ABC):
         self._session_log.location_end = self.place.current_location
 
         self._save_log()
+        self._save_raw_messages(messages, system_prompt, tools)
 
         return self._session_log
 
@@ -396,3 +397,38 @@ class BaseAgent(ABC):
             f"({self._session_log.action_count} actions, "
             f"{self._session_log.total_input_tokens + self._session_log.total_cache_creation_tokens + self._session_log.total_cache_read_tokens + self._session_log.total_output_tokens} tokens)"
         )
+
+    def _save_raw_messages(
+        self,
+        messages: list[dict],
+        system: str,
+        tools: list[dict],
+    ) -> None:
+        """Save the complete API conversation as a separate file.
+
+        Preserves everything sent to the provider API: system prompt,
+        tool definitions, and the full message history including
+        provider-specific formatting of tool calls and results.
+        Useful for debugging and replay.
+        """
+        if not self._session_log:
+            return
+        raw_dir = self.log_path / self.name / "json" / "raw"
+        raw_dir.mkdir(parents=True, exist_ok=True)
+        raw_file = raw_dir / f"session_{self._session_log.session_number:04d}.json"
+        try:
+            raw_file.write_text(
+                json.dumps(
+                    {
+                        "system": system or None,
+                        "tools": tools,
+                        "messages": messages,
+                    },
+                    indent=2,
+                    ensure_ascii=False,
+                    default=str,
+                ),
+                encoding="utf-8",
+            )
+        except Exception as e:
+            logger.warning(f"Failed to save raw messages: {e}")

@@ -36,9 +36,6 @@ COMPRESSOR_MODEL = "claude-opus-4-6"
 # ---------------------------------------------------------------------------
 
 
-# Arguments to omit from rendered tool calls (too long, echoed in results)
-_OMIT_ARGS = {"description"}
-
 
 def _parse_compressed_frontmatter(text: str) -> tuple[dict, str]:
     """Parse YAML frontmatter from a compressed memory file.
@@ -114,30 +111,38 @@ def render_session_log(session_data: dict) -> str:
             parts.append(agent_text)
 
         # Nudge (injected user message after no-tool-call turns)
+        # Blockquoted so the agent can distinguish nudges from its own
+        # ellipses in memory — without this, the agent's "..." and the
+        # nudge "..." are indistinguishable, creating a feedback loop
+        # where the agent learns to produce more silence from its own
+        # memory of undifferentiated silence
         nudge = turn.get("nudge")
         if nudge:
-            parts.append(nudge)
+            parts.append(f"> {nudge}")
 
         # Tool calls and results
         for tc in turn.get("tool_calls", []):
             tool_name = tc.get("tool", "")
             args = tc.get("arguments", {})
 
-            # Format the action (omit description args — echoed in results)
-            display_args = {k: v for k, v in args.items() if k not in _OMIT_ARGS}
-            if display_args:
-                arg_parts = [f"{k}: {v}" for k, v in display_args.items()]
-                parts.append(f"[{tool_name}: {', '.join(arg_parts)}]")
+            # Format as function call syntax — bracket notation caused
+            # Gemini to mimic it as text output instead of generating
+            # actual API tool calls
+            if args:
+                arg_parts = [f'{k}="{v}"' for k, v in args.items()]
+                parts.append(f"{tool_name}({', '.join(arg_parts)})")
             else:
-                parts.append(f"[{tool_name}]")
+                parts.append(f"{tool_name}()")
 
-            # Result
+            # Result — blockquoted as the world's response, distinct
+            # from the agent's own words
             result = tc.get("result", "")
             error = tc.get("error", "")
             if error:
-                parts.append(error)
+                parts.append(f"> {error}")
             elif result:
-                parts.append(result)
+                result_lines = result.strip().split("\n")
+                parts.append("\n".join(f"> {line}" if line.strip() else ">" for line in result_lines))
 
     # Reflect prompt and reflection at the end
     reflect_prompt = (session_data.get("reflect_prompt") or "").strip()

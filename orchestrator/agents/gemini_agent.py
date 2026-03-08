@@ -99,12 +99,14 @@ class GeminiAgent(BaseAgent):
                 return parsed
             except Exception as e:
                 error_str = str(e)
-                if "429" in error_str and attempt < max_retries - 1:
+                retryable = "429" in error_str or "503" in error_str
+                if retryable and attempt < max_retries - 1:
                     # Extract retry delay from "retryDelay": "35s" or similar
                     delay_match = re.search(r'retryDelay.*?(\d{2,})s', error_str)
                     delay = int(delay_match.group(1)) + 2 if delay_match else 30
                     logger.warning(
-                        f"Rate limited (attempt {attempt + 1}/{max_retries}), "
+                        f"Retryable error: {e} "
+                        f"(attempt {attempt + 1}/{max_retries}), "
                         f"waiting {delay}s..."
                     )
                     await asyncio.sleep(delay)
