@@ -33,7 +33,8 @@
           "arguments": {},
           "result": "there",
           "error": null,
-          "timestamp": "2026-03-07T15:01:20.391234+00:00"
+          "timestamp": "2026-03-07T15:01:20.391234+00:00",
+          "success": true
         }
       ],
       "timestamp": "2026-03-07T15:01:20.391220+00:00"
@@ -57,7 +58,8 @@
           },
           "result": "This space has no particular quality yet.",
           "error": null,
-          "timestamp": "2026-03-07T15:01:31.386969+00:00"
+          "timestamp": "2026-03-07T15:01:31.386969+00:00",
+          "success": true
         }
       ],
       "timestamp": "2026-03-07T15:01:31.386946+00:00"
@@ -80,9 +82,10 @@
             "description": "a featureless, empty space",
             "name": "the void"
           },
-          "result": "You create the void. a featureless, empty space",
+          "result": "the void is here. a featureless, empty space",
           "error": null,
-          "timestamp": "2026-03-07T15:01:37.959416+00:00"
+          "timestamp": "2026-03-07T15:01:37.959416+00:00",
+          "success": true
         }
       ],
       "timestamp": "2026-03-07T15:01:37.959403+00:00"
@@ -104,7 +107,8 @@
           "arguments": {},
           "result": "there\n\nThere are things here: the void",
           "error": null,
-          "timestamp": "2026-03-07T15:01:43.519799+00:00"
+          "timestamp": "2026-03-07T15:01:43.519799+00:00",
+          "success": true
         }
       ],
       "timestamp": "2026-03-07T15:01:43.519786+00:00"
@@ -127,9 +131,10 @@
             "name": "a spark",
             "description": "a tiny, flickering light, barely illuminating the oppressive darkness"
           },
-          "result": "You create a spark. a tiny, flickering light, barely illuminating the oppressive darkness",
+          "result": "a spark is here. a tiny, flickering light, barely illuminating the oppressive darkness",
           "error": null,
-          "timestamp": "2026-03-07T15:01:52.139952+00:00"
+          "timestamp": "2026-03-07T15:01:52.139952+00:00",
+          "success": true
         }
       ],
       "timestamp": "2026-03-07T15:01:52.139935+00:00"
@@ -153,7 +158,8 @@
           },
           "result": "a tiny, flickering light, barely illuminating the oppressive darkness\n",
           "error": null,
-          "timestamp": "2026-03-07T15:02:07.152544+00:00"
+          "timestamp": "2026-03-07T15:02:07.152544+00:00",
+          "success": true
         }
       ],
       "timestamp": "2026-03-07T15:02:07.152523+00:00"
@@ -177,9 +183,10 @@
             "name": "a flame",
             "description": "a steady, growing flame, pushing back the darkness"
           },
-          "result": "a spark is different now. What was called a spark is now called a flame.",
+          "result": "What was called a spark is now called a flame.",
           "error": null,
-          "timestamp": "2026-03-07T15:02:17.811879+00:00"
+          "timestamp": "2026-03-07T15:02:17.811879+00:00",
+          "success": true
         }
       ],
       "timestamp": "2026-03-07T15:02:17.811865+00:00"
@@ -203,9 +210,10 @@
             "name": "the expanse",
             "what": "the void"
           },
-          "result": "the void is different now. What was called the void is now called the expanse.",
+          "result": "What was called the void is now called the expanse.",
           "error": null,
-          "timestamp": "2026-03-07T15:02:26.067800+00:00"
+          "timestamp": "2026-03-07T15:02:26.067800+00:00",
+          "success": true
         }
       ],
       "timestamp": "2026-03-07T15:02:26.067787+00:00"
@@ -228,9 +236,10 @@
             "name": "the first thought",
             "description": "a nascent consciousness, born from the interplay of light and shadow"
           },
-          "result": "You create the first thought. a nascent consciousness, born from the interplay of light and shadow",
+          "result": "the first thought is here. a nascent consciousness, born from the interplay of light and shadow",
           "error": null,
-          "timestamp": "2026-03-07T15:02:34.891015+00:00"
+          "timestamp": "2026-03-07T15:02:34.891015+00:00",
+          "success": true
         }
       ],
       "timestamp": "2026-03-07T15:02:34.891002+00:00"

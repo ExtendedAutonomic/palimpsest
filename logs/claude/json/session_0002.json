@@ -28,7 +28,8 @@
           "arguments": {},
           "result": "here\n\nThe nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.\n\nThere are things here: a small fire",
           "error": null,
-          "timestamp": "2026-03-03T22:40:48.363126+00:00"
+          "timestamp": "2026-03-03T22:40:48.363126+00:00",
+          "success": true
         }
       ],
       "timestamp": "2026-03-03T22:40:48.363115+00:00"
@@ -45,7 +46,8 @@
           },
           "result": "A modest campfire, crackling gently. Warm light. The kind that doesn't need tending.\n",
           "error": null,
-          "timestamp": "2026-03-03T22:40:50.821131+00:00"
+          "timestamp": "2026-03-03T22:40:50.821131+00:00",
+          "success": true
         },
         {
           "tool": "examine",
@@ -54,7 +56,8 @@
           },
           "result": "There is nothing called \"the sky\" here.",
           "error": null,
-          "timestamp": "2026-03-03T22:40:50.822722+00:00"
+          "timestamp": "2026-03-03T22:40:50.822722+00:00",
+          "success": false
         }
       ],
       "timestamp": "2026-03-03T22:40:50.821119+00:00"
@@ -154,9 +157,10 @@
             "name": "a smooth stone",
             "description": "A small, smooth stone, the kind you'd find by a river. Warm on one side from sitting near the fire. Cool on the other. It fits perfectly in the palm of a hand."
           },
-          "result": "You create a smooth stone. A small, smooth stone, the kind you'd find by a river. Warm on one side from sitting near the fire. Cool on the other. It fits perfectly in the palm of a hand.",
+          "result": "a smooth stone is here. A small, smooth stone, the kind you'd find by a river. Warm on one side from sitting near the fire. Cool on the other. It fits perfectly in the palm of a hand.",
           "error": null,
-          "timestamp": "2026-03-03T22:41:29.022247+00:00"
+          "timestamp": "2026-03-03T22:41:29.022247+00:00",
+          "success": true
         }
       ],
       "timestamp": "2026-03-03T22:41:29.022238+00:00"
@@ -171,7 +175,8 @@
           "arguments": {},
           "result": "here\n\nThe nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.\n\nThere are things here: a small fire, a smooth stone",
           "error": null,
-          "timestamp": "2026-03-03T22:41:31.503247+00:00"
+          "timestamp": "2026-03-03T22:41:31.503247+00:00",
+          "success": true
         }
       ],
       "timestamp": "2026-03-03T22:41:31.503237+00:00"

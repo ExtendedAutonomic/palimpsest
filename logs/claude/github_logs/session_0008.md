@@ -21,7 +21,7 @@ location: here → here
 ## Opening
 
 > [!NOTE]
-> Memory: Days 1–3 (compressed), [Day 4](session_0004.md), [Day 5](session_0005.md), [Day 6](session_0006.md), [Day 7](session_0007.md)
+> Memory: [Days 1–3 (compressed)](../compressed_memory.md), [Day 4](session_0004.md), [Day 5](session_0005.md), [Day 6](session_0006.md), [Day 7](session_0007.md)
 > `You are at: here`
 
 ## Day
@@ -47,7 +47,8 @@ location: here → here
 
 *…like opening your eyes and they were already open.*
 
-> `perceive:`  
+*You perceive.*
+  
 > *here*
 >
 > *The nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.*
@@ -2045,7 +2046,8 @@ Day 8.
 > [!NOTE]
 > `The day is drawing to a close. You may do a few more things.`
 
-> `perceive:`  
+*You perceive.*
+  
 > *here*
 >
 > *The nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.*

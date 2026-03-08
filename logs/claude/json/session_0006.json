@@ -32,7 +32,8 @@
           "arguments": {},
           "result": "here\n\nThe nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.\n\nThere are things here: a small fire, a smooth stone, a second stone",
           "error": null,
-          "timestamp": "2026-03-05T22:42:56.255485+00:00"
+          "timestamp": "2026-03-05T22:42:56.255485+00:00",
+          "success": true
         }
       ],
       "timestamp": "2026-03-05T22:42:56.255473+00:00"
@@ -138,7 +139,8 @@
           "arguments": {},
           "result": "here\n\nThe nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.\n\nThere are things here: a small fire, a smooth stone, a second stone",
           "error": null,
-          "timestamp": "2026-03-05T22:43:43.635846+00:00"
+          "timestamp": "2026-03-05T22:43:43.635846+00:00",
+          "success": true
         }
       ],
       "timestamp": "2026-03-05T22:43:43.635832+00:00"

@@ -21,7 +21,7 @@ location: here → here
 ## Opening
 
 > [!NOTE]
-> Memory: Days 1–3 (compressed), [Day 4](session_0004.md), [Day 5](session_0005.md), [Day 6](session_0006.md)
+> Memory: [Days 1–3 (compressed)](../compressed_memory.md), [Day 4](session_0004.md), [Day 5](session_0005.md), [Day 6](session_0006.md)
 > `You are at: here`
 
 ## Day
@@ -43,7 +43,8 @@ location: here → here
 
 *…the way a week is just a word for coming back enough times.*
 
-> `perceive:`  
+*You perceive.*
+  
 > *here*
 >
 > *The nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.*

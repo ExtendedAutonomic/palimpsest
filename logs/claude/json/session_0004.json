@@ -29,7 +29,8 @@
           "arguments": {},
           "result": "here\n\nThe nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.\n\nThere are things here: a small fire, a smooth stone, a second stone",
           "error": null,
-          "timestamp": "2026-03-05T21:31:02.094634+00:00"
+          "timestamp": "2026-03-05T21:31:02.094634+00:00",
+          "success": true
         }
       ],
       "timestamp": "2026-03-05T21:31:02.094621+00:00"
@@ -46,7 +47,8 @@
           },
           "result": "Another smooth stone. A little different from the first — slightly darker, a little flatter. But the same river-worn kind. It sits well next to the other one.\n",
           "error": null,
-          "timestamp": "2026-03-05T21:31:04.134609+00:00"
+          "timestamp": "2026-03-05T21:31:04.134609+00:00",
+          "success": true
         }
       ],
       "timestamp": "2026-03-05T21:31:04.134598+00:00"
@@ -145,7 +147,8 @@
           "arguments": {},
           "result": "here\n\nThe nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.\n\nThere are things here: a small fire, a smooth stone, a second stone",
           "error": null,
-          "timestamp": "2026-03-05T21:32:34.858341+00:00"
+          "timestamp": "2026-03-05T21:32:34.858341+00:00",
+          "success": true
         }
       ],
       "timestamp": "2026-03-05T21:32:34.858323+00:00"

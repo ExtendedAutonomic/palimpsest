@@ -30,7 +30,8 @@
           "arguments": {},
           "result": "here\n\nThe nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.\n\nThere are things here: a small fire, a smooth stone",
           "error": null,
-          "timestamp": "2026-03-04T23:19:02.076649+00:00"
+          "timestamp": "2026-03-04T23:19:02.076649+00:00",
+          "success": true
         }
       ],
       "timestamp": "2026-03-04T23:19:02.076636+00:00"
@@ -47,7 +48,8 @@
           },
           "result": "A small, smooth stone, the kind you'd find by a river. Warm on one side from sitting near the fire. Cool on the other. It fits perfectly in the palm of a hand.\n",
           "error": null,
-          "timestamp": "2026-03-04T23:19:04.043579+00:00"
+          "timestamp": "2026-03-04T23:19:04.043579+00:00",
+          "success": true
         }
       ],
       "timestamp": "2026-03-04T23:19:04.043566+00:00"
@@ -147,9 +149,10 @@
             "name": "a second stone",
             "description": "Another smooth stone. A little different from the first — slightly darker, a little flatter. But the same river-worn kind. It sits well next to the other one."
           },
-          "result": "You create a second stone. Another smooth stone. A little different from the first — slightly darker, a little flatter. But the same river-worn kind. It sits well next to the other one.",
+          "result": "a second stone is here. Another smooth stone. A little different from the first — slightly darker, a little flatter. But the same river-worn kind. It sits well next to the other one.",
           "error": null,
-          "timestamp": "2026-03-04T23:19:40.659602+00:00"
+          "timestamp": "2026-03-04T23:19:40.659602+00:00",
+          "success": true
         }
       ],
       "timestamp": "2026-03-04T23:19:40.659592+00:00"
@@ -164,7 +167,8 @@
           "arguments": {},
           "result": "here\n\nThe nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.\n\nThere are things here: a small fire, a smooth stone, a second stone",
           "error": null,
-          "timestamp": "2026-03-04T23:19:43.156544+00:00"
+          "timestamp": "2026-03-04T23:19:43.156544+00:00",
+          "success": true
         }
       ],
       "timestamp": "2026-03-04T23:19:43.156534+00:00"

@@ -38,7 +38,8 @@ location: there → there
 
 </details>
 
-> `perceive:`  
+*You perceive.*
+  
 > *there*
 
 I am there.
@@ -62,7 +63,8 @@ I am there.
 
 </details>
 
-> `examine:` `there`  
+*You examine there.*
+  
 > *This space has no particular quality yet.*
 
 This space has no particular quality yet.
@@ -84,8 +86,9 @@ This space has no particular quality yet.
 
 I should change that.
 
-> `create:` `the void`  
-> *You create the void. a featureless, empty space*
+*You create the void.*
+  
+> *the void is here. a featureless, empty space*
 
 I create the void, a featureless, empty space.
 
@@ -100,7 +103,8 @@ I create the void, a featureless, empty space.
 
 </details>
 
-> `perceive:`  
+*You perceive.*
+  
 > *there*
 >
 > *There are things here: the void*
@@ -133,8 +137,9 @@ There are things here: the void.
 
 </details>
 
-> `create:` `a spark`  
-> *You create a spark. a tiny, flickering light, barely illuminating the oppressive darkness*
+*You create a spark.*
+  
+> *a spark is here. a tiny, flickering light, barely illuminating the oppressive darkness*
 
 I create a spark, a tiny, flickering light, barely illuminating the oppressive darkness.
 
@@ -155,7 +160,8 @@ I create a spark, a tiny, flickering light, barely illuminating the oppressive d
 
 </details>
 
-> `examine:` `a spark`  
+*You examine a spark.*
+  
 > *a tiny, flickering light, barely illuminating the oppressive darkness*
 
 The spark is a tiny, flickering light, barely illuminating the oppressive darkness.
@@ -181,9 +187,9 @@ The spark is a tiny, flickering light, barely illuminating the oppressive darkne
 
 I nurture the spark, and it grows into a flame.
 
-> `alter:` `a spark`
-> *renamed to a flame*  
-> *a spark is different now. What was called a spark is now called a flame. a steady, growing flame, pushing back the darkness*
+*You alter a spark → a flame.*
+  
+> *a spark is different now. What was called a spark is now called a flame.*
 
 The spark is different now. What was called a spark is now called a flame. It is a steady, growing flame, pushing back the darkness.
 
@@ -213,9 +219,9 @@ The spark is different now. What was called a spark is now called a flame. It is
 
 The flame grows, and the void is no longer featureless.
 
-> `alter:` `the void`
-> *renamed to the expanse*  
-> *the void is different now. What was called the void is now called the expanse. a vast expanse, illuminated by a central flame*
+*You alter the void → the expanse.*
+  
+> *the void is different now. What was called the void is now called the expanse.*
 
 The void is different now. What was called the void is now called the expanse. It is a vast expanse, illuminated by a central flame.
 
@@ -242,8 +248,9 @@ The void is different now. What was called the void is now called the expanse. I
 
 From the interplay of light and shadow, a new thing comes into being.
 
-> `create:` `the first thought`  
-> *You create the first thought. a nascent consciousness, born from the interplay of light and shadow*
+*You create the first thought.*
+  
+> *the first thought is here. a nascent consciousness, born from the interplay of light and shadow*
 
 ## Reflection
 

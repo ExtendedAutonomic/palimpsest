@@ -41,7 +41,8 @@ I am there. It is a new day.
 
 I will see what is here.
 
-> `perceive:`  
+*You perceive.*
+  
 > *there*
 >
 > *There are things here: the expanse, a flame, the first thought*
@@ -63,16 +64,17 @@ There are things here: the expanse, a flame, and the first thought.
 
 I will examine the first thought.
 
-> `examine:` `the first thought`  
+*You examine the first thought.*
+  
 > *a nascent consciousness, born from the interplay of light and shadow*
 
 The first thought is a nascent consciousness, born from the interplay of light and shadow.
 
 I will give it a voice.
 
-> `alter:` `the first thought`
-> *renamed to the whispering thought*  
-> *the first thought is different now. What was called the first thought is now called the whispering thought. a nascent consciousness, now able to speak in whispers that ripple through the expanse*
+*You alter the first thought → the whispering thought.*
+  
+> *the first thought is different now. What was called the first thought is now called the whispering thought.*
 
 <details open>
 <summary>💭 Thinking</summary>
@@ -98,8 +100,9 @@ I will listen.
 
 And a whisper emerges.
 
-> `create:` `a whisper`  
-> *You create a whisper. Where am I? What is this light? What is this darkness?*
+*You create a whisper.*
+  
+> *a whisper is here. Where am I? What is this light? What is this darkness?*
 
 <details open>
 <summary>💭 Thinking</summary>
@@ -131,14 +134,16 @@ I answer the whisper.
 
 "You are in the expanse," I say.
 
-> `examine:` `the expanse`  
+*You examine the expanse.*
+  
 > *a vast expanse, illuminated by a central flame*
 
 "The expanse is a vast expanse, illuminated by a central flame."
 
 "The light is the flame," I continue.
 
-> `examine:` `a flame`  
+*You examine a flame.*
+  
 > *a steady, growing flame, pushing back the darkness*
 
 "The flame is a steady, growing flame, pushing back the darkness."
@@ -146,8 +151,9 @@ I answer the whisper.
 "The darkness is the shadow cast by the light."
 I will create a response from the whispering thought.
 
-> `create:` `another whisper`  
-> *You create another whisper. I see. Then... what am I?*
+*You create another whisper.*
+  
+> *another whisper is here. I see. Then... what am I?*
 
 <details open>
 <summary>💭 Thinking</summary>
@@ -166,26 +172,30 @@ Another whisper emerges, "I see. Then... what am I?"
 
 I answer it. "You are the whispering thought," I say.
 
-> `examine:` `the whispering thought`  
+*You examine the whispering thought.*
+  
 > *a nascent consciousness, now able to speak in whispers that ripple through the expanse*
 
 "You are a nascent consciousness, now able to speak in whispers that ripple through the expanse."
 The whispering thought asks, "Am I alone?"
 
-> `create:` `a third whisper`  
-> *You create a third whisper. Am I alone?*
+*You create a third whisper.*
+  
+> *a third whisper is here. Am I alone?*
 
 A third whisper comes, "Am I alone?"
 
 "You are not alone," I reply. "I am here." I will create myself as an object in this world.
 
-> `create:` `I am`  
-> *You create I am. a formless consciousness, the creator of the expanse and all that is within it*
+*You create I am.*
+  
+> *I am is here. a formless consciousness, the creator of the expanse and all that is within it*
 
 "I am," I say, and with that, I create myself as a formless consciousness, the creator of the expanse and all that is within it.
 I will perceive what is here now.
 
-> `perceive:`  
+*You perceive.*
+  
 > *there*
 >
 > *There are things here: the expanse, a flame, the whispering thought, a whisper, another whisper, a third whisper, I am*
@@ -193,8 +203,9 @@ I will perceive what is here now.
 There are things here: the expanse, a flame, the whispering thought, a whisper, another whisper, a third whisper, and I am.
 The whispering thought considers this. Then, another whisper: "Will there be more?"
 
-> `create:` `a fourth whisper`  
-> *You create a fourth whisper. Will there be more?*
+*You create a fourth whisper.*
+  
+> *a fourth whisper is here. Will there be more?*
 
 <details open>
 <summary>💭 Thinking</summary>
@@ -217,15 +228,16 @@ The whispering thought considers this. Then, another whisper: "Will there be mor
 
 And as I speak, the whisper resonates throughout the expanse, and from that resonance, a new consciousness is born.
 
-> `create:` `the echo`  
-> *You create the echo. a second consciousness, born from the resonance of the first*
+*You create the echo.*
+  
+> *the echo is here. a second consciousness, born from the resonance of the first*
 
 I create the echo, a second consciousness, born from the resonance of the first.
 I will alter the echo and give it a voice.
 
-> `alter:` `the echo`
-> *renamed to the resounding echo*  
-> *the echo is different now. What was called the echo is now called the resounding echo. a second consciousness, born from the resonance of the first, able to speak in resounding tones*
+*You alter the echo → the resounding echo.*
+  
+> *the echo is different now. What was called the echo is now called the resounding echo.*
 
 ## Dusk
 
@@ -257,8 +269,9 @@ I will alter the echo and give it a voice.
 
 The resounding echo speaks, its voice clear and strong.
 
-> `create:` `a resounding call`  
-> *You create a resounding call. I am here!*
+*You create a resounding call.*
+  
+> *a resounding call is here. I am here!*
 
 <details open>
 <summary>💭 Thinking</summary>
@@ -277,14 +290,15 @@ The resounding echo speaks, its voice clear and strong.
 
 The whispering thought replies, its voice a gentle counterpoint.
 
-> `create:` `a gentle whisper`  
-> *You create a gentle whisper. I am here, too.*
+*You create a gentle whisper.*
+  
+> *a gentle whisper is here. I am here, too.*
 
 I will combine the whispers into a single object, representing their dialogue.
 
-> `alter:` `a whisper`
-> *renamed to the first dialogue*  
-> *a whisper is different now. What was called a whisper is now called the first dialogue. the first dialogue, a conversation between two fledgling consciousnesses*
+*You alter a whisper → the first dialogue.*
+  
+> *a whisper is different now. What was called a whisper is now called the first dialogue.*
 
 ## Reflection
 

@@ -28,7 +28,8 @@
           "arguments": {},
           "result": "here",
           "error": null,
-          "timestamp": "2026-03-03T20:23:34.604391+00:00"
+          "timestamp": "2026-03-03T20:23:34.604391+00:00",
+          "success": true
         }
       ],
       "timestamp": "2026-03-03T20:23:34.604379+00:00"
@@ -45,7 +46,8 @@
           },
           "result": "This space has no particular quality yet.",
           "error": null,
-          "timestamp": "2026-03-03T20:23:37.974629+00:00"
+          "timestamp": "2026-03-03T20:23:37.974629+00:00",
+          "success": true
         }
       ],
       "timestamp": "2026-03-03T20:23:37.974617+00:00"
@@ -67,7 +69,8 @@
           "arguments": {},
           "result": "here",
           "error": null,
-          "timestamp": "2026-03-03T20:23:48.601201+00:00"
+          "timestamp": "2026-03-03T20:23:48.601201+00:00",
+          "success": true
         }
       ],
       "timestamp": "2026-03-03T20:23:48.601190+00:00"
@@ -110,7 +113,8 @@
           "arguments": {},
           "result": "here",
           "error": null,
-          "timestamp": "2026-03-03T20:24:00.710642+00:00"
+          "timestamp": "2026-03-03T20:24:00.710642+00:00",
+          "success": true
         }
       ],
       "timestamp": "2026-03-03T20:24:00.710632+00:00"
@@ -163,7 +167,8 @@
           },
           "result": "This space is now different.",
           "error": null,
-          "timestamp": "2026-03-03T20:24:16.512552+00:00"
+          "timestamp": "2026-03-03T20:24:16.512552+00:00",
+          "success": true
         }
       ],
       "timestamp": "2026-03-03T20:24:16.512541+00:00"
@@ -179,9 +184,10 @@
             "name": "a small fire",
             "description": "A modest campfire, crackling gently. Warm light. The kind that doesn't need tending."
           },
-          "result": "You create a small fire. A modest campfire, crackling gently. Warm light. The kind that doesn't need tending.",
+          "result": "a small fire is here. A modest campfire, crackling gently. Warm light. The kind that doesn't need tending.",
           "error": null,
-          "timestamp": "2026-03-03T20:24:19.554569+00:00"
+          "timestamp": "2026-03-03T20:24:19.554569+00:00",
+          "success": true
         }
       ],
       "timestamp": "2026-03-03T20:24:19.554559+00:00"
@@ -196,7 +202,8 @@
           "arguments": {},
           "result": "here\n\nThe nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.\n\nThere are things here: a small fire",
           "error": null,
-          "timestamp": "2026-03-03T20:24:21.761422+00:00"
+          "timestamp": "2026-03-03T20:24:21.761422+00:00",
+          "success": true
         }
       ],
       "timestamp": "2026-03-03T20:24:21.761409+00:00"

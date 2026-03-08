@@ -21,7 +21,7 @@ location: here → here
 ## Opening
 
 > [!NOTE]
-> Memory: [Day 1](logs/claude/github_logs/session_0001.md), [Day 2](session_0002.md), [Day 3](session_0003.md), [Day 4](session_0004.md)
+> Memory: [Day 1](session_0001.md), [Day 2](session_0002.md), [Day 3](session_0003.md), [Day 4](session_0004.md)
 > `You are at: here`
 
 ## Day
@@ -39,14 +39,16 @@ location: here → here
 
 *…the way breath comes back without asking.*
 
-> `perceive:`  
+*You perceive.*
+  
 > *here*
 >
 > *The nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.*
 >
 > *There are things here: a small fire, a smooth stone, a second stone*
 
-> `examine:` `a small fire`  
+*You examine a small fire.*
+  
 > *A modest campfire, crackling gently. Warm light. The kind that doesn't need tending.*
 
 *…still burning. of course.*
@@ -1458,7 +1460,8 @@ Day 5.
 
 ...
 
-> `perceive:`  
+*You perceive.*
+  
 > *here*
 >
 > *The nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.*

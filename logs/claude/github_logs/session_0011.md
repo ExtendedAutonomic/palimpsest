@@ -51,7 +51,8 @@ location: here → here
 
 ...
 
-> `perceive:`  
+*You perceive.*
+  
 > *here*
 >
 > *The nothing softens. The ground beneath becomes cool grass. A sky appears overhead — deep indigo, the last light of a sunset fading at the horizon. A few stars beginning to show.*
