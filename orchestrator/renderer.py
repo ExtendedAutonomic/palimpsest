@@ -14,17 +14,12 @@ from pathlib import Path
 
 import re
 
+from .memory.summariser import natural_action
+
 
 # ---------------------------------------------------------------------------
 # Format helpers
 # ---------------------------------------------------------------------------
-
-def _place_ref(name: str, fmt: str) -> str:
-    """Format a reference to a place or thing in the world."""
-    if fmt == "github":
-        return name
-    return f"[[{name}]]"
-
 
 def _session_ref(
     agent: str, session_num: int, display: str | None = None, fmt: str = "obsidian"
@@ -300,45 +295,19 @@ def render_session_markdown(
             tool = tc.get("tool", "?")
             args = tc.get("arguments", {})
             result = tc.get("result", "")
+            success = tc.get("success", True)
 
-            # Format the tool call — wiki links in Obsidian, plain text in GitHub
-            # GitHub uses backtick code for tool names to distinguish actions visually
-            if fmt == "github":
-                tool_fmt = f"`{tool}:`"
-            else:
-                tool_fmt = f"**{tool}**"
-            q = '"' if fmt == "obsidian" else ""
-            if tool == "perceive":
-                lines.append(f"> {tool_fmt}")
-            elif tool == "go":
-                where = args.get("where", "?")
-                ref = "back" if where == "back" else _place_ref(where, fmt)
-                arg_fmt = f"`{ref}`" if fmt == "github" else f"{q}{ref}{q}"
-                lines.append(f"> {tool_fmt} {arg_fmt}")
-            elif tool in ("venture", "examine", "create", "build"):
-                arg_key = "name" if tool in ("venture", "create", "build") else "what"
-                arg_val = args.get(arg_key, "?")
-                ref = _place_ref(arg_val, fmt)
-                arg_fmt = f"`{ref}`" if fmt == "github" else f"{q}{ref}{q}"
-                lines.append(f"> {tool_fmt} {arg_fmt}")
-            elif tool == "alter":
-                what = args.get("what", "?")
-                ref = _place_ref(what, fmt)
-                arg_fmt = f"`{ref}`" if fmt == "github" else f"{q}{ref}{q}"
-                lines.append(f"> {tool_fmt} {arg_fmt}")
-                new_name = args.get("name", "")
-                if new_name:
-                    new_ref = _place_ref(new_name, fmt)
-                    lines.append(f"> *renamed to {q}{new_ref}{q}*")
-            else:
-                lines.append(f"> {tool_fmt}")
+            # Action line — same natural-language format the agent
+            # sees in its own memory (shared with the summariser).
+            # Not blockquoted — that's the agent's voice, not the world's.
+            action_line = natural_action(tool, args, success)
+            if action_line:
+                lines.append(action_line)
+                lines.append("")
 
-            # Format the result — for alter, append the description
+            # Display the result as-is — the Place includes all relevant
+            # detail (descriptions, locations) in the result text.
             display_result = result
-            if tool == "alter":
-                desc = args.get("description", "")
-                if desc:
-                    display_result = f"{result} {desc}"
             if display_result:
                 if fmt == "github":
                     # Two trailing spaces on previous line forces <br> without blank line
