@@ -16,12 +16,36 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 from ..place import PlaceInterface, ToolName, ToolCall, AGENT_TOOLS
 from ..pricing import calculate_cost
 
 logger = logging.getLogger(__name__)
+
+
+class AgentResponse(TypedDict):
+    """Standard response shape from any agent's send_message method.
+
+    All agents must return this shape. The session loop relies on these
+    keys to track tokens, execute tool calls, and build conversation
+    history.
+
+    Usage dict keys vary by provider:
+        Anthropic: input_tokens, output_tokens, cache_creation_input_tokens,
+                   cache_read_input_tokens
+        Gemini:    input_tokens, output_tokens, thinking_tokens
+        DeepSeek:  input_tokens, output_tokens, thinking_tokens
+
+    The session loop accesses all usage keys via .get() with 0 defaults,
+    so missing keys are safe.
+    """
+    text: str
+    tool_calls: list[dict[str, Any]]
+    thinking: str | None
+    raw_content: list[dict[str, Any]] | None
+    usage: dict[str, int]
+    stop_reason: str
 
 # Tools that modify the Place and need a git commit after execution
 _MUTATING_TOOLS = {
@@ -148,17 +172,8 @@ class BaseAgent(ABC):
         messages: list[dict],
         system: str,
         tools: list[dict],
-    ) -> dict:
-        """
-        Send messages to the model API and return the response.
-
-        Returns a dict with:
-            - "text": str — the agent's words
-            - "tool_calls": list[dict] — any actions requested
-            - "thinking": str | None — extended thinking content
-            - "usage": dict — token counts
-            - "stop_reason": str — why the model stopped
-        """
+    ) -> AgentResponse:
+        """Send messages to the model API and return the response."""
         ...
 
     def get_tool_definitions(self) -> list[dict]:

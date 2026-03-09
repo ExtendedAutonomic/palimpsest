@@ -32,6 +32,17 @@ LOG_PATH = PROJECT_ROOT / "logs"
 CONFIG_PATH = PROJECT_ROOT / "config"
 
 
+# Expected keys in each config section — used by validate_config()
+# to catch typos that would silently fall back to defaults.
+_EXPECTED_SESSION_KEYS = {
+    "turn_budget", "dusk_threshold", "max_output_tokens",
+    "context_limit", "cost_limit",
+}
+_EXPECTED_SCHEDULE_KEYS = {
+    "current_phase", "session",
+}
+
+
 def load_config() -> dict:
     """Load and merge all config files."""
     config = {}
@@ -46,6 +57,37 @@ def load_config() -> dict:
     config["prompts"] = config.get("prompts", {})
     config["session"] = config.get("schedule", {}).get("session", {})
     return config
+
+
+def validate_config(config: dict) -> None:
+    """Check config for unexpected keys that may indicate typos.
+
+    The session loop accesses config values via .get() with defaults,
+    so a typo like 'turn_buget' silently falls back to the default
+    value. This function catches those by warning on any keys not
+    in the expected set.
+    """
+    # Check session keys (strict — typos here are silent bugs)
+    session = config.get("session", {})
+    unexpected = set(session.keys()) - _EXPECTED_SESSION_KEYS
+    if unexpected:
+        click.echo(
+            f"WARNING: unexpected keys in schedule.yaml session: "
+            f"{', '.join(sorted(unexpected))}. "
+            f"Expected: {', '.join(sorted(_EXPECTED_SESSION_KEYS))}",
+            err=True,
+        )
+
+    # Check top-level schedule keys
+    schedule = config.get("schedule", {})
+    unexpected = set(schedule.keys()) - _EXPECTED_SCHEDULE_KEYS
+    if unexpected:
+        click.echo(
+            f"WARNING: unexpected keys in schedule.yaml: "
+            f"{', '.join(sorted(unexpected))}. "
+            f"Expected: {', '.join(sorted(_EXPECTED_SCHEDULE_KEYS))}",
+            err=True,
+        )
 
 
 def parse_sessions(values: tuple[str, ...]) -> tuple[int, ...] | None:
@@ -165,6 +207,7 @@ def init() -> None:
 def run(agent: str, once: bool, session: int | None, test: bool, place: str | None, logs: str | None) -> None:
     """Run an agent session."""
     config = load_config()
+    validate_config(config)
     place_path = Path(place) if place else PLACE_PATH
     log_path = Path(logs) if logs else LOG_PATH
     if logs:
@@ -509,6 +552,7 @@ async def _run_blog(
     from .experimenter.experimenter import run_experimenter
 
     config = load_config()
+    validate_config(config)
 
     # Parse dates
     since = None

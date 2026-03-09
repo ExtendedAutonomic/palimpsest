@@ -17,7 +17,7 @@ from typing import Any
 from google import genai
 from google.genai import types
 
-from .base import BaseAgent
+from .base import AgentResponse, BaseAgent
 from ..place.tools import convert_tools_gemini
 
 logger = logging.getLogger(__name__)
@@ -54,7 +54,7 @@ class GeminiAgent(BaseAgent):
         messages: list[dict],
         system: str,
         tools: list[dict],
-    ) -> dict:
+    ) -> AgentResponse:
         """Send a message to Gemini and return the parsed response."""
         max_tokens = self.config.get("session", {}).get("max_output_tokens", 8192)
 

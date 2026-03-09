@@ -476,7 +476,9 @@ class TestWeekStructuredMemory:
 class TestRenderSessionLog:
     """Session log rendering distinguishes voices."""
 
-    def test_nudge_is_blockquoted(self):
+    def test_nudge_is_bracketed(self):
+        """Nudges use bracket format [nudge] in agent memory,
+        consistent with dusk and reflect prompts."""
         log = {
             "turns": [
                 {
@@ -492,11 +494,11 @@ class TestRenderSessionLog:
             "reflection": None,
         }
         rendered = render_session_log(log)
-        assert "> ..." in rendered
-        # Agent's ellipsis should NOT be blockquoted
+        assert "[...]" in rendered
+        # Agent's ellipsis should NOT be bracketed
         lines = rendered.strip().split("\n")
         agent_line = [l for l in lines if l.strip() == "..."][0]
-        assert not agent_line.startswith(">")
+        assert not agent_line.startswith("[")
 
     def test_tool_result_is_blockquoted(self):
         log = {

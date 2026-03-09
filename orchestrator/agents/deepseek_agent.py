@@ -16,7 +16,7 @@ from typing import Any
 
 from openai import AsyncOpenAI
 
-from .base import BaseAgent
+from .base import AgentResponse, BaseAgent
 from ..place.tools import convert_tools_openai
 
 logger = logging.getLogger(__name__)
@@ -55,7 +55,7 @@ class DeepSeekAgent(BaseAgent):
         messages: list[dict],
         system: str,
         tools: list[dict],
-    ) -> dict:
+    ) -> AgentResponse:
         """Send a message to DeepSeek and return the parsed response."""
         max_tokens = self.config.get("session", {}).get("max_output_tokens", 8192)
 

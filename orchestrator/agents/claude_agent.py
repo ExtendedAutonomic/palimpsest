@@ -14,7 +14,7 @@ from typing import Any
 
 import anthropic
 
-from .base import BaseAgent
+from .base import AgentResponse, BaseAgent
 from ..place.tools import convert_tools_anthropic
 
 logger = logging.getLogger(__name__)
@@ -50,7 +50,7 @@ class ClaudeAgent(BaseAgent):
         messages: list[dict],
         system: str,
         tools: list[dict],
-    ) -> dict:
+    ) -> AgentResponse:
         """Send a message to Claude and return the parsed response."""
         max_tokens = self.config.get("session", {}).get("max_output_tokens", 4096)
 
