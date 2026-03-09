@@ -207,7 +207,7 @@ def render_session_log(session_data: dict) -> str:
 # ---------------------------------------------------------------------------
 
 ROLLING_COMPRESS_PROMPT = """\
-You are maintaining a compressed memory of your days in a place you inhabit.
+You are maintaining your memories of your days in a place you inhabit.
 
 Here is your memory so far:
 
@@ -225,9 +225,7 @@ Here is a new day to weave into your memory:
 
 Update your memory to include this new day. Keep the week \
 structure: use "### Week N (Days X\u2013Y)" headings. If this day starts a \
-new week, begin a new section. Do not modify completed week sections \
-— they are settled memory. Only update the current (most recent) week \
-section to include the new day.
+new week, begin a new section.
 
 Write the way memory works \u2014 keeping what felt important, letting the \
 rest go. First person. Match the voice and register of the originals. \
@@ -239,14 +237,13 @@ uncertainty or make the account more coherent than the original.
 Output only the memory text, starting with the first ### Week heading."""
 
 FIRST_COMPRESS_PROMPT = """\
-You are compressing a record of your first days in a place you inhabit \
-into a memory.
+You are creating a memory of your first days in a place you inhabit.
 
 {sessions}
 
 ---
 
-Compress this into a shorter account, organised by week. Use \
+Compress your existing memories into a shorter account, organised by week. Use \
 "### Week 1 (Days {first}\u2013{last})" as the heading.
 
 Write the way memory works \u2014 keeping what felt important, letting the \

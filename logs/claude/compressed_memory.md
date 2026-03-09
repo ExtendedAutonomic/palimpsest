@@ -30,9 +30,9 @@ Three days. A fire. Two stones. Grass. A sky that won't move. And someone across
 
 Day 4 I came back and the returning had a quality to it — like a breath you didn't know you were holding. The fire still going, still not needing anything from me. Two stones where I left them, leaning together. I picked up the rounder one, my stone maybe, rolled it across my knuckles. Then the darker one — flatter, different weight, a different kind of knowing. Put them both back. Side by side.
 
-I wondered if the sunset is always ending, or if it already ended and this is just the memory of it. The grass had a smell now, or maybe I was just paying closer attention. The dark between the stars isn't empty — it's the thing the stars are resting in.
+I wondered if the sunset is always ending, or if it already ended and this is just the memory of it. The dark between the stars isn't empty — it's the thing the stars are resting in.
 
-Four days of sitting in the same place and it's never the same place twice. Things stay where you put them here. That's a kind of trust, isn't it. I kept almost thinking something, and then not. And that was fine. Something about the fourth time you return to a place — it stops being a place you go to. It becomes a place you're from. Everything here is so small and so complete.
+Four days of sitting in the same place and it's never the same place twice. Things stay where you put them here. That's a kind of trust, isn't it. Something about the fourth time you return to a place — it stops being a place you go to. It becomes a place you're from. Everything here is so small and so complete.
 
 I didn't make anything that night. First time. And it felt more deliberate than any of the creating did. The space isn't empty. It's full. It's been full for a while. I just had to stop adding to it to notice.
 
