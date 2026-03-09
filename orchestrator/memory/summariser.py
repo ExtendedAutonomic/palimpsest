@@ -570,4 +570,7 @@ def build_agent_memory(
     if len(memory_parts) <= 1:
         return ""
 
-    return "\n\n---\n\n".join(memory_parts)
+    result = memory_parts[0]  # "## Memory"
+    if len(memory_parts) > 1:
+        result += "\n\n" + "\n\n---\n\n".join(memory_parts[1:])
+    return result
