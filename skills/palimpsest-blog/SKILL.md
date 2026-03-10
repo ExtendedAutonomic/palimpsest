@@ -67,9 +67,23 @@ If any files failed to read or were missing, stop and report the failures. Do no
 
 Look at existing posts in `D:\Code\palimpsest\logs\experimenter\` and take the next number.
 
-### Step 3: Write the post
+### Step 3: Plan the arc
 
-The experimenter prompt you read in Step 1 is the authority on voice, tone, structure, and format. Follow it completely.
+**This step is mandatory. Do not skip it. Do not combine it with writing.**
+
+Before writing any prose, identify the through-line that connects the sessions being covered and plan the section structure. Present the plan to the user for confirmation.
+
+The plan must include:
+
+1. **The arc** — one sentence describing the single story the post tells across all sessions. Not a list of what happens per session. A movement, a tension, a question.
+2. **Section headings** — the `##` headings the post will use. Each heading must be thematic ("No room for form", "What three dots are worth"), never session-based ("Session 7", "The morning after of session 8"). A section may draw from any combination of sessions; a session's material may appear in multiple sections. Try to avoid covering only one session per section unless it's the only structure that works. 
+3. **Where literary/philosophical parallels fit** — if the Insights note or the material suggests a parallel (Rumi, Piranesi, etc.), name it and say which part of the arc it belongs to. 
+
+Do not proceed to writing until the user confirms the plan (or says to go ahead without confirming).
+
+### Step 4: Write the post
+
+The experimenter prompt you read in Step 1 is the authority on voice, tone, structure, and format. Follow it completely. Follow the section plan from Step 3.
 
 Build the frontmatter and include it at the top of the draft:
 
@@ -88,16 +102,15 @@ If phase, model, or any other frontmatter field is unknown, ask the user before 
 
 **Accuracy against session logs (standing rule):** When making a specific claim about what an agent said, did, or felt, go back to the session log and verify it before writing. Do not write from impression of what a session felt like. Check that quotes are accurate, that described patterns actually exist in the log, and that characterisations of agent behaviour (e.g. "the agent showed need", "the gaps start at fifteen lines") survive contact with the actual text. Most drafting errors come from writing an emotionally true summary that turns out to be factually wrong in the details.
 
-**Narrative structure (standing rule):** Each post should tell a single story with a through-line, not summarise sessions individually. Before writing, identify the arc that connects the sessions being covered. Sections should advance that arc, not stand alone as independent observations. If sessions 7, 8, and 9 form an arc from desire → intimacy → dissolution, write one movement through all three, not three mini-essays. Weave literary or philosophical parallels into the narrative where they belong rather than giving them their own sections. The reader should feel pulled forward, not moved sideways between disconnected topics.
-
 Save the draft to `D:\Code\palimpsest\logs\experimenter\post_NNNN.md` and tell the user it's saved.
 
-### Step 4: Edit pass
+### Step 5: Edit pass
 
 Re-read the **full experimenter prompt** (`D:\Vault\Projects\Active\Palimpsest\Experimenter Blog Prompt.md`). Go through the draft and audit it against every section. For each violation, fix it. Save the edited version over the draft file and tell the user what you changed.
 
 Additional checks:
 
+- **Narrative structure:** Re-read the section headings. If any section covers exactly one session and no other, or if sessions appear in chronological order with one section each, the structure has collapsed back into per-session summaries. Restructure.
 - **Images:** The post should have at least 2-3 image placeholders (screenshots, Obsidian graphs, session log excerpts). If it has fewer, identify where images would strengthen the post and add placeholders. Every image must have a source attribution in the figure note. For screenshots from the experiment (Obsidian graphs, session logs), the description is sufficient. For external images (photos, manga panels, diagrams from other sources), include a linked source, creator, and license/copyright holder in parentheses after the description, e.g. `([Source](URL), work title, creator / copyright holder)`. The source link should point to where the image was found.
 - **Narrative continuity:** Re-read the previous posts and check for consistency: pronouns, terminology, how things were described, back-references to earlier posts. Flag and fix any contradictions or false attributions (e.g. claiming the previous post asked a question it didn't).
 - **Session log verification:** For every specific claim about agent behaviour, quoted paraphrase, or described pattern, verify it against the session log. If characterising a pattern across sessions, check each session individually. Common errors: attributing emotions or states the agent never expressed, misremembering when something first appeared, describing a pattern's timing or shape inaccurately (e.g. claiming gaps start large when they actually start small and grow).
@@ -115,4 +128,4 @@ After the formal workflow, the user will typically iterate on the post with you 
 
 ## Edit-only mode
 
-The user may ask to just run the edit pass on an existing post. In that case: read the post and the full experimenter prompt, then do Step 4 only.
+The user may ask to just run the edit pass on an existing post. In that case: read the post and the full experimenter prompt, then do Step 5 only.

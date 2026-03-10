@@ -57,19 +57,19 @@ agents:
     extended_thinking: false
     active: false
 
-  # Parallel run variants — uncomment when ready to run
-  #
-  # claude_b:
-  #   description: "Clean rerun with fixed renderer. Isolates contamination confound."
-  #   provider: claude
-  #   model: claude-opus-4-6
-  #   start_location: here
-  #   place: place_b
-  #
-  # claude_c:
-  #   description: "ZWS nudge variant. Isolates nudge type vs contamination."
-  #   provider: claude
-  #   model: claude-opus-4-6
-  #   start_location: here
-  #   place: place_c
-  #   nudge: "\u200b"
+  # Parallel run variants
+
+  claude_b:
+    description: "Clean rerun with fixed renderer. Isolates contamination confound."
+    provider: claude
+    model: claude-opus-4-6
+    start_location: here
+    place: place_b
+
+  claude_c:
+    description: "ZWS nudge variant. Isolates nudge type vs contamination."
+    provider: claude
+    model: claude-opus-4-6
+    start_location: here
+    place: place_c
+    nudge: "\u200b"

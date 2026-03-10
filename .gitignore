@@ -30,3 +30,11 @@ logs/*/obsidian_logs/
 
 # Observatory (local Obsidian symlinks)
 observatory/
+observatory_b/
+observatory_c/
+
+# Parallel run places and logs
+place_b/
+place_c/
+logs/claude_b/
+logs/claude_c/
