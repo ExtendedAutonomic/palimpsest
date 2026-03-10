@@ -63,13 +63,17 @@ agents:
     description: "Clean rerun with fixed renderer. Isolates contamination confound."
     provider: claude
     model: claude-opus-4-6
+    test_model: claude-sonnet-4-5-20250929
     start_location: here
     place: place_b
+    phase: 1
 
   claude_c:
     description: "ZWS nudge variant. Isolates nudge type vs contamination."
     provider: claude
     model: claude-opus-4-6
+    test_model: claude-sonnet-4-5-20250929
     start_location: here
     place: place_c
     nudge: "\u200b"
+    phase: 1

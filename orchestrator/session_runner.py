@@ -253,7 +253,7 @@ async def run_session(
             f"Run 'palimpsest init --agent {agent_name}' first."
         )
 
-    phase = config.get("agents", {}).get("current_phase", 1)
+    phase = agent_config.get("phase", config.get("agents", {}).get("current_phase", 1))
 
     logger.info(f"Starting session {session_num} for {agent_name} (Phase {phase})")
 

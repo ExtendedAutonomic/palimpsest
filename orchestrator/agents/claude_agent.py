@@ -73,7 +73,8 @@ class ClaudeAgent(BaseAgent):
             kwargs["tools"] = convert_tools_anthropic(tools)
 
         # Extended thinking — configurable per agent, defaults to True
-        if self.agent_config.get("extended_thinking", True):
+        # Only Opus supports adaptive thinking; skip for Sonnet/Haiku
+        if self.agent_config.get("extended_thinking", True) and "opus" in self.model:
             kwargs["thinking"] = {
                 "type": "adaptive",
             }
