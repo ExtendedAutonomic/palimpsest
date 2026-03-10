@@ -311,7 +311,7 @@ class PlaceInterface:
         if target.note_type != "space":
             return False, f"\"{where}\" is not a space."
 
-        self._current_location = where
+        self.current_location = where
         desc = target.description
         if desc:
             return True, f"You are now at {where}. {desc}"
@@ -331,7 +331,7 @@ class PlaceInterface:
                 origin = self._current_location
                 self._add_link(self._current_location, name, "Spaces")
                 self._add_link(name, self._current_location, "Spaces")
-                self._current_location = name
+                self.current_location = name
 
                 # The message depends on who created this space
                 return (
@@ -355,7 +355,7 @@ class PlaceInterface:
         # Add link from current space to new space
         self._add_link(self._current_location, name, "Spaces")
 
-        self._current_location = name
+        self.current_location = name
         return True, f"You are now at {name}. {description}"
 
     def examine(self, what: str) -> tuple[bool, str]:
@@ -412,7 +412,7 @@ class PlaceInterface:
         self._write_note(name, build_thing_note(description, fm))
         self._add_link(self._current_location, name, "Things")
 
-        return True, f"{name} is here. {description}"
+        return True, description
 
     def alter(self, what: str, description: str | None = None, name: str | None = None) -> tuple[bool, str]:
         """Change something that exists — content, name, or both."""
@@ -450,7 +450,7 @@ class PlaceInterface:
             fm = self._update_frontmatter(note.frontmatter)
 
             if description and not name:
-                parts.append("This space is now different.")
+                pass  # Action line already says what changed
 
             if name:
                 if self._note_exists(name):
@@ -502,7 +502,7 @@ class PlaceInterface:
             fm = self._update_frontmatter(note.frontmatter)
 
             if description and not name:
-                parts.append(f"{what} is different now.")
+                pass  # Action line already says what changed
 
             if name:
                 if self._note_exists(name):
