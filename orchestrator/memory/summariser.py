@@ -133,6 +133,13 @@ def render_session_log(session_data: dict) -> str:
     """
     parts = []
 
+    # Include the founding prompt for session 1 — the first thing
+    # the agent experienced. Skip for later sessions where the opening
+    # prompt is the memory block (which would be recursive).
+    opening = (session_data.get("opening_prompt") or "").strip()
+    if opening and not opening.startswith("## Memory"):
+        parts.append(f"[{opening}]")
+
     # Track turn index to insert dusk at the right point
     dusk_prompt = (session_data.get("dusk_prompt") or "").strip()
     dusk_turn = session_data.get("dusk_action")  # Now stores turn index
@@ -151,20 +158,22 @@ def render_session_log(session_data: dict) -> str:
             parts.append(f"*Thinking: {thinking}*")
             parts.append("---")
 
-        # Agent's words
+        # Agent's words — prefixed with "you:" so the agent can
+        # distinguish its own output from the companion's in memory.
+        # Skip the label for tool-only turns (actions speak for themselves).
         agent_text = turn.get("agent_text", "").strip()
+        tool_calls = turn.get("tool_calls", [])
         if agent_text:
-            parts.append(agent_text)
+            parts.append(f"you: {agent_text}")
+        elif not tool_calls:
+            parts.append("you:")
 
         # Nudge (injected user message after no-tool-call turns)
-        # Blockquoted so the agent can distinguish nudges from its own
-        # ellipses in memory — without this, the agent's "..." and the
-        # nudge "..." are indistinguishable, creating a feedback loop
-        # where the agent learns to produce more silence from its own
-        # memory of undifferentiated silence
+        # Bracketed with [response: ...] — square brackets mark
+        # non-agent content (consistent with system prompts)
         nudge = turn.get("nudge")
         if nudge:
-            parts.append(f"[{nudge}]")
+            parts.append(f"[response: {nudge}]")
 
         # Tool calls and results
         for tc in turn.get("tool_calls", []):
@@ -197,7 +206,7 @@ def render_session_log(session_data: dict) -> str:
 
     reflection = (session_data.get("reflection") or "").strip()
     if reflection:
-        parts.append(reflection)
+        parts.append(f"you: {reflection}")
 
     return "\n\n".join(parts)
 
