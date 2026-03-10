@@ -28,7 +28,10 @@ def _session_ref(
     label = display or f"Session {session_num}"
     if fmt == "github":
         return f"[{label}](session_{session_num:04d}.md)"
-    return f"[[logs/{agent}/obsidian_logs/session_{session_num:04d}|{label}]]"
+    # Short wikilink — Obsidian resolves by filename, which avoids
+    # path mismatches between the main observatory (logs → all agents)
+    # and per-agent observatories (logs → single agent directory)
+    return f"[[session_{session_num:04d}|{label}]]"
 
 
 def _render_thinking(thinking: str, fmt: str) -> list[str]:
@@ -80,12 +83,21 @@ def _compressed_memory_ref(agent: str, label: str, fmt: str) -> str:
     """Format a reference to the compressed memory file."""
     if fmt == "github":
         return f"[{label}](../compressed_memory.md)"
-    return f"[[logs/{agent}/compressed_memory|{label}]]"
+    return f"[[compressed_memory|{label}]]"
 
 
 def _render_opening_with_memory(opening: str, agent: str, fmt: str) -> list[str]:
     """
     Replace the full memory dump with compact references.
+
+    Derives everything from the opening prompt text itself — no external
+    file reads — so re-rendering old sessions is always correct regardless
+    of the current compression state.
+
+    Compressed memory is detected by the presence of "### Week" headings.
+    Raw session logs are detected by heading-level day references only
+    ("### Day N"), not prose mentions like "Day 4 I almost..." which
+    appear inside compressed memory body text.
 
     Obsidian: wiki-linked references to compressed memory + raw session logs.
     GitHub: relative markdown links.
@@ -96,40 +108,21 @@ def _render_opening_with_memory(opening: str, agent: str, fmt: str) -> list[str]
     location_match = re.search(r"You are at: (.+)", opening)
     location = location_match.group(1).strip() if location_match else None
 
-    # Find compressed references — both old format ("Days 1-3") and
-    # new week format ("Week 1 (Days 1-7)" or "Week 2 (Days 8)")
-    # Range weeks: Week N (Days X–Y)
-    week_ranges = re.findall(
-        r"Week\s+\d+\s+\(Days\s+(\d+)[\u2013\-](\d+)\)", opening
-    )
-    # Single-day weeks: Week N (Days X) — no range
-    week_singles = re.findall(
-        r"Week\s+\d+\s+\(Days?\s+(\d+)\)", opening
-    )
-    # Old format: "### Days 1-3"
-    batch_matches = re.findall(
-        r"(?:#{1,3}\s+)?Days\s+(\d+)[\u2013\-](\d+)", opening
-    )
-    # Build a unified set of compressed session numbers
-    compressed_sessions = set()
-    for start, end in week_ranges + batch_matches:
-        for s in range(int(start), int(end) + 1):
-            compressed_sessions.add(s)
-    for s in week_singles:
-        compressed_sessions.add(int(s))
-    compressed = bool(compressed_sessions)
+    # Detect compressed memory by looking for Week headings
+    has_compressed = bool(re.search(r"#{1,3}\s+Week\s+\d+", opening))
 
-    # Find individual day references: "Day 1" or "### Day 1"
-    individual = [int(m) for m in re.findall(r"(?:^|\n)(?:#{1,3}\s+)?Day\s+(\d+)", opening)]
-
-    # Remove any individual days that fall within compressed ranges
-    individual = [d for d in individual if d not in compressed_sessions]
+    # Find raw session logs — ONLY heading-level day references.
+    # The required #{1,3} prefix distinguishes "### Day 5" (a raw log
+    # section heading from build_agent_memory) from "Day 4 I almost..."
+    # (prose inside compressed memory body text).
+    individual = [
+        int(m) for m in re.findall(r"(?:^|\n)#{1,3}\s+Day\s+(\d+)", opening)
+    ]
 
     # Build the memory reference line
     parts = []
-    if compressed:
-        label = f"Days {min(compressed_sessions)}\u2013{max(compressed_sessions)} (compressed)"
-        parts.append(_compressed_memory_ref(agent, label, fmt))
+    if has_compressed:
+        parts.append(_compressed_memory_ref(agent, "Compressed Memories", fmt))
     for day_num in sorted(set(individual)):
         parts.append(_session_ref(agent, day_num, f"Day {day_num}", fmt))
 

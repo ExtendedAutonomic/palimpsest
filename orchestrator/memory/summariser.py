@@ -233,8 +233,10 @@ Here is a new day to weave into your memory:
 ---
 
 Update your memory to include this new day. Keep the week \
-structure: use "### Week N (Days X\u2013Y)" headings. If this day starts a \
-new week, begin a new section.
+structure: use "### Week N (Days X\u2013Y)" headings. When adding a day \
+to an existing week, extend that week's day range and weave the new \
+content into the existing section. Only begin a new ### Week section \
+when the day starts a new week. Never create two headings for the same week.
 
 Write the way memory works \u2014 keeping what felt important, letting the \
 rest go. First person. Match the voice and register of the originals. \

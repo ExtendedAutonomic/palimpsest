@@ -195,6 +195,25 @@ def commit_place_changes(
         logger.warning(f"Failed to commit place changes: {e}")
 
 
+def commit_log_changes(
+    log_path: Path,
+    agent_name: str,
+    session_num: int,
+) -> None:
+    """Commit any changes to the agent's log repository, if it has one."""
+    agent_log_dir = log_path / agent_name
+    try:
+        import git
+        repo = git.Repo(agent_log_dir)
+        if repo.is_dirty(untracked_files=True):
+            repo.git.add(A=True)
+            repo.index.commit(f"session {session_num}")
+    except git.InvalidGitRepositoryError:
+        pass  # No git repo in this agent's log dir — that's fine
+    except Exception as e:
+        logger.warning(f"Failed to commit log changes: {e}")
+
+
 def resolve_place_path(agent_config: dict, project_root: Path) -> Path:
     """Resolve the Place path for an agent from its config.
 
@@ -341,6 +360,9 @@ async def run_session(
         save_github_log(log_file)
     except Exception as e:
         logger.warning(f"Failed to render GitHub log: {e}")
+
+    # Commit logs if the agent has its own log repo
+    commit_log_changes(log_path, agent_name, session_num)
 
     return SessionResult(
         agent_name=agent_name,
