@@ -261,16 +261,6 @@ class BaseAgent(ABC):
         messages = [{"role": "user", "content": opening}]
         tools = self.get_tool_definitions()
 
-        # Add any previously unlocked hidden tools
-        if self.place.permanently_unlocked_tools:
-            from ..place.tools import HIDDEN_TOOLS
-            for tool_name in self.place.permanently_unlocked_tools:
-                if tool_name in HIDDEN_TOOLS:
-                    tool_def = HIDDEN_TOOLS[tool_name]
-                    if tool_def not in tools:
-                        tools.append(tool_def)
-                        logger.info(f"Loaded unlocked tool: {tool_name}")
-
         total_actions = 0
         dusk_sent = False
         running_cost = 0.0
@@ -385,17 +375,6 @@ class BaseAgent(ABC):
                 total_actions += 1
 
             self._session_log.turns.append(turn)
-
-            # Check for newly unlocked tools
-            if self.place._unlocked_tools:
-                from ..place.tools import HIDDEN_TOOLS
-                for tool_name in list(self.place._unlocked_tools):
-                    if tool_name in HIDDEN_TOOLS:
-                        tool_def = HIDDEN_TOOLS[tool_name]
-                        if tool_def not in tools:
-                            tools.append(tool_def)
-                            logger.info(f"Tool unlocked: {tool_name}")
-                self.place._unlocked_tools.clear()
 
             # Continue the conversation
             messages.append({

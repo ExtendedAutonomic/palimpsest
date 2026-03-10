@@ -81,8 +81,6 @@ class PlaceInterface:
         self._agent_name = agent_name
         self._session_number = session_number
         self._carrying: list[str] = []  # Things the agent is carrying
-        self._unlocked_tools: set[str] = set()  # Newly unlocked this turn (consumed by session loop)
-        self._load_unlocked_tools()
 
     @property
     def current_location(self) -> str:
@@ -119,39 +117,6 @@ class PlaceInterface:
         self._write_note(location, build_space_note(
             note.description, note.spaces, note.things, fm
         ))
-
-    def _unlocked_tools_path(self) -> Path:
-        return self.place_path / ".unlocked_tools.json"
-
-    def _load_unlocked_tools(self) -> None:
-        """Load previously unlocked tools from disk."""
-        import json
-        path = self._unlocked_tools_path()
-        if path.exists():
-            data = json.loads(path.read_text(encoding="utf-8"))
-            self._permanently_unlocked: set[str] = set(data.get("tools", []))
-        else:
-            self._permanently_unlocked: set[str] = set()
-
-    def _save_unlocked_tools(self) -> None:
-        """Persist unlocked tools to disk."""
-        import json
-        path = self._unlocked_tools_path()
-        path.write_text(
-            json.dumps({"tools": sorted(self._permanently_unlocked)}),
-            encoding="utf-8",
-        )
-
-    def unlock_tool(self, tool_name: str) -> None:
-        """Unlock a hidden tool permanently."""
-        if tool_name not in self._permanently_unlocked:
-            self._permanently_unlocked.add(tool_name)
-            self._unlocked_tools.add(tool_name)  # Signal to session loop
-            self._save_unlocked_tools()
-
-    @property
-    def permanently_unlocked_tools(self) -> set[str]:
-        return self._permanently_unlocked
 
     @staticmethod
     def _sanitise_name(name: str, empty_message: str = "You must give it a name.") -> str:
@@ -387,14 +352,6 @@ class PlaceInterface:
             if not note:
                 return False, f"There is nothing called \"{what}\" here."
             return True, (note.description if note.description else "It is blank. There is nothing to perceive.")
-
-        # Check if it exists elsewhere in the place — silently unlocks take/drop
-        if self._note_exists(what):
-            note = self._read_note(what)
-            if note and note.note_type == "thing":
-                self.unlock_tool("take")
-                self.unlock_tool("drop")
-                return False, f"There is nothing called \"{what}\" here."
 
         return False, f"There is nothing called \"{what}\" here."
 

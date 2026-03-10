@@ -24,7 +24,6 @@ class ToolName(str, Enum):
     EXAMINE = "examine"
     CREATE = "create"
     ALTER = "alter"
-    # Hidden tools — not in initial tool definitions, unlocked through play
     TAKE = "take"
     DROP = "drop"
 
@@ -89,6 +88,22 @@ AGENT_TOOLS: list[dict[str, Any]] = [
                 "type": "string",
                 "optional": True,
             },
+        },
+    },
+    {
+        "name": "take",
+        "parameters": {
+            "what": {
+                "type": "string",
+            }
+        },
+    },
+    {
+        "name": "drop",
+        "parameters": {
+            "what": {
+                "type": "string",
+            }
         },
     },
 ]
@@ -202,29 +217,6 @@ def convert_tools_gemini(tools: list[dict] | None = None) -> list:
         function_declarations.append(fd)
 
     return [types.Tool(function_declarations=function_declarations)]
-
-
-# Hidden tool definitions — not sent to the API initially.
-# Unlocked when the agent demonstrates need (e.g. tries to examine
-# something that exists in the world but not in its current space).
-HIDDEN_TOOLS: dict[str, dict[str, Any]] = {
-    "take": {
-        "name": "take",
-        "parameters": {
-            "what": {
-                "type": "string",
-            }
-        },
-    },
-    "drop": {
-        "name": "drop",
-        "parameters": {
-            "what": {
-                "type": "string",
-            }
-        },
-    },
-}
 
 
 @dataclass
