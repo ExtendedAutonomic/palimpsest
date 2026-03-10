@@ -76,6 +76,40 @@ def _render_callout(
 
 
 # ---------------------------------------------------------------------------
+# Place entity linking
+# ---------------------------------------------------------------------------
+
+def _link_action_line(action_line: str, tool_name: str, args: dict, fmt: str) -> str:
+    """Wiki-link entity names in a successful action line (Obsidian only).
+
+    Extracts entity names directly from the tool call arguments and
+    wraps them in [[ ]] within the action line text. No text scanning
+    or Place directory reads needed — the tool call is the source of truth.
+    """
+    if fmt != "obsidian":
+        return action_line
+
+    # Collect entity names from the tool arguments
+    names = []
+    if tool_name in ("examine", "alter", "take", "drop"):
+        if args.get("what"):
+            names.append(args["what"])
+    if tool_name in ("create", "venture", "alter"):
+        if args.get("name"):
+            names.append(args["name"])
+    if tool_name == "go":
+        if args.get("where"):
+            names.append(args["where"])
+
+    # Replace each name with its wiki-linked form, longest first
+    # to avoid partial matches if names overlap
+    for name in sorted(names, key=len, reverse=True):
+        action_line = action_line.replace(name, f"[[{name}]]")
+
+    return action_line
+
+
+# ---------------------------------------------------------------------------
 # Memory rendering
 # ---------------------------------------------------------------------------
 
@@ -290,20 +324,17 @@ def render_session_markdown(
             result = tc.get("result", "")
             success = tc.get("success", True)
 
-            # Action line — same natural-language format the agent
-            # sees in its own memory (shared with the summariser).
-            # Not blockquoted — that's the agent's voice, not the world's.
+            # Action line — wiki-linked to Place entities
             action_line = natural_action(tool, args, success)
             if action_line:
+                action_line = _link_action_line(action_line, tool, args, fmt)
                 lines.append(action_line)
                 lines.append("")
 
-            # Display the result as-is — the Place includes all relevant
-            # detail (descriptions, locations) in the result text.
+            # Tool result — plain text, no linking
             display_result = result
             if display_result:
                 if fmt == "github":
-                    # Two trailing spaces on previous line forces <br> without blank line
                     lines[-1] = lines[-1] + "  "
                 result_lines = display_result.strip().split("\n")
                 for rl in result_lines:
