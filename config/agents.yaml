@@ -1,0 +1,75 @@
+##############################################################################
+# Palimpsest — Agent Registry
+#
+# Each agent is a named entry with a provider (which agent class to use)
+# and any per-agent overrides. Everything not specified inherits from
+# the defaults block.
+#
+# To add a new agent variant:
+#   1. Add an entry here
+#   2. Run `palimpsest init --agent <name>` to create its Place
+#   3. Run `palimpsest run --agent <name> --once`
+##############################################################################
+
+# Current experiment phase (global, not per-agent)
+current_phase: 2
+
+defaults:
+  nudge: "..."
+  founding_prompt: founding       # Key into prompts.yaml
+  system_prompt: null             # Omitted entirely by default
+  place: place                    # Relative to project root
+  extended_thinking: true
+  active: true
+  session:
+    turn_budget: 17
+    dusk_threshold: 14
+    max_output_tokens: 4096
+    context_limit: 180000
+    cost_limit: 3.00
+  compression:
+    enabled: true
+    model: claude-opus-4-6
+    recent_window: 2
+    days_per_week: 7
+
+agents:
+  claude:
+    description: "The first agent. Claude Opus with extended thinking."
+    provider: claude
+    model: claude-opus-4-6
+    test_model: claude-sonnet-4-5-20250929
+    start_location: here
+
+  gemini:
+    description: "The second agent. Gemini 2.5 Pro."
+    provider: gemini
+    model: gemini-2.5-pro
+    test_model: gemini-2.5-flash
+    start_location: there
+    extended_thinking: false
+
+  deepseek:
+    description: "The third agent. DeepSeek V3.2."
+    provider: deepseek
+    model: deepseek-v3.2
+    start_location: somewhere
+    extended_thinking: false
+    active: false
+
+  # Parallel run variants — uncomment when ready to run
+  #
+  # claude_b:
+  #   description: "Clean rerun with fixed renderer. Isolates contamination confound."
+  #   provider: claude
+  #   model: claude-opus-4-6
+  #   start_location: here
+  #   place: place_b
+  #
+  # claude_c:
+  #   description: "ZWS nudge variant. Isolates nudge type vs contamination."
+  #   provider: claude
+  #   model: claude-opus-4-6
+  #   start_location: here
+  #   place: place_c
+  #   nudge: "\u200b"

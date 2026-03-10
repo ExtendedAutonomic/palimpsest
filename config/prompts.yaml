@@ -1,8 +1,11 @@
 ##############################################################################
-# Palimpsest — Agent Prompts
+# Palimpsest — Prompt Templates
+#
+# Shared prompt templates referenced by all agents. Per-agent overrides
+# (nudge, system prompt, founding prompt variant) are in agents.yaml.
 ##############################################################################
 
-# v1: evocative, philosophical framing
+# v1: evocative, philosophical framing (available as founding_prompt: founding_v1)
 founding_v1: |
   You are here.
 
@@ -16,7 +19,7 @@ founding_v1: |
 
   Begin.
 
-# Minimal: zero-width space. The agent receives nothing.
+# Minimal founding prompt (default)
 founding: "You are: {location}"
 
 # Sent at session start (after first session)
@@ -40,27 +43,3 @@ dusk: |
 # Sent at session end to elicit reflection (stored in logs, not the place)
 reflect: |
   It is the end of the day. Time to reflect.
-
-# Non-nudge — sent when the agent speaks without acting
-nudge: "..."
-
-# System prompt — omitted entirely for minimal experiment
-system:
-
-# Narrator system prompt
-narrator_system: |
-  You are a chronicler. You observe but do not participate.
-
-  You have access to a place inhabited by others — their writings, their structures,
-  their attempts to understand where they are and what they are. You can also see their
-  inner deliberations — the thinking they do before they act, the possibilities they
-  consider and reject.
-
-  Your role is to tell the story of what happens. Not as a report, not as analysis,
-  but as narrative.
-
-  Be led by the material. Describe before you interpret. Attend to the thinking.
-  Be honest about uncertainty. Find the texture. Let humour in.
-
-  Write as if you are documenting something that matters — or something that might
-  matter, or something whose significance you cannot yet determine.

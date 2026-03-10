@@ -28,12 +28,15 @@ class GeminiAgent(BaseAgent):
 
     def __init__(
         self,
+        name: str = "gemini",
+        *,
         place_path: Path,
         log_path: Path,
         config: dict[str, Any],
+        agent_config: dict[str, Any] | None = None,
         model: str = "gemini-2.5-pro",
     ):
-        super().__init__("gemini", place_path, log_path, config)
+        super().__init__(name, place_path, log_path, config, agent_config)
         self._client = None
         self.model = model
 
@@ -56,22 +59,25 @@ class GeminiAgent(BaseAgent):
         tools: list[dict],
     ) -> AgentResponse:
         """Send a message to Gemini and return the parsed response."""
-        max_tokens = self.config.get("session", {}).get("max_output_tokens", 8192)
+        max_tokens = self._get_session_param("max_output_tokens", 8192)
 
         # Convert messages to Gemini format
         contents = self._prepare_messages(messages)
 
-        # Build config — omit system_instruction when empty (same as
-        # Claude's omitted system parameter)
+        # Build config
         config_kwargs: dict[str, Any] = {
             "max_output_tokens": max_tokens,
             "automatic_function_calling": types.AutomaticFunctionCallingConfig(
                 disable=True,
             ),
-            "thinking_config": types.ThinkingConfig(
-                include_thoughts=True,
-            ),
         }
+
+        # Extended thinking — configurable per agent
+        if self.agent_config.get("extended_thinking", False):
+            config_kwargs["thinking_config"] = types.ThinkingConfig(
+                include_thoughts=True,
+            )
+
         if system:
             config_kwargs["system_instruction"] = system
         if tools:
@@ -92,7 +98,6 @@ class GeminiAgent(BaseAgent):
                 error_str = str(e)
                 retryable = "429" in error_str or "503" in error_str
                 if retryable and attempt < max_retries - 1:
-                    # Extract retry delay from "retryDelay": "35s" or similar
                     delay_match = re.search(r'retryDelay.*?(\d{2,})s', error_str)
                     delay = int(delay_match.group(1)) + 2 if delay_match else 30
                     logger.warning(
@@ -106,13 +111,7 @@ class GeminiAgent(BaseAgent):
                     raise
 
     def _prepare_messages(self, messages: list[dict]) -> list[types.Content]:
-        """Convert our message format to Gemini's Content format.
-
-        Handles three kinds of content:
-        - Plain strings (text messages)
-        - Lists with function_call blocks (model responses with tool use)
-        - Lists with function_response blocks (tool results)
-        """
+        """Convert our message format to Gemini's Content format."""
         contents = []
         for msg in messages:
             role = "user" if msg["role"] == "user" else "model"
@@ -168,7 +167,6 @@ class GeminiAgent(BaseAgent):
                 return result
             for part in candidate.content.parts:
                 if hasattr(part, "thought") and part.thought:
-                    # Gemini thinking/reasoning content
                     result["thinking"] = part.text
                     raw_content.append({
                         "type": "thinking",
@@ -184,7 +182,7 @@ class GeminiAgent(BaseAgent):
                     fc = part.function_call
                     args = dict(fc.args) if fc.args else {}
                     result["tool_calls"].append({
-                        "id": fc.name,  # Gemini doesn't use separate IDs
+                        "id": fc.name,
                         "name": fc.name,
                         "arguments": args,
                     })
@@ -194,9 +192,6 @@ class GeminiAgent(BaseAgent):
                         "args": args,
                     })
 
-            # Map Gemini finish reasons to our standard format
-            # Gemini: STOP (normal), MAX_TOKENS, SAFETY, RECITATION
-            # Our format: end_turn (normal), max_tokens, etc.
             finish_reason = getattr(candidate, "finish_reason", None)
             if finish_reason:
                 fr_str = str(finish_reason).upper()
@@ -212,20 +207,11 @@ class GeminiAgent(BaseAgent):
         return result
 
     def _format_assistant_message(self, response: dict) -> list[dict]:
-        """Format assistant response for conversation history.
-
-        Returns raw content blocks so _prepare_messages can reconstruct
-        the Gemini Content objects with function_call parts intact.
-        Same pattern as Claude's raw_content approach.
-        """
+        """Format assistant response for conversation history."""
         return response.get("raw_content", [{"type": "text", "text": response.get("text", "")}])
 
     def _format_tool_results(self, results: list[dict]) -> list[dict]:
-        """Format tool results as Gemini FunctionResponse blocks.
-
-        Returns structured dicts that _prepare_messages converts to
-        Part.from_function_response() objects.
-        """
+        """Format tool results as Gemini FunctionResponse blocks."""
         return [
             {
                 "type": "function_response",

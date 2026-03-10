@@ -25,12 +25,15 @@ class ClaudeAgent(BaseAgent):
 
     def __init__(
         self,
+        name: str = "claude",
+        *,
         place_path: Path,
         log_path: Path,
         config: dict[str, Any],
+        agent_config: dict[str, Any] | None = None,
         model: str = "claude-opus-4-6",
     ):
-        super().__init__("claude", place_path, log_path, config)
+        super().__init__(name, place_path, log_path, config, agent_config)
         self._client = None
         self.model = model
 
@@ -52,7 +55,7 @@ class ClaudeAgent(BaseAgent):
         tools: list[dict],
     ) -> AgentResponse:
         """Send a message to Claude and return the parsed response."""
-        max_tokens = self.config.get("session", {}).get("max_output_tokens", 4096)
+        max_tokens = self._get_session_param("max_output_tokens", 4096)
 
         # Build API call kwargs
         kwargs: dict[str, Any] = {
@@ -69,8 +72,8 @@ class ClaudeAgent(BaseAgent):
         if tools:
             kwargs["tools"] = convert_tools_anthropic(tools)
 
-        # Add extended thinking (only supported on Opus models)
-        if "opus" in self.model:
+        # Extended thinking — configurable per agent, defaults to True
+        if self.agent_config.get("extended_thinking", True):
             kwargs["thinking"] = {
                 "type": "adaptive",
             }
@@ -88,17 +91,13 @@ class ClaudeAgent(BaseAgent):
         Prepare messages for the Anthropic API.
 
         Marks the first user message (the opening/memory prompt) with
-        cache_control so it is cached across turns. This is the large
-        static prefix that would otherwise be re-billed at full price
-        on every turn of the session.
+        cache_control so it is cached across turns.
         """
         prepared = []
         for i, msg in enumerate(messages):
             role = msg["role"]
             content = msg["content"]
 
-            # Cache the opening message — the memory block is the dominant
-            # cost driver and is identical across all turns in a session
             if i == 0 and role == "user" and isinstance(content, str):
                 prepared.append({
                     "role": "user",

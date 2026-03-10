@@ -151,6 +151,12 @@ class BaseAgent(ABC):
 
     Subclasses implement the API-specific send_message method.
     The session loop, action execution, and logging are handled here.
+
+    Two config sources:
+        agent_config — per-agent settings from agents.yaml (nudge, session
+                        params, system prompt, founding prompt key)
+        config       — shared resources from prompts.yaml, schedule.yaml,
+                        etc. (prompt templates, pricing)
     """
 
     def __init__(
@@ -159,12 +165,24 @@ class BaseAgent(ABC):
         place_path: Path,
         log_path: Path,
         config: dict[str, Any],
+        agent_config: dict[str, Any] | None = None,
     ):
         self.name = name
         self.place = PlaceInterface(place_path, agent_name=name)
         self.log_path = log_path
         self.config = config
+        self.agent_config = agent_config or {}
         self._session_log: SessionLog | None = None
+
+    # ----- Per-agent config helpers -----
+
+    def _get_session_param(self, key: str, default: Any) -> Any:
+        """Read a session parameter from agent_config, falling back to default."""
+        return self.agent_config.get("session", {}).get(key, default)
+
+    def _get_prompt(self, key: str, default: str = "") -> str:
+        """Read a shared prompt template from config (prompts.yaml)."""
+        return self.config.get("prompts", {}).get(key, default)
 
     @abstractmethod
     async def send_message(
@@ -193,15 +211,22 @@ class BaseAgent(ABC):
         The arc of a day: wake → act → dusk → reflect → sleep.
         """
         now = datetime.now(timezone.utc)
-        max_turns = self.config.get("session", {}).get("turn_budget", 25)
-        dusk_threshold = self.config.get("session", {}).get("dusk_threshold", 22)
+
+        # Per-agent session parameters
+        max_turns = self._get_session_param("turn_budget", 17)
+        dusk_threshold = self._get_session_param("dusk_threshold", 14)
+        context_limit = self._get_session_param("context_limit", 180_000)
+        cost_limit = self._get_session_param("cost_limit", 3.0)
+
+        # Per-agent nudge and system prompt
+        nudge_text = self.agent_config.get("nudge", "...")
+        system_prompt = self.agent_config.get("system_prompt") or ""
 
         # Set starting location and session context
         self.place._session_number = session_number
         if start_location:
             self.place.current_location = start_location
         else:
-            # Fallback — should not happen, but be safe
             logger.warning("No start_location provided — defaulting to 'here'")
             self.place.current_location = "here"
 
@@ -216,16 +241,21 @@ class BaseAgent(ABC):
 
         # Build the opening message
         if session_number == 1:
-            founding_template = self.config.get("prompts", {}).get("founding", "You are: {location}")
+            # Founding prompt: resolve key from agent_config against prompts.yaml
+            founding_key = self.agent_config.get("founding_prompt", "founding")
+            founding_template = self._get_prompt(
+                founding_key,
+                # If the key isn't in prompts.yaml, treat it as an inline prompt
+                default=founding_key if founding_key != "founding" else "You are: {location}",
+            )
             opening = founding_template.format(location=self.place.current_location)
         else:
-            identity_template = self.config.get("prompts", {}).get("identity", "")
+            identity_template = self._get_prompt("identity", "")
             opening = identity_template.format(
                 memory=memory or "",
                 location=self.place.current_location,
             )
 
-        system_prompt = self.config.get("prompts", {}).get("system", "")
         self._session_log.opening_prompt = opening
         self._session_log.system_prompt = system_prompt
         messages = [{"role": "user", "content": opening}]
@@ -243,14 +273,12 @@ class BaseAgent(ABC):
 
         total_actions = 0
         dusk_sent = False
-        context_limit = self.config.get("session", {}).get("context_limit", 180_000)
-        cost_limit = self.config.get("session", {}).get("cost_limit", 5.0)
         running_cost = 0.0
 
         for turn_idx in range(max_turns):
             # Dusk approaches — counted by turns, not actions
             if turn_idx >= dusk_threshold and not dusk_sent:
-                dusk_prompt = self.config.get("prompts", {}).get("dusk", "")
+                dusk_prompt = self._get_prompt("dusk", "")
                 messages.append({"role": "user", "content": dusk_prompt})
                 self._session_log.dusk_prompt = dusk_prompt
                 self._session_log.dusk_action = turn_idx
@@ -300,7 +328,7 @@ class BaseAgent(ABC):
                         f"Turn {turn_idx}: context {turn_context:,} tokens, "
                         f"approaching limit. Triggering early dusk."
                     )
-                    dusk_prompt = self.config.get("prompts", {}).get("dusk", "")
+                    dusk_prompt = self._get_prompt("dusk", "")
                     messages.append({"role": "user", "content": dusk_prompt})
                     self._session_log.dusk_prompt = dusk_prompt
                     self._session_log.dusk_action = turn_idx
@@ -310,7 +338,7 @@ class BaseAgent(ABC):
                         f"Turn {turn_idx}: session cost ${running_cost:.2f}, "
                         f"exceeds ${cost_limit:.2f} limit. Triggering early dusk."
                     )
-                    dusk_prompt = self.config.get("prompts", {}).get("dusk", "")
+                    dusk_prompt = self._get_prompt("dusk", "")
                     messages.append({"role": "user", "content": dusk_prompt})
                     self._session_log.dusk_prompt = dusk_prompt
                     self._session_log.dusk_action = turn_idx
@@ -319,7 +347,6 @@ class BaseAgent(ABC):
             # Process actions
             tool_calls = response.get("tool_calls", [])
             if not tool_calls:
-                nudge_text = self.config.get("prompts", {}).get("nudge", "...")
                 if response.get("stop_reason") == "max_tokens":
                     logger.warning(f"Turn {turn_idx}: hit output token limit")
                 turn.nudge = nudge_text
@@ -344,13 +371,10 @@ class BaseAgent(ABC):
                     )
                     result = self.place.execute_tool(tc)
                     turn.tool_calls.append(tc)
-                    # Commit after each action that modifies the Place,
-                    # so git tracks every intermediate state — not just
-                    # the end-of-session snapshot
+                    # Commit after each action that modifies the Place
                     if tc.tool in _MUTATING_TOOLS:
                         self._commit_action(tc, session_number)
                 except (ValueError, KeyError) as e:
-                    # Model returned a garbled or unknown tool name
                     logger.warning(f"Invalid tool call: {tc_data.get('name', '?')} — {e}")
                     result = "You do not know how to do that."
                 tool_results.append({
@@ -362,7 +386,7 @@ class BaseAgent(ABC):
 
             self._session_log.turns.append(turn)
 
-            # Check for newly unlocked tools (e.g. examine triggered take)
+            # Check for newly unlocked tools
             if self.place._unlocked_tools:
                 from ..place.tools import HIDDEN_TOOLS
                 for tool_name in list(self.place._unlocked_tools):
@@ -384,7 +408,7 @@ class BaseAgent(ABC):
             })
 
         # Reflect — the agent's own memory of this day
-        reflect_prompt = self.config.get("prompts", {}).get("reflect", "")
+        reflect_prompt = self._get_prompt("reflect", "")
         if reflect_prompt:
             self._session_log.reflect_prompt = reflect_prompt
             messages.append({"role": "user", "content": reflect_prompt})
@@ -415,17 +439,11 @@ class BaseAgent(ABC):
         return "\n\n".join(parts)
 
     def _commit_action(self, tc: ToolCall, session_number: int) -> None:
-        """Commit place changes after a single action.
-
-        Each mutating tool call gets its own git commit so that
-        intermediate states are preserved — renames, description
-        changes, and creations are all individually trackable.
-        """
+        """Commit place changes after a single action."""
         try:
             import git
             repo = git.Repo(self.place.place_path)
             if repo.is_dirty(untracked_files=True):
-                # Build a descriptive commit message from the action
                 args = tc.arguments
                 if tc.tool == ToolName.CREATE:
                     msg = f"{self.name} s{session_number}: create {args.get('name', '?')}"
@@ -476,13 +494,7 @@ class BaseAgent(ABC):
         system: str,
         tools: list[dict],
     ) -> None:
-        """Save the complete API conversation as a separate file.
-
-        Preserves everything sent to the provider API: system prompt,
-        tool definitions, and the full message history including
-        provider-specific formatting of tool calls and results.
-        Useful for debugging and replay.
-        """
+        """Save the complete API conversation as a separate file."""
         if not self._session_log:
             return
         raw_dir = self.log_path / self.name / "json" / "raw"

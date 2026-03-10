@@ -26,7 +26,7 @@ import anthropic
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Constants
+# Constants (defaults — can be overridden per agent via agents.yaml)
 # ---------------------------------------------------------------------------
 
 RECENT_WINDOW = 2  # Number of recent sessions kept in full
@@ -333,19 +333,37 @@ async def _compress_first(
 async def run_memory_compression(
     agent_name: str,
     log_path: Path,
+    *,
+    compressor_model: str | None = None,
+    recent_window: int | None = None,
+    days_per_week: int | None = None,
+    enabled: bool = True,
 ) -> bool:
     """
     Rolling memory compression.
 
-    After each session, checks if there are more than RECENT_WINDOW
+    After each session, checks if there are more than recent_window
     uncompressed sessions. If so, compresses one day at a time into
-    the rolling memory, until exactly RECENT_WINDOW remain uncompressed.
+    the rolling memory, until exactly recent_window remain uncompressed.
 
     The compressor always sees the full compressed memory plus the new
     day, preserving arcs and context across the entire history.
 
+    Parameters can be overridden per agent via agents.yaml compression
+    settings. Falls back to module-level defaults if not provided.
+
     Returns True if compression was performed.
     """
+    if not enabled:
+        return False
+
+    # Resolve parameters — per-agent overrides or module defaults
+    model = compressor_model or COMPRESSOR_MODEL
+    window = recent_window if recent_window is not None else RECENT_WINDOW
+    # days_per_week is used in the prompt template via week headings;
+    # currently embedded in the prompt text. Reserved for future use.
+    _ = days_per_week if days_per_week is not None else DAYS_PER_WEEK
+
     agent_log_dir = log_path / agent_name
     if not agent_log_dir.exists():
         return False
@@ -381,12 +399,12 @@ async def run_memory_compression(
         if log["session_number"] > last_compressed_session
     ]
 
-    # Only compress if we have more than RECENT_WINDOW uncompressed
-    if len(uncompressed) <= RECENT_WINDOW:
+    # Only compress if we have more than window uncompressed
+    if len(uncompressed) <= window:
         return False
 
-    # Compress one day at a time until exactly RECENT_WINDOW remain
-    to_compress = uncompressed[:-RECENT_WINDOW]
+    # Compress one day at a time until exactly window remain
+    to_compress = uncompressed[:-window]
 
     total_input_tokens = 0
     total_output_tokens = 0
@@ -398,8 +416,6 @@ async def run_memory_compression(
 
         if not compressed_body:
             # First compression — no existing memory yet
-            # If there's only one day, compress it alone
-            # If multiple days accumulated, compress them together
             remaining = to_compress[compressed_count:]
             if len(remaining) > 1:
                 # Bootstrap: compress all pending at once
@@ -413,7 +429,7 @@ async def run_memory_compression(
                     f"{remaining[-1]['session_number']}"
                 )
                 compressed_body, token_counts = await _compress_first(
-                    rendered_batch,
+                    rendered_batch, model=model,
                 )
                 total_input_tokens += token_counts["input"]
                 total_output_tokens += token_counts["output"]
@@ -425,7 +441,7 @@ async def run_memory_compression(
                 logger.info(f"Bootstrapping memory: day {session_num}")
                 rendered_batch = [(session_num, rendered)]
                 compressed_body, token_counts = await _compress_first(
-                    rendered_batch,
+                    rendered_batch, model=model,
                 )
                 total_input_tokens += token_counts["input"]
                 total_output_tokens += token_counts["output"]
@@ -438,6 +454,7 @@ async def run_memory_compression(
                 existing_memory=compressed_body,
                 new_day_rendered=rendered,
                 session_number=session_num,
+                model=model,
             )
             total_input_tokens += token_counts["input"]
             total_output_tokens += token_counts["output"]
@@ -450,7 +467,7 @@ async def run_memory_compression(
     # Calculate compression cost (cumulative across all runs)
     from ..pricing import calculate_cost
     run_cost = calculate_cost(
-        COMPRESSOR_MODEL, total_input_tokens, total_output_tokens
+        model, total_input_tokens, total_output_tokens
     )
     run_tokens = total_input_tokens + total_output_tokens
 
@@ -470,7 +487,7 @@ async def run_memory_compression(
         f"---\n"
         f"type: compressed_memory\n"
         f"agent: {agent_name}\n"
-        f"model: {COMPRESSOR_MODEL}\n"
+        f"model: {model}\n"
         f"compressed_through: {last_compressed_session}\n"
         f"tokens: {total_compression_tokens:,}\n"
         f"cost: ${compression_cost:.2f}\n"
@@ -485,7 +502,7 @@ async def run_memory_compression(
 
     # Persist compression token costs
     _record_compression_cost(
-        agent_log_dir, COMPRESSOR_MODEL, total_input_tokens, total_output_tokens
+        agent_log_dir, model, total_input_tokens, total_output_tokens
     )
 
     return True

@@ -27,12 +27,15 @@ class DeepSeekAgent(BaseAgent):
 
     def __init__(
         self,
+        name: str = "deepseek",
+        *,
         place_path: Path,
         log_path: Path,
         config: dict[str, Any],
+        agent_config: dict[str, Any] | None = None,
         model: str = "deepseek-chat",
     ):
-        super().__init__("deepseek", place_path, log_path, config)
+        super().__init__(name, place_path, log_path, config, agent_config)
         self._client = None
         self.model = model
 
@@ -57,7 +60,7 @@ class DeepSeekAgent(BaseAgent):
         tools: list[dict],
     ) -> AgentResponse:
         """Send a message to DeepSeek and return the parsed response."""
-        max_tokens = self.config.get("session", {}).get("max_output_tokens", 8192)
+        max_tokens = self._get_session_param("max_output_tokens", 8192)
 
         # Build OpenAI-format messages
         oai_messages = [{"role": "system", "content": system}]

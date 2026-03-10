@@ -3,13 +3,13 @@ Palimpsest CLI — command-line interface for running the experiment.
 
 Usage:
     palimpsest init                          # Initialise the place + git
-    palimpsest run --agent claude --once     # Single test session
-    palimpsest run --schedule                # Run daily schedule
+    palimpsest init --agent claude_b         # Initialise a specific agent's place
+    palimpsest run --agent claude --once     # Single session
+    palimpsest agents                        # List registered agents
     palimpsest place --tree                  # View the place
     palimpsest logs --agent claude --last 3  # View recent logs
-    palimpsest narrate                       # Run narrator
-    palimpsest blog                          # Write a blog post
     palimpsest costs                         # Check spend
+    palimpsest render                        # Re-render readable logs
 """
 
 from __future__ import annotations
@@ -32,61 +32,36 @@ LOG_PATH = PROJECT_ROOT / "logs"
 CONFIG_PATH = PROJECT_ROOT / "config"
 
 
-# Expected keys in each config section — used by validate_config()
-# to catch typos that would silently fall back to defaults.
-_EXPECTED_SESSION_KEYS = {
-    "turn_budget", "dusk_threshold", "max_output_tokens",
-    "context_limit", "cost_limit",
-}
-_EXPECTED_SCHEDULE_KEYS = {
-    "current_phase", "session",
-}
-
-
 def load_config() -> dict:
-    """Load and merge all config files."""
+    """Load and merge all config files.
+
+    Config files:
+        prompts.yaml  — shared prompt templates
+        agents.yaml   — agent registry, defaults, current_phase
+        costs.yaml    — pricing and budget
+    """
     config = {}
-    for name in ["prompts", "schedule", "costs"]:
+    for name in ["prompts", "agents", "costs"]:
         config_file = CONFIG_PATH / f"{name}.yaml"
         if config_file.exists():
             with open(config_file, encoding="utf-8") as f:
                 config[name] = yaml.safe_load(f) or {}
         else:
             config[name] = {}
-    # Flatten for easier access
+    # Flatten prompts for easier access
     config["prompts"] = config.get("prompts", {})
-    config["session"] = config.get("schedule", {}).get("session", {})
     return config
 
 
-def validate_config(config: dict) -> None:
-    """Check config for unexpected keys that may indicate typos.
-
-    The session loop accesses config values via .get() with defaults,
-    so a typo like 'turn_buget' silently falls back to the default
-    value. This function catches those by warning on any keys not
-    in the expected set.
-    """
-    # Check session keys (strict — typos here are silent bugs)
-    session = config.get("session", {})
-    unexpected = set(session.keys()) - _EXPECTED_SESSION_KEYS
-    if unexpected:
-        click.echo(
-            f"WARNING: unexpected keys in schedule.yaml session: "
-            f"{', '.join(sorted(unexpected))}. "
-            f"Expected: {', '.join(sorted(_EXPECTED_SESSION_KEYS))}",
-            err=True,
-        )
-
-    # Check top-level schedule keys
-    schedule = config.get("schedule", {})
-    unexpected = set(schedule.keys()) - _EXPECTED_SCHEDULE_KEYS
-    if unexpected:
-        click.echo(
-            f"WARNING: unexpected keys in schedule.yaml: "
-            f"{', '.join(sorted(unexpected))}. "
-            f"Expected: {', '.join(sorted(_EXPECTED_SCHEDULE_KEYS))}",
-            err=True,
+def validate_agent_name(config: dict, agent_name: str) -> None:
+    """Validate that an agent name exists in the registry."""
+    from .session_runner import get_available_agents
+    available = get_available_agents(config)
+    if agent_name not in available:
+        raise click.BadParameter(
+            f"Unknown agent: '{agent_name}'. "
+            f"Available: {', '.join(available)}. "
+            f"Define new agents in config/agents.yaml."
         )
 
 
@@ -123,7 +98,6 @@ def setup_logging(verbose: bool = False) -> None:
         format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
         datefmt="%H:%M:%S",
     )
-    # Suppress noisy HTTP client logging
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
 
@@ -136,19 +110,39 @@ def cli(verbose: bool) -> None:
 
 
 @cli.command()
-def init() -> None:
+@click.option("--agent", "-a", type=str, default=None,
+              help="Initialise a specific agent's place (creates its place directory)")
+def init(agent: str | None) -> None:
     """Initialise the place with the starting structure."""
     import git
 
-    click.echo("Initialising the place...")
+    config = load_config()
 
-    # Ensure place directory exists
-    PLACE_PATH.mkdir(parents=True, exist_ok=True)
+    if agent:
+        validate_agent_name(config, agent)
+        from .session_runner import resolve_agent_config, resolve_place_path
+        agent_config = resolve_agent_config(agent, config)
+        place_path = resolve_place_path(agent_config, PROJECT_ROOT)
+        start_location = agent_config.get("start_location", "here")
+        _init_place(place_path, start_location)
+        click.echo(f"\nPlace for {agent} ready: {place_path}")
+    else:
+        _init_place(PLACE_PATH, "here")
+        click.echo(f"\nThe place is ready: {PLACE_PATH}")
 
-    # Create the founding space
-    here_note = PLACE_PATH / "here.md"
-    if not here_note.exists():
-        here_note.write_text(
+    click.echo()
+    click.echo("One space. Empty.")
+
+
+def _init_place(place_path: Path, start_location: str) -> None:
+    """Create and git-initialise a place directory."""
+    import git
+
+    place_path.mkdir(parents=True, exist_ok=True)
+
+    start_note = place_path / f"{start_location}.md"
+    if not start_note.exists():
+        start_note.write_text(
             "---\n"
             "type: space\n"
             "created_by: place\n"
@@ -158,11 +152,10 @@ def init() -> None:
             "---\n",
             encoding="utf-8",
         )
+        click.echo(f"  Created starting space: {start_location}")
 
-    # Create minimal .obsidian config
-    obsidian_dir = PLACE_PATH / ".obsidian"
+    obsidian_dir = place_path / ".obsidian"
     obsidian_dir.mkdir(exist_ok=True)
-
     app_json = obsidian_dir / "app.json"
     if not app_json.exists():
         app_json.write_text(json.dumps({
@@ -170,32 +163,24 @@ def init() -> None:
             "alwaysUpdateLinks": True,
         }, indent=2))
 
-    # Initialise git repo
     try:
-        repo = git.Repo(PLACE_PATH)
-        click.echo("Git repository already exists.")
+        repo = git.Repo(place_path)
+        click.echo("  Git repository already exists.")
     except git.InvalidGitRepositoryError:
-        repo = git.Repo.init(PLACE_PATH)
-        # Create .gitignore
-        gitignore = PLACE_PATH / ".gitignore"
+        repo = git.Repo.init(place_path)
+        gitignore = place_path / ".gitignore"
         gitignore.write_text(
             ".obsidian/workspace.json\n"
             ".obsidian/workspace-mobile.json\n"
         )
         repo.index.add([".gitignore"])
         repo.index.commit("The place exists")
-        click.echo("Git repository initialised.")
-
-    click.echo(f"\nThe place is ready: {PLACE_PATH}")
-    click.echo()
-    click.echo("  here.md")
-    click.echo()
-    click.echo("One space. Empty.")
+        click.echo("  Git repository initialised.")
 
 
 @cli.command()
-@click.option("--agent", "-a", type=click.Choice(["claude", "gemini", "deepseek"]),
-              required=True, help="Which agent to run")
+@click.option("--agent", "-a", type=str, required=True,
+              help="Which agent to run (from agents.yaml)")
 @click.option("--once", is_flag=True, help="Run a single session")
 @click.option("--session", "-s", type=int, default=None,
               help="Override session number")
@@ -207,14 +192,18 @@ def init() -> None:
 def run(agent: str, once: bool, session: int | None, test: bool, place: str | None, logs: str | None) -> None:
     """Run an agent session."""
     config = load_config()
-    validate_config(config)
+    validate_agent_name(config, agent)
+
     place_path = Path(place) if place else PLACE_PATH
     log_path = Path(logs) if logs else LOG_PATH
     if logs:
         log_path.mkdir(parents=True, exist_ok=True)
 
     if once:
-        asyncio.run(_run_once(agent, config, session_override=session, test=test, place_path=place_path, log_path=log_path))
+        asyncio.run(_run_once(
+            agent, config, session_override=session, test=test,
+            place_path=place_path, log_path=log_path,
+        ))
     else:
         click.echo("Specify --once to run a session.")
 
@@ -228,16 +217,16 @@ async def _run_once(
     log_path: Path | None = None,
 ) -> None:
     """CLI wrapper for running a single session."""
-    from .session_runner import run_session
+    from .session_runner import run_session, resolve_agent_config
 
     if place_path is None:
         place_path = PLACE_PATH
     if log_path is None:
         log_path = LOG_PATH
 
-    from .session_runner import TEST_MODELS
-    default_model = TEST_MODELS.get(agent_name, "test") if test else "production"
-    model_label = f"test ({default_model})" if test else f"production"
+    agent_config = resolve_agent_config(agent_name, config)
+    model = agent_config.get("test_model", "test") if test else agent_config.get("model", "production")
+    model_label = f"test ({model})" if test else f"production ({model})"
     click.echo(f"Starting session for {agent_name} ({model_label})")
 
     result = await run_session(
@@ -247,6 +236,7 @@ async def _run_once(
         config=config,
         session_override=session_override,
         test=test,
+        project_root=PROJECT_ROOT,
     )
 
     click.echo(f"\nSession {result.session_number} complete.")
@@ -257,6 +247,37 @@ async def _run_once(
         click.echo("  Memory compressed.")
     if result.reflection:
         click.echo(f"\nReflection:\n{result.reflection[:500]}")
+
+
+@cli.command()
+def agents() -> None:
+    """List registered agents and their configuration."""
+    config = load_config()
+    from .session_runner import get_available_agents, resolve_agent_config
+
+    phase = config.get("agents", {}).get("current_phase", "?")
+    click.echo(f"Current phase: {phase}")
+
+    for name in get_available_agents(config):
+        ac = resolve_agent_config(name, config)
+        status = "active" if ac.get("active", True) else "inactive"
+        desc = ac.get("description", "")
+        provider = ac.get("provider", "?")
+        model = ac.get("model", "?")
+        place = ac.get("place", "place")
+        nudge_raw = ac.get("nudge", "...")
+        if nudge_raw == "...":
+            nudge_display = "..."
+        elif nudge_raw.strip() == "":
+            nudge_display = repr(nudge_raw)
+        else:
+            nudge_display = nudge_raw
+
+        click.echo(f"\n  {name} [{status}]")
+        if desc:
+            click.echo(f"    {desc}")
+        click.echo(f"    provider: {provider}, model: {model}")
+        click.echo(f"    place: {place}, nudge: {nudge_display}")
 
 
 @cli.command()
@@ -328,7 +349,6 @@ def costs() -> None:
 
     total_cost = 0.0
 
-    # Primary agents
     for agent_dir in sorted(LOG_PATH.iterdir()):
         if not agent_dir.is_dir() or agent_dir.name.startswith("."):
             continue
@@ -364,7 +384,6 @@ def costs() -> None:
                 except Exception:
                     continue
 
-        # Add compression costs for this agent
         compression_file = agent_dir / "json" / "compression_costs.json"
         if compression_file.exists():
             try:
@@ -381,7 +400,6 @@ def costs() -> None:
         click.echo(f"{agent_name}: {session_count} sessions, "
                    f"{total_tokens:,} tokens, ${agent_cost:.2f}")
 
-    # Observer agents — narrator and experimenter sidecars
     click.echo("")
     observer_specs = [
         ("narrator", "chapter_*.json", "chapters"),
@@ -418,227 +436,15 @@ def costs() -> None:
 
 
 @cli.command()
-@click.option("--day", "-d", type=str, default=None,
-              help="Date to narrate (YYYY-MM-DD). Defaults to today.")
-@click.option("--prompt", "-p", type=click.Path(exists=True), default=None,
-              help="Path to narrator prompt markdown file.")
-@click.option("--session", "-s", type=str, multiple=True,
-              help="Session(s) to include. Accepts numbers (3) and ranges (3-6).")
-@click.option("--agent", "-a", type=str, default=None,
-              help="Filter by agent name (e.g. claude, gemini, deepseek).")
-@click.option("--chapter", "-c", type=int, default=None,
-              help="Override chapter number (default: auto-increment).")
-@click.option("--test", is_flag=True, help="Use Sonnet instead of Opus.")
-def narrate(day: str | None, prompt: str | None, session: tuple[str, ...], agent: str | None, chapter: int | None, test: bool) -> None:
-    """Run the narrator agent to chronicle the day's events."""
-    asyncio.run(_run_narrator(day, prompt, parse_sessions(session), agent=agent, chapter=chapter, test=test))
-
-
-async def _run_narrator(day_str: str | None, prompt_path_str: str | None, sessions: tuple[int, ...] | None = None, agent: str | None = None, chapter: int | None = None, test: bool = False) -> None:
-    """CLI wrapper for running the narrator."""
-    from datetime import datetime, timezone
-    from .narrator.narrator import run_narrator
-
-    # Parse day
-    day = None
-    if day_str:
-        day = datetime.strptime(day_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-
-    # Resolve narrator prompt path
-    if prompt_path_str:
-        narrator_prompt_path = Path(prompt_path_str)
-    else:
-        # Default: look in vault, then fall back to config
-        vault_prompt = Path("D:/Vault/Projects/Active/Palimpsest/Narrator Prompt.md")
-        if vault_prompt.exists():
-            narrator_prompt_path = vault_prompt
-        else:
-            narrator_prompt_path = CONFIG_PATH / "narrator_prompt.md"
-
-    from .narrator.narrator import NARRATOR_MODEL
-    TEST_MODEL = "claude-sonnet-4-5-20250929"
-    model = TEST_MODEL if test else NARRATOR_MODEL
-
-    click.echo("")
-    click.echo("⚠️  This uses API credits. Consider using the Claude Desktop skill instead (free with Max).")
-    if not click.confirm("Proceed?", default=False):
-        return
-    click.echo("")
-    click.echo(f"Running narrator ({'test/Sonnet' if test else 'Opus'})...")
-    click.echo(f"  Prompt: {narrator_prompt_path}")
-    if day:
-        click.echo(f"  Day: {day.strftime('%Y-%m-%d')}")
-    if agent:
-        click.echo(f"  Agent: {agent}")
-    if chapter:
-        click.echo(f"  Chapter: {chapter}")
-
-    try:
-        output_file = await run_narrator(
-            log_path=LOG_PATH,
-            narrator_prompt_path=narrator_prompt_path,
-            day=day,
-            sessions=sessions,
-            agent=agent,
-            chapter_override=chapter,
-            model=model,
-        )
-        click.echo(f"\nChapter saved: {output_file}")
-        click.echo()
-        # Print the chapter
-        content = output_file.read_text(encoding="utf-8")
-        click.echo(content)
-    except ValueError as e:
-        click.echo(f"Error: {e}", err=True)
-    except FileNotFoundError as e:
-        click.echo(f"Error: {e}", err=True)
-
-
-@cli.command()
-@click.option("--topic", "-t", type=str, default=None,
-              help="What the post should be about. If omitted, writes about whatever is most interesting.")
-@click.option("--since", type=str, default=None,
-              help="Include sessions from this date (YYYY-MM-DD).")
-@click.option("--until", type=str, default=None,
-              help="Include sessions up to this date (YYYY-MM-DD).")
-@click.option("--session", "-s", type=str, multiple=True,
-              help="Session(s) to include. Accepts numbers (3) and ranges (3-6).")
-@click.option("--agent", "-a", type=str, default=None,
-              help="Filter sessions by agent name.")
-@click.option("--chapter", "-c", type=int, multiple=True,
-              help="Narrator chapter(s) to include. Can be repeated.")
-@click.option("--prompt", "-p", type=click.Path(exists=True), default=None,
-              help="Path to experimenter blog prompt markdown file.")
-@click.option("--no-memories", is_flag=True, help="Exclude compressed memory files from context.")
-@click.option("--test", is_flag=True, help="Use Sonnet instead of Opus.")
-def blog(
-    topic: str | None,
-    since: str | None,
-    until: str | None,
-    session: tuple[str, ...],
-    agent: str | None,
-    chapter: tuple[int, ...],
-    prompt: str | None,
-    no_memories: bool,
-    test: bool,
-) -> None:
-    """Write an experimenter blog post about the experiment."""
-    asyncio.run(_run_blog(
-        topic=topic,
-        since_str=since,
-        until_str=until,
-        sessions=parse_sessions(session),
-        agent=agent,
-        chapters=chapter or None,
-        prompt_path_str=prompt,
-        include_memories=not no_memories,
-        test=test,
-    ))
-
-
-async def _run_blog(
-    topic: str | None = None,
-    since_str: str | None = None,
-    until_str: str | None = None,
-    sessions: tuple[int, ...] | None = None,
-    agent: str | None = None,
-    chapters: tuple[int, ...] | None = None,
-    prompt_path_str: str | None = None,
-    include_memories: bool = True,
-    test: bool = False,
-) -> None:
-    """CLI wrapper for running the experimenter."""
-    from datetime import datetime, timezone
-    from .experimenter.experimenter import run_experimenter
-
-    config = load_config()
-    validate_config(config)
-
-    # Parse dates
-    since = None
-    if since_str:
-        since = datetime.strptime(since_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-    until = None
-    if until_str:
-        until = datetime.strptime(until_str, "%Y-%m-%d").replace(
-            hour=23, minute=59, second=59, tzinfo=timezone.utc
-        )
-
-    # Resolve prompt path
-    if prompt_path_str:
-        experimenter_prompt_path = Path(prompt_path_str)
-    else:
-        vault_prompt = Path("D:/Vault/Projects/Active/Palimpsest/Experimenter Blog Prompt.md")
-        if vault_prompt.exists():
-            experimenter_prompt_path = vault_prompt
-        else:
-            experimenter_prompt_path = CONFIG_PATH / "experimenter_prompt.md"
-
-    from .experimenter.experimenter import EXPERIMENTER_MODEL
-    TEST_MODEL = "claude-sonnet-4-5-20250929"
-    model = TEST_MODEL if test else EXPERIMENTER_MODEL
-
-    click.echo("")
-    click.echo("⚠️  This uses API credits. Consider using the Claude Desktop skill instead (free with Max).")
-    if not click.confirm("Proceed?", default=False):
-        return
-    click.echo("")
-    click.echo(f"Writing blog post ({'test/Sonnet' if test else 'Opus'})...")
-    click.echo(f"  Prompt: {experimenter_prompt_path}")
-    if topic:
-        click.echo(f"  Topic: {topic}")
-    if since:
-        click.echo(f"  Since: {since.strftime('%Y-%m-%d')}")
-    if until:
-        click.echo(f"  Until: {until.strftime('%Y-%m-%d')}")
-    if sessions:
-        click.echo(f"  Sessions: {', '.join(str(s) for s in sessions)}")
-    if agent:
-        click.echo(f"  Agent: {agent}")
-    if chapters:
-        click.echo(f"  Narrator chapters: {', '.join(str(c) for c in chapters)}")
-    if not include_memories:
-        click.echo("  Excluding compressed memories")
-
-    try:
-        output_file = await run_experimenter(
-            log_path=LOG_PATH,
-            experimenter_prompt_path=experimenter_prompt_path,
-            config=config,
-            topic=topic,
-            since=since,
-            until=until,
-            sessions=sessions,
-            agent=agent,
-            narrator_chapters=chapters,
-            include_memories=include_memories,
-            model=model,
-        )
-        click.echo(f"\nPost saved: {output_file}")
-        click.echo()
-        # Print the post
-        content = output_file.read_text(encoding="utf-8")
-        click.echo(content)
-    except ValueError as e:
-        click.echo(f"Error: {e}", err=True)
-    except FileNotFoundError as e:
-        click.echo(f"Error: {e}", err=True)
-
-
-@cli.command()
-@click.option("--agent", "-a", type=str, default=None,
-              help="Filter by agent. If omitted, renders all agents.")
-@click.option("--session", "-s", type=str, multiple=True,
-              help="Session(s) to render. Accepts numbers (3) and ranges (3-6). If omitted, renders all.")
-@click.option("--format", "-f", "fmt", type=click.Choice(["both", "obsidian", "github"]),
-              default="both", help="Which format(s) to generate.")
+@click.option("--agent", "-a", type=str, default=None)
+@click.option("--session", "-s", type=str, multiple=True)
+@click.option("--format", "-f", "fmt", type=click.Choice(["both", "obsidian", "github"]), default="both")
 def render(agent: str | None, session: tuple[str, ...], fmt: str) -> None:
     """Re-render readable logs from session JSON files."""
     from .renderer import save_readable_log, save_github_log
 
     sessions = parse_sessions(session)
 
-    # Find agent directories to process
     if agent:
         agent_dirs = [LOG_PATH / agent]
     else:
@@ -653,17 +459,12 @@ def render(agent: str | None, session: tuple[str, ...], fmt: str) -> None:
         if not agent_dir.exists():
             click.echo(f"No logs for {agent_dir.name}")
             continue
-
         json_dir = agent_dir / "json"
         if not json_dir.exists():
-            click.echo(f"No JSON logs for {agent_dir.name}")
             continue
         log_files = sorted(json_dir.glob("session_*.json"))
         if sessions:
-            log_files = [
-                f for f in log_files
-                if int(f.stem.split("_")[1]) in sessions
-            ]
+            log_files = [f for f in log_files if int(f.stem.split("_")[1]) in sessions]
 
         for log_file in log_files:
             try:
@@ -677,7 +478,6 @@ def render(agent: str | None, session: tuple[str, ...], fmt: str) -> None:
                 click.echo(f"  {agent_dir.name}/{log_file.name} FAILED: {e}", err=True)
 
     click.echo(f"\nRendered {rendered} session(s).")
-
 
 
 if __name__ == "__main__":

@@ -23,9 +23,64 @@ from orchestrator.memory.summariser import (
     RECENT_WINDOW,
 )
 from orchestrator.memory.context_builder import build_session_context
-from orchestrator.session_runner import get_next_session_number, get_last_location, START_LOCATIONS
+from orchestrator.session_runner import (
+    get_next_session_number,
+    get_last_location,
+    resolve_agent_config,
+)
 
 from tests.helpers import write_session_log
+
+
+# Minimal test config matching the real agents.yaml structure
+_TEST_CONFIG = {
+    "agents": {
+        "defaults": {
+            "nudge": "...",
+            "founding_prompt": "founding",
+            "system_prompt": None,
+            "place": "place",
+            "extended_thinking": True,
+            "active": True,
+            "session": {
+                "turn_budget": 17,
+                "dusk_threshold": 14,
+                "max_output_tokens": 4096,
+                "context_limit": 180000,
+                "cost_limit": 3.00,
+            },
+            "compression": {
+                "enabled": True,
+                "model": "claude-opus-4-6",
+                "recent_window": 2,
+                "days_per_week": 7,
+            },
+        },
+        "agents": {
+            "claude": {
+                "provider": "claude",
+                "model": "claude-opus-4-6",
+                "start_location": "here",
+            },
+            "gemini": {
+                "provider": "gemini",
+                "model": "gemini-2.5-pro",
+                "start_location": "there",
+                "extended_thinking": False,
+            },
+            "deepseek": {
+                "provider": "deepseek",
+                "model": "deepseek-v3.2",
+                "start_location": "somewhere",
+                "extended_thinking": False,
+                "active": False,
+            },
+        },
+    },
+    "prompts": {
+        "founding": "You are: {location}",
+    },
+}
 
 
 class TestBuildAgentMemory:
@@ -148,24 +203,31 @@ class TestSessionRunnerHelpers:
 
 
 class TestStartLocations:
-    """Per-agent starting locations."""
+    """Per-agent starting locations from the agent registry."""
 
     def test_claude_starts_at_here(self):
-        assert START_LOCATIONS["claude"] == "here"
+        ac = resolve_agent_config("claude", _TEST_CONFIG)
+        assert ac["start_location"] == "here"
 
     def test_gemini_starts_at_there(self):
-        assert START_LOCATIONS["gemini"] == "there"
+        ac = resolve_agent_config("gemini", _TEST_CONFIG)
+        assert ac["start_location"] == "there"
 
     def test_deepseek_starts_at_somewhere(self):
-        assert START_LOCATIONS["deepseek"] == "somewhere"
+        ac = resolve_agent_config("deepseek", _TEST_CONFIG)
+        assert ac["start_location"] == "somewhere"
 
     def test_all_agents_have_start_locations(self):
         for agent in ["claude", "gemini", "deepseek"]:
-            assert agent in START_LOCATIONS
-            assert START_LOCATIONS[agent] is not None
+            ac = resolve_agent_config(agent, _TEST_CONFIG)
+            assert "start_location" in ac
+            assert ac["start_location"] is not None
 
     def test_all_start_locations_unique(self):
-        locations = list(START_LOCATIONS.values())
+        locations = [
+            resolve_agent_config(a, _TEST_CONFIG)["start_location"]
+            for a in ["claude", "gemini", "deepseek"]
+        ]
         assert len(locations) == len(set(locations))
 
 
@@ -174,11 +236,11 @@ class TestStartingSpaceCreation:
 
     def test_starting_space_created_if_missing(self, place_path: Path):
         """Running session 1 for Gemini creates there.md."""
-        from orchestrator.place.notes import build_space_note
         there = place_path / "there.md"
         assert not there.exists()
 
-        start_location = START_LOCATIONS["gemini"]
+        ac = resolve_agent_config("gemini", _TEST_CONFIG)
+        start_location = ac["start_location"]
         start_note = place_path / f"{start_location}.md"
         if not start_note.exists():
             start_note.write_text(
@@ -202,7 +264,8 @@ class TestStartingSpaceCreation:
         here = place_path / "here.md"
         original = here.read_text(encoding="utf-8")
 
-        start_location = START_LOCATIONS["claude"]
+        ac = resolve_agent_config("claude", _TEST_CONFIG)
+        start_location = ac["start_location"]
         start_note = place_path / f"{start_location}.md"
         if not start_note.exists():
             start_note.write_text("should not happen", encoding="utf-8")

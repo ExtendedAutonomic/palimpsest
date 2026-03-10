@@ -35,18 +35,81 @@ class SessionResult:
     memory_compressed: bool
 
 
-# Test model overrides — cheaper models for development
-TEST_MODELS = {
-    "claude": "claude-sonnet-4-5-20250929",
-    "gemini": "gemini-2.5-flash",
-}
+def _get_provider_class(provider: str) -> type[BaseAgent]:
+    """Lazy-import and return the agent class for a provider name.
 
-# Default starting locations per agent (used on session 1 only)
-START_LOCATIONS = {
-    "claude": "here",
-    "gemini": "there",
-    "deepseek": "somewhere",
-}
+    This is the only place that maps provider strings to classes.
+    To add a new provider, add a branch here.
+    """
+    if provider == "claude":
+        from .agents.claude_agent import ClaudeAgent
+        return ClaudeAgent
+    elif provider == "gemini":
+        from .agents.gemini_agent import GeminiAgent
+        return GeminiAgent
+    elif provider == "deepseek":
+        from .agents.deepseek_agent import DeepSeekAgent
+        return DeepSeekAgent
+    else:
+        available = "claude, gemini, deepseek"
+        raise ValueError(
+            f"Unknown provider: '{provider}'. Available: {available}."
+        )
+
+
+def _deep_merge(base: dict, override: dict) -> dict:
+    """Recursively merge override into base, returning a new dict.
+
+    Nested dicts are merged; all other values are replaced.
+    """
+    result = base.copy()
+    for key, value in override.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = _deep_merge(result[key], value)
+        else:
+            result[key] = value
+    return result
+
+
+def resolve_agent_config(agent_name: str, config: dict) -> dict:
+    """Resolve the full configuration for a named agent.
+
+    Merges: global defaults → agent-specific overrides.
+    Returns the agent's own config dict with all fields resolved.
+
+    Raises ValueError if the agent is not in the registry.
+    """
+    agents_config = config.get("agents", {})
+    defaults = agents_config.get("defaults", {})
+    agents = agents_config.get("agents", {})
+
+    if agent_name not in agents:
+        available = ", ".join(sorted(agents.keys())) if agents else "(none)"
+        raise ValueError(
+            f"Unknown agent: '{agent_name}'. "
+            f"Available agents: {available}. "
+            f"Define new agents in config/agents.yaml."
+        )
+
+    agent_specific = agents[agent_name]
+    return _deep_merge(defaults, agent_specific)
+
+
+def get_available_agents(config: dict) -> list[str]:
+    """Return list of agent names from the registry."""
+    agents_config = config.get("agents", {})
+    return sorted(agents_config.get("agents", {}).keys())
+
+
+def get_active_agents(config: dict) -> list[str]:
+    """Return list of active agent names from the registry."""
+    agents_config = config.get("agents", {})
+    defaults = agents_config.get("defaults", {})
+    agents = agents_config.get("agents", {})
+    return sorted(
+        name for name, ac in agents.items()
+        if _deep_merge(defaults, ac).get("active", True)
+    )
 
 
 def create_agent(
@@ -54,28 +117,39 @@ def create_agent(
     place_path: Path,
     log_path: Path,
     config: dict,
+    agent_config: dict,
     test: bool = False,
 ) -> BaseAgent:
-    """Create an agent instance by name."""
-    from .agents.claude_agent import ClaudeAgent
-    from .agents.gemini_agent import GeminiAgent
-    from .agents.deepseek_agent import DeepSeekAgent
+    """Create an agent instance by name using the registry.
 
-    agents = {
-        "claude": ClaudeAgent,
-        "gemini": GeminiAgent,
-        "deepseek": DeepSeekAgent,
+    Passes both config (shared resources like prompt templates) and
+    agent_config (per-agent settings) to the agent. The agent reads
+    per-agent settings from agent_config and shared resources from config.
+    """
+    provider = agent_config.get("provider")
+    if not provider:
+        raise ValueError(
+            f"Agent '{agent_name}' has no 'provider' field in agents.yaml."
+        )
+
+    agent_class = _get_provider_class(provider)
+
+    # Model: test model or production model from registry
+    if test:
+        model = agent_config.get("test_model") or agent_config.get("model")
+    else:
+        model = agent_config.get("model")
+
+    kwargs: dict = {
+        "place_path": place_path,
+        "log_path": log_path,
+        "config": config,
+        "agent_config": agent_config,
     }
+    if model:
+        kwargs["model"] = model
 
-    agent_class = agents.get(agent_name)
-    if not agent_class:
-        raise ValueError(f"Unknown agent: {agent_name}")
-
-    kwargs: dict = {"place_path": place_path, "log_path": log_path, "config": config}
-    if test and agent_name in TEST_MODELS:
-        kwargs["model"] = TEST_MODELS[agent_name]
-
-    return agent_class(**kwargs)
+    return agent_class(agent_name, **kwargs)
 
 
 def get_next_session_number(agent_name: str, log_path: Path) -> int:
@@ -121,6 +195,16 @@ def commit_place_changes(
         logger.warning(f"Failed to commit place changes: {e}")
 
 
+def resolve_place_path(agent_config: dict, project_root: Path) -> Path:
+    """Resolve the Place path for an agent from its config.
+
+    The 'place' field is relative to the project root.
+    Defaults to 'place' if not specified.
+    """
+    place_name = agent_config.get("place", "place")
+    return project_root / place_name
+
+
 async def run_session(
     agent_name: str,
     place_path: Path,
@@ -128,13 +212,15 @@ async def run_session(
     config: dict,
     session_override: int | None = None,
     test: bool = False,
+    project_root: Path | None = None,
 ) -> SessionResult:
     """
     Run a complete agent session.
 
     This is the main entry point for running sessions. It handles:
+    - Resolving agent config from the registry
     - Determining the session number
-    - Creating the agent
+    - Creating the agent (with both config and agent_config)
     - Building memory context
     - Running the session
     - Committing place changes to git
@@ -147,6 +233,13 @@ async def run_session(
     from .memory.summariser import run_memory_compression
     from .renderer import save_readable_log, save_github_log
 
+    # Resolve agent configuration from registry
+    agent_config = resolve_agent_config(agent_name, config)
+
+    # Resolve place path — CLI override takes precedence over registry
+    if project_root and place_path == project_root / "place":
+        place_path = resolve_place_path(agent_config, project_root)
+
     # Determine session number
     if session_override is not None:
         session_num = session_override
@@ -156,19 +249,23 @@ async def run_session(
     # Check the place exists
     if not place_path.exists() or not any(place_path.glob("*.md")):
         raise FileNotFoundError(
-            f"The place has not been initialised. Run 'palimpsest init' first."
+            f"The place at '{place_path}' has not been initialised. "
+            f"Run 'palimpsest init --agent {agent_name}' first."
         )
 
-    phase = config.get("schedule", {}).get("current_phase", 1)
+    phase = config.get("agents", {}).get("current_phase", 1)
 
     logger.info(f"Starting session {session_num} for {agent_name} (Phase {phase})")
 
-    # Create agent
-    agent = create_agent(agent_name, place_path, log_path, config, test=test)
+    # Create agent — receives both shared config and per-agent config
+    agent = create_agent(
+        agent_name, place_path, log_path, config,
+        agent_config=agent_config, test=test,
+    )
 
     # Build context (memory) for non-first sessions
     memory = None
-    start_location = START_LOCATIONS.get(agent_name, "here")
+    start_location = agent_config.get("start_location", "here")
 
     # Ensure starting space exists (creates it on first run for each agent)
     if session_num == 1 and start_location:
@@ -205,7 +302,6 @@ async def run_session(
 
     # Calculate and store cost in the log
     if log.model:
-        # Thinking tokens are billed at output rate (both Anthropic and Google)
         billable_output = log.total_output_tokens + log.total_thinking_tokens
         log.cost = calculate_cost(
             log.model,
@@ -221,12 +317,18 @@ async def run_session(
                 encoding="utf-8",
             )
 
-    # Safety net — individual actions are now committed during the
-    # session, but this catches anything that slipped through
+    # Safety net
     commit_place_changes(place_path, agent_name, session_num)
 
     # Run memory compression if needed
-    memory_compressed = await run_memory_compression(agent_name, log_path)
+    compression_config = agent_config.get("compression", {})
+    memory_compressed = await run_memory_compression(
+        agent_name, log_path,
+        compressor_model=compression_config.get("model"),
+        recent_window=compression_config.get("recent_window"),
+        days_per_week=compression_config.get("days_per_week"),
+        enabled=compression_config.get("enabled", True),
+    )
 
     # Generate readable logs (both formats)
     log_file = log_path / agent_name / "json" / f"session_{session_num:04d}.json"
