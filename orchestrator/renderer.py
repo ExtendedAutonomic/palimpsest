@@ -138,9 +138,11 @@ def _render_opening_with_memory(opening: str, agent: str, fmt: str) -> list[str]
     """
     lines = []
 
-    # Extract the location line from the end
-    location_match = re.search(r"You are at: (.+)", opening)
-    location = location_match.group(1).strip() if location_match else None
+    # Extract the location line — always the last occurrence, since
+    # raw session logs in memory may quote the location line in thinking
+    # blocks (e.g. 'They said "You are at: the green deep" - this is...')
+    location_matches = re.findall(r"You are at: (.+)", opening)
+    location = location_matches[-1].strip() if location_matches else None
 
     # Detect compressed memory by looking for Week headings
     has_compressed = bool(re.search(r"#{1,3}\s+Week\s+\d+", opening))

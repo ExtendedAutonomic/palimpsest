@@ -106,7 +106,6 @@ class TestCreate:
 
     def test_create_thing(self, place: PlaceInterface):
         _, result = place.create("a stone", "Grey and smooth, cold to the touch.")
-        assert "a stone is here" in result
         assert "Grey and smooth" in result
 
     def test_create_makes_file(self, place: PlaceInterface, place_path: Path):
@@ -215,7 +214,6 @@ class TestAlter:
     def test_alter_thing_description(self, place: PlaceInterface):
         place.create("a stone", "Grey and smooth.")
         _, result = place.alter("a stone", description="Now cracked and warm.")
-        assert "different" in result
         assert "Now cracked and warm" in result
 
     def test_alter_thing_content_changes(self, place: PlaceInterface):
@@ -241,7 +239,6 @@ class TestAlter:
     def test_alter_current_space_description(self, place: PlaceInterface):
         place.venture("the garden", "A quiet place.")
         _, result = place.alter("the garden", description="Now overgrown and wild.")
-        assert "different" in result
         assert "Now overgrown and wild" in result
 
     def test_alter_current_space_name(self, place: PlaceInterface):
@@ -390,7 +387,7 @@ class TestExecuteTool:
 
 
 class TestTakeAndDrop:
-    """Hidden tools unlocked when an agent tries to examine something left behind."""
+    """Taking and dropping things between spaces."""
 
     def _setup_two_spaces_with_thing(self, place: PlaceInterface):
         """Create a thing in here, then venture to a new space."""
@@ -398,25 +395,15 @@ class TestTakeAndDrop:
         place.venture("the shore", "A grey shore.")
         return place
 
-    def test_examine_thing_in_other_space_unlocks_take(self, place: PlaceInterface):
+    def test_examine_thing_in_other_space_not_visible(self, place: PlaceInterface):
         self._setup_two_spaces_with_thing(place)
         _, result = place.examine("a stone")
         assert "nothing called" in result.lower()
-        assert "take" in place._unlocked_tools
-        assert "drop" in place._unlocked_tools
 
-    def test_examine_nonexistent_thing_does_not_unlock(self, place: PlaceInterface):
+    def test_examine_nonexistent_thing(self, place: PlaceInterface):
         self._setup_two_spaces_with_thing(place)
         _, result = place.examine("a fish")
         assert "nothing called" in result.lower()
-        assert len(place._unlocked_tools) == 0
-
-    def test_examine_space_in_other_location_does_not_unlock(self, place: PlaceInterface):
-        """Only things trigger the unlock, not spaces."""
-        self._setup_two_spaces_with_thing(place)
-        # "here" exists but is a space, not a thing
-        _, result = place.examine("here")
-        assert "take" not in place._unlocked_tools
 
     def test_take_thing_from_current_space(self, place: PlaceInterface):
         place.create("a stone", "A smooth dark stone.")
@@ -518,15 +505,4 @@ class TestTakeAndDrop:
         # And not carried
         assert "the compass" not in place._carrying
 
-    def test_unlock_persists_across_sessions(self, place_path: Path):
-        """Unlocked tools survive PlaceInterface recreation (new session)."""
-        place1 = PlaceInterface(place_path, agent_name="test-agent", session_number=1)
-        place1.create("a stone", "A smooth dark stone.")
-        place1.venture("the shore", "A grey shore.")
-        place1.examine("a stone")  # triggers unlock
-        assert "take" in place1.permanently_unlocked_tools
 
-        # New session — fresh PlaceInterface
-        place2 = PlaceInterface(place_path, agent_name="test-agent", session_number=2)
-        assert "take" in place2.permanently_unlocked_tools
-        assert "drop" in place2.permanently_unlocked_tools

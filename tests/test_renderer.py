@@ -84,7 +84,7 @@ class TestRenderSessionMarkdown:
         log_file.write_text(json.dumps(log_data), encoding="utf-8")
 
         md = render_session_markdown(log_file)
-        assert "[[logs/claude/obsidian_logs/session_0001|Day 1]]" in md
+        assert "[[session_0001|Day 1]]" in md
         assert "> You are at: here" in md
         # Full memory content should NOT appear
         assert "I explored the place." not in md
@@ -93,7 +93,7 @@ class TestRenderSessionMarkdown:
         log_data = make_session_log(session_number=7)
         log_data["opening_prompt"] = (
             "## Memory\n\n---\n\n"
-            "### Days 1\u20133\n\ncompressed stuff\n\n---\n\n"
+            "### Week 1 (Days 1\u20133)\n\ncompressed stuff\n\n---\n\n"
             "### Day 4\n\nfull log 4\n\n---\n\n"
             "### Day 5\n\nfull log 5\n\n---\n\n"
             "### Day 6\n\nfull log 6\n\n"
@@ -103,10 +103,10 @@ class TestRenderSessionMarkdown:
         log_file.write_text(json.dumps(log_data), encoding="utf-8")
 
         md = render_session_markdown(log_file)
-        assert "[[logs/claude/compressed_memory|Days 1\u20133 (compressed)]]" in md
-        assert "[[logs/claude/obsidian_logs/session_0004|Day 4]]" in md
-        assert "[[logs/claude/obsidian_logs/session_0005|Day 5]]" in md
-        assert "[[logs/claude/obsidian_logs/session_0006|Day 6]]" in md
+        assert "[[compressed_memory|Compressed Memories]]" in md
+        assert "[[session_0004|Day 4]]" in md
+        assert "[[session_0005|Day 5]]" in md
+        assert "[[session_0006|Day 6]]" in md
         assert "> You are at: the garden" in md
         assert "compressed stuff" not in md
         assert "full log 4" not in md
@@ -126,9 +126,9 @@ class TestRenderSessionMarkdown:
         log_file.write_text(json.dumps(log_data), encoding="utf-8")
 
         md = render_session_markdown(log_file)
-        assert "[[logs/claude/compressed_memory|Days 1\u20138 (compressed)]]" in md
-        assert "[[logs/claude/obsidian_logs/session_0009|Day 9]]" in md
-        assert "[[logs/claude/obsidian_logs/session_0010|Day 10]]" in md
+        assert "[[compressed_memory|Compressed Memories]]" in md
+        assert "[[session_0009|Day 9]]" in md
+        assert "[[session_0010|Day 10]]" in md
         assert "first week summary" not in md.lower()  # compressed body not shown
         # "Day 8" from inside compressed memory should not appear as raw link
         assert "session_0008" not in md

@@ -20,12 +20,12 @@ from orchestrator.place.tools import (
 class TestCanonicalTools:
     """The canonical tool definitions are well-formed."""
 
-    def test_six_tools_defined(self):
-        assert len(AGENT_TOOLS) == 6
+    def test_eight_tools_defined(self):
+        assert len(AGENT_TOOLS) == 8
 
     def test_tool_names(self):
         names = [t["name"] for t in AGENT_TOOLS]
-        assert names == ["perceive", "go", "venture", "examine", "create", "alter"]
+        assert names == ["perceive", "go", "venture", "examine", "create", "alter", "take", "drop"]
 
     def test_tools_have_no_descriptions(self):
         """Minimal experiment: tools have no descriptions."""
@@ -48,7 +48,7 @@ class TestAnthropicConversion:
 
     def test_converts_all_tools(self):
         converted = convert_tools_anthropic()
-        assert len(converted) == 6
+        assert len(converted) == 8
 
     def test_has_input_schema(self):
         converted = convert_tools_anthropic()
@@ -82,7 +82,7 @@ class TestOpenAIConversion:
 
     def test_converts_all_tools(self):
         converted = convert_tools_openai()
-        assert len(converted) == 6
+        assert len(converted) == 8
 
     def test_has_function_wrapper(self):
         converted = convert_tools_openai()
@@ -152,13 +152,13 @@ class TestGeminiConversion:
         # Returns a list containing one Tool object with function_declarations
         assert len(converted) == 1
         declarations = converted[0].function_declarations
-        assert len(declarations) == 6
+        assert len(declarations) == 8
 
     def test_tool_names_match(self):
         from orchestrator.place.tools import convert_tools_gemini
         converted = convert_tools_gemini()
         names = [fd.name for fd in converted[0].function_declarations]
-        assert names == ["perceive", "go", "venture", "examine", "create", "alter"]
+        assert names == ["perceive", "go", "venture", "examine", "create", "alter", "take", "drop"]
 
     def test_perceive_has_no_parameters(self):
         from orchestrator.place.tools import convert_tools_gemini
