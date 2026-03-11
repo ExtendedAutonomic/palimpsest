@@ -155,13 +155,14 @@ The agent receives tool names and parameter names only — no descriptions. What
 
 \* Optional on `alter`; at least one required.
 
+
 ---
 
 ## Memory Architecture
 
 Each session ends with a reflect prompt. The reflection is stored and fed back at the start of the next session.
 
-**Memory format:** Rendered session logs under `### Day N` headings with `---` separators. The last 2 sessions are given in full. Older sessions are compressed in batches of 3 using Opus with a minimal first-person compression prompt. Compressed batches appear as `### Days N–M`.
+**Memory format:** Rendered session logs under `### Day N` headings with `---` separators. The last 2 sessions are given in full. Older sessions are compressed using a rolling system: after each session, the oldest uncompressed day is woven into the existing compressed memory one at a time. The agent always sees exactly 2 raw days plus the compressed history. Compressed memory is organised by week under `### Week N (Days X–Y)` headings.
 
 **What the rendered log contains:** Agent text, tool calls (names and arguments), tool results, dusk prompt, reflect prompt, and the agent's reflection. Thinking tokens are included in logs and visible to the narrator and experimenter, but not fed back to the agent as memory.
 
@@ -353,7 +354,7 @@ palimpsest/
 │   └── timeline.py             # Show chronological session timeline
 ├── config/
 │   ├── prompts.yaml            # All agent prompts
-│   ├── schedule.yaml           # Session parameters
+│   ├── agents.yaml             # Agent registry, session parameters, compression settings
 │   └── costs.yaml              # Budget tracking
 ├── logs/                       # Session logs — local only, gitignored
 │   ├── {agent}/
@@ -428,7 +429,7 @@ Projected daily costs range from ~$1 (Phase 1) to ~$2.60 (Phase 4). Total cost d
 Key configuration in `config/`:
 
 - **`prompts.yaml`** — All agent prompts: founding, identity, dusk, reflect, nudge (configurable), narrator, experimenter
-- **`schedule.yaml`** — Turn budgets, dusk threshold, per-session cost limit ($3), context window limit (180K)
+- **`agents.yaml`** — Agent registry (provider, model, per-agent overrides), session parameters (turn budget, dusk threshold, cost/context limits), compression settings
 - **`costs.yaml`** — Per-model pricing for cost tracking
 
 Safety limits: dusk triggers early if the session approaches the context window limit or the cost cap. Extended thinking token counts are tracked separately in session logs.
