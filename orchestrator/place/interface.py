@@ -228,10 +228,6 @@ class PlaceInterface:
     def perceive(self) -> tuple[bool, str]:
         """Take in surroundings."""
         note = self._read_note(self._current_location)
-        if not note:
-            return False, "There is nothing here."
-        if note.note_type != "space":
-            return False, "This is not a space."
 
         parts = []
 
@@ -259,25 +255,16 @@ class PlaceInterface:
         self._sanitise_name(where, "You must say where.")
 
         note = self._read_note(self._current_location)
-        if not note:
-            return False, "You cannot go anywhere from here."
 
-        # Check things first — "a stone" is here but it's not a space,
-        # which is a different situation from "nowhere" not existing at all
         if where in note.things:
             return False, f"\"{where}\" is not a space."
 
         if where not in note.spaces:
             return False, f"There is no space called \"{where}\" connected to this space."
 
-        target = self._read_note(where)
-        if not target:
-            return False, f"There is no space called \"{where}\" connected to here."
-        if target.note_type != "space":
-            return False, f"\"{where}\" is not a space."
-
         self.current_location = where
-        desc = target.description
+        target = self._read_note(where)
+        desc = target.description if target else None
         if desc:
             return True, f"You are now at {where}. {desc}"
         return True, f"You are now at {where}."
@@ -301,12 +288,13 @@ class PlaceInterface:
                 # The message depends on who created this space
                 return (
                     True,
-                    f"{name} already exists. You are now at {name}. "
-                    f"A path from {origin} now leads to this space."
+                    f"{name} already exists — you did not make this space. "
+                    f"A path from {origin} opens up to this space. "
+                    f"You are now at {name}. {existing.description}"
                 )
             else:
                 # A thing with this name exists — can't create a space over it
-                return False, f"Something called \"{name}\" already exists."
+                return False, f"You cannot — something called \"{name}\" already exists elsewhere."
 
         # Create the new space note
         fm = self._make_frontmatter("space")
@@ -329,19 +317,13 @@ class PlaceInterface:
 
         if what == self._current_location:
             note = self._read_note(what)
-            if not note:
-                return False, "There is nothing to perceive."
             return True, (note.description if note.description else "This space has no particular quality yet.")
 
         current = self._read_note(self._current_location)
-        if not current:
-            return False, "You cannot make sense of where you are."
 
         if what in current.things:
             note = self._read_note(what)
-            if not note:
-                return False, f"There is nothing called \"{what}\" here."
-            return True, (note.description if note.description else "It is blank. There is nothing to perceive.")
+            return True, note.description
 
         if what in current.spaces:
             return False, "You are not in that space."
@@ -349,9 +331,7 @@ class PlaceInterface:
         # Check carried things
         if what in self._carrying:
             note = self._read_note(what)
-            if not note:
-                return False, f"There is nothing called \"{what}\" here."
-            return True, (note.description if note.description else "It is blank. There is nothing to perceive.")
+            return True, note.description
 
         return False, f"There is nothing called \"{what}\" here."
 
@@ -363,7 +343,7 @@ class PlaceInterface:
             return False, "You must describe it."
 
         if self._note_exists(name):
-            return False, f"Something called \"{name}\" already exists."
+            return False, f"You cannot — something called \"{name}\" already exists elsewhere."
 
         fm = self._make_frontmatter("thing")
         self._write_note(name, build_thing_note(description, fm))
@@ -384,8 +364,6 @@ class PlaceInterface:
             return self._alter_current_space(description, name)
 
         current = self._read_note(self._current_location)
-        if not current:
-            return False, "You cannot make sense of where you are."
 
         if what in current.things:
             return self._alter_thing(what, description, name)
@@ -393,13 +371,11 @@ class PlaceInterface:
         if what in current.spaces:
             return False, "You are not in that space."
 
-        return False, f"There is nothing called \"{what}\"."
+        return False, f"There is nothing called \"{what}\" here."
 
     def _alter_current_space(self, description: str | None, name: str | None) -> tuple[bool, str]:
         """Alter the space the agent is currently in."""
         note = self._read_note(self._current_location)
-        if not note:
-            return False, "You cannot alter that."
 
         try:
             parts = []
@@ -411,7 +387,7 @@ class PlaceInterface:
 
             if name:
                 if self._note_exists(name):
-                    return False, f"Something called \"{name}\" already exists."
+                    return False, f"You cannot — the name \"{name}\" is already taken."
                 old_name = self._current_location
                 old_ctime = _get_creation_time_ns(self._note_path(old_name))
                 # Track rename history in frontmatter
@@ -450,8 +426,6 @@ class PlaceInterface:
     def _alter_thing(self, what: str, description: str | None, name: str | None) -> tuple[bool, str]:
         """Alter a thing in the current space."""
         note = self._read_note(what)
-        if not note:
-            return False, f"There is nothing called \"{what}\" here to alter."
 
         try:
             parts = []
@@ -463,7 +437,7 @@ class PlaceInterface:
 
             if name:
                 if self._note_exists(name):
-                    return False, f"Something called \"{name}\" already exists."
+                    return False, f"You cannot — something called \"{name}\" already exists elsewhere."
                 old_name = what
                 old_ctime = _get_creation_time_ns(self._note_path(old_name))
                 # Track rename history in frontmatter
@@ -517,8 +491,6 @@ class PlaceInterface:
             return False, f"You already have {what} with you."
 
         current = self._read_note(self._current_location)
-        if not current:
-            return False, "You cannot make sense of where you are."
 
         if what not in current.things:
             return False, f"There is nothing called \"{what}\" here to take."
@@ -553,7 +525,6 @@ class PlaceInterface:
             ToolName.EXAMINE: lambda args: self.examine(args["what"]),
             ToolName.CREATE: lambda args: self.create(args["name"], args["description"]),
             ToolName.ALTER: lambda args: self.alter(args["what"], args.get("description"), args.get("name")),
-            # Hidden tools — unlocked through play
             ToolName.TAKE: lambda args: self.take(args["what"]),
             ToolName.DROP: lambda args: self.drop(args["what"]),
         }
