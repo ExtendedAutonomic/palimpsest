@@ -467,7 +467,7 @@ class TestTakeAndDrop:
         here_note = place._read_note("here")
         assert "a stone" not in here_note.things
         # Linked from Inventory
-        inv_note = place._read_note("Inventory")
+        inv_note = place._read_note("inventory_test-agent")
         assert inv_note is not None
         assert "a stone" in inv_note.things
 
@@ -482,7 +482,7 @@ class TestTakeAndDrop:
         here_note = place._read_note("here")
         assert "a stone" not in here_note.things
         # No longer in Inventory
-        inv_note = place._read_note("Inventory")
+        inv_note = place._read_note("inventory_test-agent")
         assert "a stone" not in inv_note.things
 
     def test_full_journey_take_carry_drop(self, place: PlaceInterface):
