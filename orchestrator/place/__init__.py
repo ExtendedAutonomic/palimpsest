@@ -1,7 +1,7 @@
 """The place — spatial environment for agents."""
 
 from .interface import PlaceInterface
-from .notes import ParsedNote, parse_note, build_space_note, build_thing_note
+from .notes import ParsedNote, parse_note, build_space_note, build_inventory_note, build_thing_note
 from .tools import (
     ToolName,
     ToolCall,
@@ -16,6 +16,7 @@ __all__ = [
     "ParsedNote",
     "parse_note",
     "build_space_note",
+    "build_inventory_note",
     "build_thing_note",
     "ToolName",
     "ToolCall",

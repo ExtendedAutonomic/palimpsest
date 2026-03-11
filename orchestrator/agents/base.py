@@ -131,6 +131,7 @@ class SessionLog:
                         {
                             "tool": tc.tool,
                             "arguments": tc.arguments,
+                            "filenames": tc.filenames,
                             "result": tc.result,
                             "success": tc.success,
                             "error": tc.error,
@@ -248,12 +249,14 @@ class BaseAgent(ABC):
                 # If the key isn't in prompts.yaml, treat it as an inline prompt
                 default=founding_key if founding_key != "founding" else "You are: {location}",
             )
-            opening = founding_template.format(location=self.place.current_location)
+            location_display = self.place.display_name(self.place.current_location)
+            opening = founding_template.format(location=location_display)
         else:
             identity_template = self._get_prompt("identity", "")
+            location_display = self.place.display_name(self.place.current_location)
             opening = identity_template.format(
                 memory=memory or "",
-                location=self.place.current_location,
+                location=location_display,
             )
 
         self._session_log.opening_prompt = opening

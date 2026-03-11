@@ -7,6 +7,13 @@ to connected spaces and things. The agent navigates by following links.
 
 All responses are written in the language of the place, never in
 filesystem or markdown terminology.
+
+Display names: agents see and use "display names" which default to the
+filename but can be overridden via a `name` field in frontmatter.
+This decouples the agent's experience from the filesystem, allowing
+multiple notes to share the same display name (e.g. three agents each
+having a space called "here") while remaining distinct files in the
+Place directory and distinct nodes in the Obsidian graph.
 """
 
 from __future__ import annotations
@@ -16,7 +23,10 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from .notes import ParsedNote, parse_note, build_space_note, build_thing_note
+from .notes import (
+    ParsedNote, parse_note,
+    build_space_note, build_inventory_note, build_thing_note,
+)
 from .tools import ToolCall, ToolName
 
 logger = logging.getLogger(__name__)
@@ -77,10 +87,12 @@ class PlaceInterface:
 
     def __init__(self, place_path: Path, agent_name: str = "", session_number: int = 0):
         self.place_path = place_path.resolve()
-        self._current_location: str | None = None
+        self._current_location: str | None = None  # Always a filename
         self._agent_name = agent_name
         self._session_number = session_number
-        self._carrying: list[str] = []  # Things the agent is carrying
+        self._carrying: list[str] = []  # Filenames of things being carried
+        self._inventory_name = f"inventory_{agent_name}" if agent_name else "Inventory"
+        self._last_resolved: dict[str, str] = {}  # Populated by handlers for ToolCall.filenames
 
     @property
     def current_location(self) -> str:
@@ -95,6 +107,59 @@ class PlaceInterface:
             self._set_occupant(value)
         else:
             self._current_location = value
+
+    # -------------------------------------------------------------------
+    # Display name system
+    # -------------------------------------------------------------------
+
+    def display_name(self, filename: str) -> str:
+        """Get the agent-visible name for a filename.
+
+        Returns the `name` field from frontmatter if present,
+        otherwise the filename itself. This is the name the agent
+        sees in perceive output and uses in tool arguments.
+        """
+        note = self._read_note(filename)
+        if note:
+            return note.frontmatter.get("name", filename)
+        return filename
+
+    def _resolve_in_scope(self, name: str, filenames: list[str]) -> str | None:
+        """Find the filename whose display name matches, from a scoped list.
+
+        Used for go, examine, take, drop — where the agent references
+        something connected to or present in the current space.
+        Returns the filename, or None if no match.
+        """
+        # Direct filename match first (most common case — no name override)
+        if name in filenames:
+            return name
+        # Check display name overrides
+        for fn in filenames:
+            if self.display_name(fn) == name:
+                return fn
+        return None
+
+    def _find_by_display_name(self, name: str) -> list[tuple[str, int, str]]:
+        """Find all notes with a given display name.
+
+        Returns list of (filename, created_session, note_type) tuples,
+        sorted oldest first by created_session.
+        """
+        matches = []
+        for path in self.place_path.glob("*.md"):
+            fn = path.stem
+            if self.display_name(fn) == name:
+                note = self._read_note(fn)
+                if note:
+                    session = note.frontmatter.get("created_session", 0)
+                    matches.append((fn, session, note.note_type))
+        matches.sort(key=lambda x: x[1])  # oldest first
+        return matches
+
+    # -------------------------------------------------------------------
+    # Occupant tracking
+    # -------------------------------------------------------------------
 
     def _set_occupant(self, location: str) -> None:
         """Mark a space as occupied by this agent in its frontmatter."""
@@ -117,6 +182,10 @@ class PlaceInterface:
         self._write_note(location, build_space_note(
             note.description, note.spaces, note.things, fm
         ))
+
+    # -------------------------------------------------------------------
+    # File operations
+    # -------------------------------------------------------------------
 
     @staticmethod
     def _sanitise_name(name: str, empty_message: str = "You must give it a name.") -> str:
@@ -144,7 +213,7 @@ class PlaceInterface:
         return path
 
     def _note_exists(self, name: str) -> bool:
-        """Check if a note exists."""
+        """Check if a note file exists."""
         return self._note_path(name).exists()
 
     def _read_note(self, name: str) -> ParsedNote | None:
@@ -183,7 +252,7 @@ class PlaceInterface:
     def _add_link(self, space_name: str, target_name: str, section: str) -> None:
         """Add a wiki link to a space note's Spaces or Things section."""
         note = self._read_note(space_name)
-        if not note or note.note_type != "space":
+        if not note or note.note_type not in ("space", "inventory"):
             return
 
         if section == "Spaces" and target_name not in note.spaces:
@@ -192,23 +261,33 @@ class PlaceInterface:
             note.things.append(target_name)
 
         fm = self._update_frontmatter(note.frontmatter)
-        self._write_note(space_name, build_space_note(
-            note.description, note.spaces, note.things, fm
-        ))
+        if note.note_type == "inventory":
+            self._write_note(space_name, build_inventory_note(
+                note.things, fm
+            ))
+        else:
+            self._write_note(space_name, build_space_note(
+                note.description, note.spaces, note.things, fm
+            ))
 
     def _remove_link(self, space_name: str, target_name: str) -> None:
-        """Remove a wiki link from a space note."""
+        """Remove a wiki link from a space or inventory note."""
         note = self._read_note(space_name)
-        if not note or note.note_type != "space":
+        if not note or note.note_type not in ("space", "inventory"):
             return
 
         note.spaces = [s for s in note.spaces if s != target_name]
         note.things = [t for t in note.things if t != target_name]
 
         fm = self._update_frontmatter(note.frontmatter)
-        self._write_note(space_name, build_space_note(
-            note.description, note.spaces, note.things, fm
-        ))
+        if note.note_type == "inventory":
+            self._write_note(space_name, build_inventory_note(
+                note.things, fm
+            ))
+        else:
+            self._write_note(space_name, build_space_note(
+                note.description, note.spaces, note.things, fm
+            ))
 
     def _rename_all_links(self, old_name: str, new_name: str) -> None:
         """Update all wiki links across all notes in the place."""
@@ -228,42 +307,55 @@ class PlaceInterface:
     def perceive(self) -> tuple[bool, str]:
         """Take in surroundings."""
         note = self._read_note(self._current_location)
+        self._last_resolved = {}
 
         parts = []
 
-        # Space name always comes first
-        parts.append(self._current_location)
+        # Space name — display name, not filename
+        parts.append(self.display_name(self._current_location))
 
         if note.description:
             parts.append(note.description)
 
-        if note.spaces and note.things:
-            parts.append("This space is connected to: " + ", ".join(note.spaces))
-            parts.append("There are things here: " + ", ".join(note.things))
-        elif note.spaces:
-            parts.append("This space is connected to: " + ", ".join(note.spaces))
-        elif note.things:
-            parts.append("There are things here: " + ", ".join(note.things))
+        # Connected spaces and things — display names
+        space_names = [self.display_name(s) for s in note.spaces]
+        thing_names = [self.display_name(t) for t in note.things]
+
+        if space_names and thing_names:
+            parts.append("This space is connected to: " + ", ".join(space_names))
+            parts.append("There are things here: " + ", ".join(thing_names))
+        elif space_names:
+            parts.append("This space is connected to: " + ", ".join(space_names))
+        elif thing_names:
+            parts.append("There are things here: " + ", ".join(thing_names))
 
         if self._carrying:
-            parts.append("You are carrying: " + ", ".join(self._carrying))
+            carry_names = [self.display_name(c) for c in self._carrying]
+            parts.append("You are carrying: " + ", ".join(carry_names))
 
         return True, "\n\n".join(parts)
 
     def go(self, where: str) -> tuple[bool, str]:
         """Move to a connected space."""
         self._sanitise_name(where, "You must say where.")
+        self._last_resolved = {}
 
         note = self._read_note(self._current_location)
 
-        if where in note.things:
+        # Check if it's a thing (by display name)
+        thing_fn = self._resolve_in_scope(where, note.things)
+        if thing_fn:
+            self._last_resolved = {"where": thing_fn}
             return False, f"\"{where}\" is not a space."
 
-        if where not in note.spaces:
+        # Check if it's a connected space (by display name)
+        space_fn = self._resolve_in_scope(where, note.spaces)
+        if not space_fn:
             return False, f"There is no space called \"{where}\" connected to this space."
 
-        self.current_location = where
-        target = self._read_note(where)
+        self._last_resolved = {"where": space_fn}
+        self.current_location = space_fn
+        target = self._read_note(space_fn)
         desc = target.description if target else None
         if desc:
             return True, f"You are now at {where}. {desc}"
@@ -272,35 +364,63 @@ class PlaceInterface:
     def venture(self, name: str, description: str) -> tuple[bool, str]:
         """Go somewhere new — create a space and move into it."""
         self._sanitise_name(name)
+        self._last_resolved = {}
 
         if not description or not description.strip():
             return False, "You must describe it."
 
+        # Check for notes with this display name
+        matches = self._find_by_display_name(name)
+        space_matches = [(fn, s, t) for fn, s, t in matches if t == "space"]
+        thing_matches = [(fn, s, t) for fn, s, t in matches if t != "space"]
+
+        if space_matches:
+            # Collision: connect to the oldest matching space
+            filename = space_matches[0][0]
+            origin = self._current_location
+            origin_display = self.display_name(origin)
+            self._add_link(self._current_location, filename, "Spaces")
+            self._add_link(filename, self._current_location, "Spaces")
+            self.current_location = filename
+            existing = self._read_note(filename)
+            self._last_resolved = {"name": filename}
+            return (
+                True,
+                f"{name} already exists — you did not make this space. "
+                f"A path from {origin_display} opens up to this space. "
+                f"You are now at {name}. {existing.description}"
+            )
+
+        if thing_matches:
+            self._last_resolved = {"name": thing_matches[0][0]}
+            return False, f"You cannot — something called \"{name}\" already exists elsewhere."
+
+        # Also check for a file with this exact name but no display name match
+        # (shouldn't happen in practice, but defence in depth)
         if self._note_exists(name):
             existing = self._read_note(name)
             if existing and existing.note_type == "space":
-                # A space with this name already exists — connect and enter
                 origin = self._current_location
+                origin_display = self.display_name(origin)
                 self._add_link(self._current_location, name, "Spaces")
                 self._add_link(name, self._current_location, "Spaces")
                 self.current_location = name
-
-                # The message depends on who created this space
+                self._last_resolved = {"name": name}
                 return (
                     True,
                     f"{name} already exists — you did not make this space. "
-                    f"A path from {origin} opens up to this space. "
+                    f"A path from {origin_display} opens up to this space. "
                     f"You are now at {name}. {existing.description}"
                 )
             else:
-                # A thing with this name exists — can't create a space over it
+                self._last_resolved = {"name": name}
                 return False, f"You cannot — something called \"{name}\" already exists elsewhere."
 
         # Create the new space note
         fm = self._make_frontmatter("space")
         self._write_note(name, build_space_note(
             description,
-            spaces=[self._current_location],  # Link back
+            spaces=[self._current_location],  # Wiki link uses filename
             things=[],
             frontmatter=fm,
         ))
@@ -309,28 +429,40 @@ class PlaceInterface:
         self._add_link(self._current_location, name, "Spaces")
 
         self.current_location = name
+        self._last_resolved = {"name": name}
         return True, f"You are now at {name}. {description}"
 
     def examine(self, what: str) -> tuple[bool, str]:
         """Look closely at something."""
         self._sanitise_name(what, "You must say what.")
+        self._last_resolved = {}
 
-        if what == self._current_location:
-            note = self._read_note(what)
+        # Check if examining current location (by display name)
+        if self.display_name(self._current_location) == what:
+            note = self._read_note(self._current_location)
+            self._last_resolved = {"what": self._current_location}
             return True, (note.description if note.description else "This space has no particular quality yet.")
 
         current = self._read_note(self._current_location)
 
-        if what in current.things:
-            note = self._read_note(what)
+        # Check things in current space
+        thing_fn = self._resolve_in_scope(what, current.things)
+        if thing_fn:
+            note = self._read_note(thing_fn)
+            self._last_resolved = {"what": thing_fn}
             return True, note.description
 
-        if what in current.spaces:
+        # Check connected spaces
+        space_fn = self._resolve_in_scope(what, current.spaces)
+        if space_fn:
+            self._last_resolved = {"what": space_fn}
             return False, "You are not in that space."
 
         # Check carried things
-        if what in self._carrying:
-            note = self._read_note(what)
+        carried_fn = self._resolve_in_scope(what, self._carrying)
+        if carried_fn:
+            note = self._read_note(carried_fn)
+            self._last_resolved = {"what": carried_fn}
             return True, note.description
 
         return False, f"There is nothing called \"{what}\" here."
@@ -338,17 +470,25 @@ class PlaceInterface:
     def create(self, name: str, description: str) -> tuple[bool, str]:
         """Create something in the current space."""
         self._sanitise_name(name)
+        self._last_resolved = {}
 
         if not description or not description.strip():
             return False, "You must describe it."
 
+        # Check for file collision
         if self._note_exists(name):
+            return False, f"You cannot — something called \"{name}\" already exists elsewhere."
+
+        # Check for display name collision
+        matches = self._find_by_display_name(name)
+        if matches:
             return False, f"You cannot — something called \"{name}\" already exists elsewhere."
 
         fm = self._make_frontmatter("thing")
         self._write_note(name, build_thing_note(description, fm))
         self._add_link(self._current_location, name, "Things")
 
+        self._last_resolved = {"name": name}
         return True, description
 
     def alter(self, what: str, description: str | None = None, name: str | None = None) -> tuple[bool, str]:
@@ -356,19 +496,32 @@ class PlaceInterface:
         self._sanitise_name(what, "You must say what.")
         if name:
             self._sanitise_name(name)
+        self._last_resolved = {}
 
         if not description and not name:
             return False, "You must specify how it changes."
 
-        if what == self._current_location:
+        # Check if altering current space (by display name)
+        if self.display_name(self._current_location) == what:
+            self._last_resolved = {"what": self._current_location}
+            if name:
+                self._last_resolved["name"] = name
             return self._alter_current_space(description, name)
 
         current = self._read_note(self._current_location)
 
-        if what in current.things:
-            return self._alter_thing(what, description, name)
+        # Check things in current space
+        thing_fn = self._resolve_in_scope(what, current.things)
+        if thing_fn:
+            self._last_resolved = {"what": thing_fn}
+            if name:
+                self._last_resolved["name"] = name
+            return self._alter_thing(thing_fn, description, name)
 
-        if what in current.spaces:
+        # Check connected spaces
+        space_fn = self._resolve_in_scope(what, current.spaces)
+        if space_fn:
+            self._last_resolved = {"what": space_fn}
             return False, "You are not in that space."
 
         return False, f"There is nothing called \"{what}\" here."
@@ -382,24 +535,34 @@ class PlaceInterface:
             new_description = description if description else note.description
             fm = self._update_frontmatter(note.frontmatter)
 
-            if description and not name:
-                pass  # Action line already says what changed
-
             if name:
-                if self._note_exists(name):
+                # Check for display name collision
+                matches = self._find_by_display_name(name)
+                # Exclude self from collision check
+                matches = [(fn, s, t) for fn, s, t in matches if fn != self._current_location]
+                if matches:
                     return False, f"You cannot — the name \"{name}\" is already taken."
+                # Check for file collision
+                if name != self._current_location and self._note_exists(name):
+                    return False, f"You cannot — the name \"{name}\" is already taken."
+
                 old_name = self._current_location
+                old_display = self.display_name(old_name)
                 old_ctime = _get_creation_time_ns(self._note_path(old_name))
-                # Track rename history in frontmatter
+
+                # Track rename history in frontmatter (using display names)
                 prev = fm.get("previously", [])
                 if isinstance(prev, str):
                     prev = [prev]
                 desc = note.description.strip() if note.description else ""
-                entry = f"{old_name}: {desc}" if desc else old_name
+                entry = f"{old_display}: {desc}" if desc else old_display
                 prev.append(entry)
                 fm["previously"] = prev
-                # Rename first, then overwrite — git tracks the rename
-                # and preserves version history
+
+                # Remove name override if present — the new filename IS the display name
+                fm.pop("name", None)
+
+                # Rename file, then overwrite
                 self._note_path(old_name).rename(self._note_path(name))
                 self._write_note(name, build_space_note(
                     new_description, note.spaces, note.things, fm
@@ -408,13 +571,13 @@ class PlaceInterface:
                 if old_ctime is not None:
                     _set_creation_time(self._note_path(name), old_ctime)
                 self._current_location = name
+                self._last_resolved["name"] = name
                 parts.append(f"This space is now called {name}.")
             else:
                 self._write_note(self._current_location, build_space_note(
                     new_description, note.spaces, note.things, fm
                 ))
 
-            # Description at the end — the settling state after any rename
             if description:
                 parts.append(description)
 
@@ -423,43 +586,60 @@ class PlaceInterface:
             logger.exception("Error altering space")
             return False, "You cannot alter that."
 
-    def _alter_thing(self, what: str, description: str | None, name: str | None) -> tuple[bool, str]:
-        """Alter a thing in the current space."""
-        note = self._read_note(what)
+    def _alter_thing(self, filename: str, description: str | None, name: str | None) -> tuple[bool, str]:
+        """Alter a thing in the current space.
+
+        Note: `filename` is the resolved filename, not the display name.
+        The display name was already resolved by the caller.
+        """
+        note = self._read_note(filename)
 
         try:
             parts = []
             new_description = description if description else note.description
             fm = self._update_frontmatter(note.frontmatter)
 
-            if description and not name:
-                pass  # Action line already says what changed
-
             if name:
-                if self._note_exists(name):
+                # Check for display name collision
+                matches = self._find_by_display_name(name)
+                matches = [(fn, s, t) for fn, s, t in matches if fn != filename]
+                if matches:
                     return False, f"You cannot — something called \"{name}\" already exists elsewhere."
-                old_name = what
+                if name != filename and self._note_exists(name):
+                    return False, f"You cannot — something called \"{name}\" already exists elsewhere."
+
+                old_name = filename
+                old_display = self.display_name(old_name)
                 old_ctime = _get_creation_time_ns(self._note_path(old_name))
-                # Track rename history in frontmatter
+
+                # Track rename history (using display names)
                 prev = fm.get("previously", [])
                 if isinstance(prev, str):
                     prev = [prev]
                 desc = note.description.strip() if note.description else ""
-                entry = f"{old_name}: {desc}" if desc else old_name
+                entry = f"{old_display}: {desc}" if desc else old_display
                 prev.append(entry)
                 fm["previously"] = prev
-                # Rename first, then overwrite — git tracks the rename
-                # and preserves version history
+
+                # Remove name override — new filename IS the display name
+                fm.pop("name", None)
+
+                # Rename
                 self._note_path(old_name).rename(self._note_path(name))
                 self._write_note(name, build_thing_note(new_description, fm))
                 self._rename_all_links(old_name, name)
                 if old_ctime is not None:
                     _set_creation_time(self._note_path(name), old_ctime)
-                parts.append(f"What was called {old_name} is now called {name}.")
-            else:
-                self._write_note(what, build_thing_note(new_description, fm))
 
-            # Description at the end — the settling state after any rename
+                # Update carrying list if this thing was being carried
+                if old_name in self._carrying:
+                    self._carrying = [name if c == old_name else c for c in self._carrying]
+
+                self._last_resolved["name"] = name
+                parts.append(f"What was called {old_display} is now called {name}.")
+            else:
+                self._write_note(filename, build_thing_note(new_description, fm))
+
             if description:
                 parts.append(description)
 
@@ -469,52 +649,65 @@ class PlaceInterface:
             return False, "You cannot alter that."
 
     def _ensure_inventory_note(self) -> None:
-        """Create the Inventory space note if it doesn't exist."""
-        if not self._note_exists("Inventory"):
+        """Create the per-agent inventory note if it doesn't exist."""
+        if not self._note_exists(self._inventory_name):
             fm = {
-                "type": "space",
-                "created_by": "place",
+                "type": "inventory",
+                "created_by": self._agent_name,
                 "created_session": 0,
-                "updated_by": "place",
+                "updated_by": self._agent_name,
                 "updated_session": 0,
             }
-            self._write_note("Inventory", build_space_note(
-                description="Things you carry with you.",
-                spaces=[], things=[], frontmatter=fm,
+            self._write_note(self._inventory_name, build_inventory_note(
+                things=[], frontmatter=fm,
             ))
 
     def take(self, what: str) -> tuple[bool, str]:
         """Pick up a thing and carry it with you."""
         self._sanitise_name(what, "You must say what.")
+        self._last_resolved = {}
 
-        if what in self._carrying:
+        # Check if already carrying (by display name)
+        carried_fn = self._resolve_in_scope(what, self._carrying)
+        if carried_fn:
+            self._last_resolved = {"what": carried_fn}
             return False, f"You already have {what} with you."
 
         current = self._read_note(self._current_location)
 
-        if what not in current.things:
+        # Resolve against things in current space
+        thing_fn = self._resolve_in_scope(what, current.things)
+        if not thing_fn:
             return False, f"There is nothing called \"{what}\" here to take."
 
-        # Remove from current space, link to Inventory
-        self._remove_link(self._current_location, what)
+        self._last_resolved = {"what": thing_fn}
+
+        # Remove from current space, link to inventory
+        self._remove_link(self._current_location, thing_fn)
         self._ensure_inventory_note()
-        self._add_link("Inventory", what, "Things")
-        self._carrying.append(what)
+        self._add_link(self._inventory_name, thing_fn, "Things")
+        self._carrying.append(thing_fn)
 
         return True, f"{what} is with you now."
 
     def drop(self, what: str) -> tuple[bool, str]:
         """Put down something you are carrying."""
         self._sanitise_name(what, "You must say what.")
+        self._last_resolved = {}
 
-        if what not in self._carrying:
+        # Resolve against carrying list (by display name)
+        carried_fn = self._resolve_in_scope(what, self._carrying)
+        if not carried_fn:
             return False, f"You do not have anything called \"{what}\" with you."
 
-        self._carrying.remove(what)
-        self._remove_link("Inventory", what)
-        self._add_link(self._current_location, what, "Things")
+        self._last_resolved = {"what": carried_fn}
 
-        return True, f"{what} is now at {self._current_location}."
+        self._carrying.remove(carried_fn)
+        self._remove_link(self._inventory_name, carried_fn)
+        self._add_link(self._current_location, carried_fn, "Things")
+
+        location_display = self.display_name(self._current_location)
+        return True, f"{what} is now at {location_display}."
 
     def execute_tool(self, tool_call: ToolCall) -> str:
         """Execute an action and return what the agent perceives."""
@@ -533,9 +726,11 @@ class PlaceInterface:
             tool_call.success = False
             return "You do not know how to do that."
         try:
+            self._last_resolved = {}
             success, result = handler(tool_call.arguments)
             tool_call.result = result
             tool_call.success = success
+            tool_call.filenames = self._last_resolved
             return result
         except Exception as e:
             error = str(e)

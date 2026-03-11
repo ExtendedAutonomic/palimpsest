@@ -79,32 +79,42 @@ def _render_callout(
 # Place entity linking
 # ---------------------------------------------------------------------------
 
-def _link_action_line(action_line: str, tool_name: str, args: dict, fmt: str) -> str:
+def _link_action_line(
+    action_line: str, tool_name: str, args: dict,
+    filenames: dict | None = None, fmt: str = "obsidian",
+) -> str:
     """Wiki-link entity names in a successful action line (Obsidian only).
 
     Extracts entity names directly from the tool call arguments and
-    wraps them in [[ ]] within the action line text. No text scanning
-    or Place directory reads needed — the tool call is the source of truth.
+    wraps them in [[ ]] within the action line text. When a display name
+    differs from its filename (via the filenames dict), uses Obsidian's
+    aliased link syntax: [[filename|display_name]].
     """
     if fmt != "obsidian":
         return action_line
 
-    # Collect entity names from the tool arguments
-    names = []
+    filenames = filenames or {}
+
+    # Collect (arg_key, display_name) pairs from tool arguments
+    name_pairs: list[tuple[str, str]] = []
     if tool_name in ("examine", "alter", "take", "drop"):
         if args.get("what"):
-            names.append(args["what"])
+            name_pairs.append(("what", args["what"]))
     if tool_name in ("create", "venture", "alter"):
         if args.get("name"):
-            names.append(args["name"])
+            name_pairs.append(("name", args["name"]))
     if tool_name == "go":
         if args.get("where"):
-            names.append(args["where"])
+            name_pairs.append(("where", args["where"]))
 
     # Replace each name with its wiki-linked form, longest first
     # to avoid partial matches if names overlap
-    for name in sorted(names, key=len, reverse=True):
-        action_line = action_line.replace(name, f"[[{name}]]")
+    for arg_key, display in sorted(name_pairs, key=lambda x: len(x[1]), reverse=True):
+        resolved = filenames.get(arg_key, display)
+        if resolved != display:
+            action_line = action_line.replace(display, f"[[{resolved}|{display}]]")
+        else:
+            action_line = action_line.replace(display, f"[[{display}]]")
 
     return action_line
 
@@ -329,7 +339,8 @@ def render_session_markdown(
             # Action line — wiki-linked to Place entities
             action_line = natural_action(tool, args, success)
             if action_line:
-                action_line = _link_action_line(action_line, tool, args, fmt)
+                tc_filenames = tc.get("filenames", {})
+                action_line = _link_action_line(action_line, tool, args, tc_filenames, fmt)
                 lines.append(action_line)
                 lines.append("")
 

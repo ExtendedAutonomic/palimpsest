@@ -7,8 +7,8 @@
 #
 # To add a new agent variant:
 #   1. Add an entry here
-#   2. Run `palimpsest init --agent <name>` to create its Place
-#   3. Run `palimpsest run --agent <name> --once`
+#   2. Run `palimpsest init --agent <n>` to create its Place
+#   3. Run `palimpsest run --agent <n> --once`
 ##############################################################################
 
 # Current experiment phase (global, not per-agent)
@@ -57,23 +57,17 @@ agents:
     extended_thinking: false
     active: false
 
-  # Parallel run variants
-
   claude_b:
-    description: "Clean rerun with fixed renderer. Isolates contamination confound."
+    description: "The adventurer. Clean rerun with fixed renderer."
     provider: claude
     model: claude-opus-4-6
     test_model: claude-sonnet-4-5-20250929
-    start_location: here
-    place: place_b
-    phase: 1
+    start_location: here_b
 
   claude_c:
-    description: "ZWS nudge variant. Isolates nudge type vs contamination."
+    description: "The monk. ZWS nudge variant."
     provider: claude
     model: claude-opus-4-6
     test_model: claude-sonnet-4-5-20250929
-    start_location: here
-    place: place_c
+    start_location: here_c
     nudge: "\u200b"
-    phase: 1

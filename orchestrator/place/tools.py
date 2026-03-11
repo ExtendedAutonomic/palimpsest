@@ -223,7 +223,8 @@ def convert_tools_gemini(tools: list[dict] | None = None) -> list:
 class ToolCall:
     """A single action taken by the agent."""
     tool: ToolName
-    arguments: dict[str, str]
+    arguments: dict[str, str]  # Display names (what the agent said)
+    filenames: dict[str, str] = field(default_factory=dict)  # Resolved filenames for wiki linking
     result: str | None = None
     success: bool = True
     error: str | None = None

@@ -64,7 +64,7 @@ def parse_note(text: str) -> ParsedNote:
     things = []
     description = body
 
-    if note_type == "space":
+    if note_type in ("space", "inventory"):
         # Split body into description and sections
         sections = re.split(r"\n## ", body)
         description = sections[0].strip()
@@ -124,6 +124,21 @@ def build_space_note(
     if spaces:
         for s in spaces:
             parts.append(f"- [[{s}]]")
+
+    parts.append("\n## Things")
+    if things:
+        for t in things:
+            parts.append(f"- [[{t}]]")
+
+    return "\n".join(parts) + "\n"
+
+
+def build_inventory_note(
+    things: list[str],
+    frontmatter: dict[str, Any],
+) -> str:
+    """Build an inventory note — like a space but with no Connected Spaces section."""
+    parts = [build_frontmatter(frontmatter), "Things you carry with you."]
 
     parts.append("\n## Things")
     if things:
