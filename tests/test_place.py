@@ -13,7 +13,7 @@ import pytest
 from pathlib import Path
 
 from orchestrator.place import PlaceInterface
-from orchestrator.place.notes import parse_note
+from orchestrator.place.notes import parse_note, build_space_note
 
 
 class TestFoundingSpace:
@@ -504,5 +504,225 @@ class TestTakeAndDrop:
         assert "the compass" in island.things
         # And not carried
         assert "the compass" not in place._carrying
+
+
+class TestDisplayNames:
+    """Display names decouple the agent's experience from filenames.
+
+    When a note has a `name` field in frontmatter, the agent sees that
+    name instead of the filename. This allows multiple notes to share
+    the same display name (e.g. three agents each having a space called
+    'here') while remaining distinct files on disk.
+    """
+
+    @pytest.fixture
+    def multi_place(self, tmp_path: Path) -> tuple[PlaceInterface, Path]:
+        """A place with two agents' territories sharing display names.
+
+        Mimics the unified Place: here.md (agent A), here_b.md (agent B,
+        display name 'here'), and B's cave system.
+        """
+        p = tmp_path / "place"
+        p.mkdir()
+
+        # Agent A's founding space — filename IS the display name
+        (p / "here.md").write_text(
+            build_space_note(
+                description="Cool grass, indigo sky, a small fire.",
+                spaces=[], things=["a stone"],
+                frontmatter={
+                    "type": "space", "created_by": "place",
+                    "created_session": 0, "updated_by": "claude",
+                    "updated_session": 3, "occupant": "claude",
+                },
+            ), encoding="utf-8",
+        )
+        (p / "a stone.md").write_text(
+            "---\ntype: thing\ncreated_by: claude\ncreated_session: 1\n"
+            "updated_by: claude\nupdated_session: 1\n---\n"
+            "A smooth stone.\n", encoding="utf-8",
+        )
+
+        # Agent B's founding space — filename differs from display name
+        (p / "here_b.md").write_text(
+            build_space_note(
+                description="",
+                spaces=["the descent"], things=["the cave"],
+                frontmatter={
+                    "type": "space", "name": "here",
+                    "created_by": "place", "created_session": 0,
+                    "updated_by": "claude_b", "updated_session": 1,
+                },
+            ), encoding="utf-8",
+        )
+        (p / "the descent.md").write_text(
+            build_space_note(
+                description="A narrow passage descending into darkness.",
+                spaces=["here_b", "the green deep"], things=["the marks"],
+                frontmatter={
+                    "type": "space", "created_by": "claude_b",
+                    "created_session": 1, "updated_by": "claude_b",
+                    "updated_session": 4,
+                },
+            ), encoding="utf-8",
+        )
+        (p / "the green deep.md").write_text(
+            build_space_note(
+                description="A garden growing in the dark.",
+                spaces=["the descent"], things=[],
+                frontmatter={
+                    "type": "space", "created_by": "claude_b",
+                    "created_session": 2, "updated_by": "claude_b",
+                    "updated_session": 4,
+                },
+            ), encoding="utf-8",
+        )
+        (p / "the cave.md").write_text(
+            "---\ntype: thing\ncreated_by: claude_b\ncreated_session: 1\n"
+            "updated_by: claude_b\nupdated_session: 1\n---\n"
+            "Wet stone and stalactites.\n", encoding="utf-8",
+        )
+        (p / "the marks.md").write_text(
+            "---\ntype: thing\ncreated_by: claude_b\ncreated_session: 2\n"
+            "updated_by: claude_b\nupdated_session: 2\n---\n"
+            "Ancient spirals carved into stone.\n", encoding="utf-8",
+        )
+
+        # Agent C's space — display name 'here', different filename
+        (p / "here_c.md").write_text(
+            build_space_note(
+                description="",
+                spaces=[], things=["a small stone", "a second stone_c"],
+                frontmatter={
+                    "type": "space", "name": "here",
+                    "created_by": "place", "created_session": 0,
+                    "updated_by": "claude_c", "updated_session": 2,
+                    "occupant": "claude_c",
+                },
+            ), encoding="utf-8",
+        )
+        (p / "a small stone.md").write_text(
+            "---\ntype: thing\ncreated_by: claude_c\ncreated_session: 1\n"
+            "updated_by: claude_c\nupdated_session: 1\n---\n"
+            "A warm stone.\n", encoding="utf-8",
+        )
+        (p / "a second stone_c.md").write_text(
+            "---\ntype: thing\nname: a second stone\n"
+            "created_by: claude_c\ncreated_session: 2\n"
+            "updated_by: claude_c\nupdated_session: 2\n---\n"
+            "A cool stone.\n", encoding="utf-8",
+        )
+
+        place = PlaceInterface(p, agent_name="claude_b", session_number=6)
+        place.current_location = "the descent"
+        return place, p
+
+    # --- display_name ---
+
+    def test_display_name_with_override(self, multi_place):
+        place, _ = multi_place
+        assert place.display_name("here_b") == "here"
+
+    def test_display_name_without_override(self, multi_place):
+        place, _ = multi_place
+        assert place.display_name("the descent") == "the descent"
+
+    def test_display_name_thing_override(self, multi_place):
+        place, _ = multi_place
+        assert place.display_name("a second stone_c") == "a second stone"
+
+    # --- perceive ---
+
+    def test_perceive_shows_display_names(self, multi_place):
+        """Perceive at the descent should show 'here' not 'here_b'."""
+        place, _ = multi_place
+        _, result = place.perceive()
+        assert "here" in result
+        assert "here_b" not in result
+
+    def test_perceive_c_shows_display_names(self, multi_place):
+        """Agent C perceiving should see 'a second stone' not 'a second stone_c'."""
+        place, p = multi_place
+        c = PlaceInterface(p, agent_name="claude_c", session_number=11)
+        c.current_location = "here_c"
+        _, result = c.perceive()
+        assert "a second stone" in result
+        assert "a second stone_c" not in result
+
+    # --- go ---
+
+    def test_go_with_display_name(self, multi_place):
+        """Agent B says 'go here' and lands at here_b, not here.md."""
+        place, _ = multi_place
+        success, result = place.go("here")
+        assert success
+        assert place.current_location == "here_b"
+
+    def test_go_preserves_display_name_in_response(self, multi_place):
+        place, _ = multi_place
+        _, result = place.go("here")
+        assert "here" in result
+        assert "here_b" not in result
+
+    def test_go_without_display_name(self, multi_place):
+        place, _ = multi_place
+        success, _ = place.go("the green deep")
+        assert success
+        assert place.current_location == "the green deep"
+
+    # --- examine ---
+
+    def test_examine_thing_in_space(self, multi_place):
+        place, _ = multi_place
+        success, result = place.examine("the marks")
+        assert success
+        assert "spirals" in result.lower()
+
+    def test_examine_current_space_by_display_name(self, multi_place):
+        """Agent B at the descent can examine it by display name."""
+        place, _ = multi_place
+        success, result = place.examine("the descent")
+        assert success
+        assert "passage" in result.lower()
+
+    # --- venture collision with display names ---
+
+    def test_venture_collision_finds_oldest(self, multi_place):
+        """If agent B ventures to 'here', it should collide with the oldest
+        space named 'here' — which is here.md (A's space, session 0, oldest)."""
+        place, _ = multi_place
+        # Move to green deep first so descent isn't directly connected to 'here'
+        place.go("the green deep")
+        success, result = place.venture("here", "A new place.")
+        assert success
+        assert "already exists" in result
+        # Should land at here.md (A's, oldest) not here_b or here_c
+        assert place.current_location == "here"
+
+    # --- create collision with display names ---
+
+    def test_create_blocked_by_display_name(self, multi_place):
+        """Cannot create 'a second stone' because a second stone_c has that display name."""
+        place, _ = multi_place
+        success, result = place.create("a second stone", "Another stone.")
+        assert not success
+        assert "already exists" in result
+
+    # --- filenames dict on tool calls ---
+
+    def test_go_populates_filenames(self, multi_place):
+        """ToolCall.filenames should map 'where' to the resolved filename."""
+        place, _ = multi_place
+        from orchestrator.place.tools import ToolCall, ToolName
+        tc = ToolCall(tool=ToolName.GO, arguments={"where": "here"})
+        place.execute_tool(tc)
+        assert tc.filenames.get("where") == "here_b"
+
+    def test_examine_populates_filenames(self, multi_place):
+        place, _ = multi_place
+        from orchestrator.place.tools import ToolCall, ToolName
+        tc = ToolCall(tool=ToolName.EXAMINE, arguments={"what": "the marks"})
+        place.execute_tool(tc)
+        assert tc.filenames.get("what") == "the marks"
 
 
