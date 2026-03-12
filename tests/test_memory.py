@@ -2,7 +2,7 @@
 Tests for the memory system — building agent memory from logs
 and the session runner helpers.
 
-Compression tests mock the Anthropic API to verify triggering logic,
+Compression tests mock _complete() to verify triggering logic,
 frontmatter updates, and the rolling compression flow without spending.
 """
 
@@ -51,7 +51,6 @@ _TEST_CONFIG = {
             },
             "compression": {
                 "enabled": True,
-                "model": "claude-opus-4-6",
                 "recent_window": 2,
                 "days_per_week": 7,
             },
@@ -293,14 +292,9 @@ class TestFoundingPromptTemplate:
 # Rolling compression tests
 # ---------------------------------------------------------------------------
 
-def _mock_api_response(text: str):
-    """Build a mock Anthropic API response."""
-    mock_response = AsyncMock()
-    mock_response.content = [AsyncMock(text=text)]
-    mock_response.usage = AsyncMock(
-        input_tokens=100, output_tokens=50
-    )
-    return mock_response
+def _mock_complete_result(text: str):
+    """Build a mock return value for _complete(): (text, token_counts)."""
+    return (text, {"input": 100, "output": 50})
 
 
 class TestCompressionTrigger:
@@ -310,7 +304,10 @@ class TestCompressionTrigger:
         """No compression when sessions <= RECENT_WINDOW."""
         write_session_log(log_path, "claude", 1, reflection="Day one.")
         write_session_log(log_path, "claude", 2, reflection="Day two.")
-        result = asyncio.run(run_memory_compression("claude", log_path))
+        result = asyncio.run(run_memory_compression(
+            "claude", log_path,
+            compressor_model="claude-opus-4-6", compressor_provider="claude",
+        ))
         assert result is False
 
     def test_compression_fires_above_window(self, log_path: Path):
@@ -319,21 +316,24 @@ class TestCompressionTrigger:
         write_session_log(log_path, "claude", 2, reflection="Day two.")
         write_session_log(log_path, "claude", 3, reflection="Day three.")
 
-        mock_resp = _mock_api_response(
-            "### Week 1 (Days 1)\n\nI arrived and sat."
-        )
         with patch(
-            "orchestrator.memory.summariser.anthropic.AsyncAnthropic"
-        ) as mock_cls:
-            mock_cls.return_value.messages.create = AsyncMock(
-                return_value=mock_resp
-            )
-            result = asyncio.run(run_memory_compression("claude", log_path))
+            "orchestrator.memory.summariser._complete",
+            new=AsyncMock(return_value=_mock_complete_result(
+                "### Week 1 (Days 1)\n\nI arrived and sat."
+            )),
+        ):
+            result = asyncio.run(run_memory_compression(
+                "claude", log_path,
+                compressor_model="claude-opus-4-6", compressor_provider="claude",
+            ))
 
         assert result is True
 
     def test_no_compression_for_missing_agent(self, log_path: Path):
-        result = asyncio.run(run_memory_compression("nonexistent", log_path))
+        result = asyncio.run(run_memory_compression(
+            "nonexistent", log_path,
+            compressor_model="claude-opus-4-6", compressor_provider="claude",
+        ))
         assert result is False
 
 
@@ -345,16 +345,16 @@ class TestCompressionResults:
         for i in range(1, 5):
             write_session_log(log_path, "claude", i, reflection=f"Day {i}.")
 
-        mock_resp = _mock_api_response(
-            "### Week 1 (Days 1\u20132)\n\nFirst days."
-        )
         with patch(
-            "orchestrator.memory.summariser.anthropic.AsyncAnthropic"
-        ) as mock_cls:
-            mock_cls.return_value.messages.create = AsyncMock(
-                return_value=mock_resp
-            )
-            asyncio.run(run_memory_compression("claude", log_path))
+            "orchestrator.memory.summariser._complete",
+            new=AsyncMock(return_value=_mock_complete_result(
+                "### Week 1 (Days 1\u20132)\n\nFirst days."
+            )),
+        ):
+            asyncio.run(run_memory_compression(
+                "claude", log_path,
+                compressor_model="claude-opus-4-6", compressor_provider="claude",
+            ))
 
         compressed_file = log_path / "claude" / "compressed_memory.md"
         assert compressed_file.exists()
@@ -368,16 +368,16 @@ class TestCompressionResults:
         for i in range(1, 6):
             write_session_log(log_path, "claude", i, reflection=f"Day {i}.")
 
-        mock_resp = _mock_api_response(
-            "### Week 1 (Days 1\u20133)\n\nFirst three days."
-        )
         with patch(
-            "orchestrator.memory.summariser.anthropic.AsyncAnthropic"
-        ) as mock_cls:
-            mock_cls.return_value.messages.create = AsyncMock(
-                return_value=mock_resp
-            )
-            asyncio.run(run_memory_compression("claude", log_path))
+            "orchestrator.memory.summariser._complete",
+            new=AsyncMock(return_value=_mock_complete_result(
+                "### Week 1 (Days 1\u20133)\n\nFirst three days."
+            )),
+        ):
+            asyncio.run(run_memory_compression(
+                "claude", log_path,
+                compressor_model="claude-opus-4-6", compressor_provider="claude",
+            ))
 
         compressed_file = log_path / "claude" / "compressed_memory.md"
         fm, _ = _parse_compressed_frontmatter(
@@ -417,18 +417,21 @@ class TestCompressionResults:
             write_session_log(log_path, "claude", i, reflection=f"Day {i}.")
 
         call_count = 0
-        async def mock_create(**kwargs):
+        async def mock_complete(*args, **kwargs):
             nonlocal call_count
             call_count += 1
-            return _mock_api_response(
+            return _mock_complete_result(
                 f"### Week 1 (Days 1\u2013{3 + call_count})\n\nUpdated memory."
             )
 
         with patch(
-            "orchestrator.memory.summariser.anthropic.AsyncAnthropic"
-        ) as mock_cls:
-            mock_cls.return_value.messages.create = mock_create
-            asyncio.run(run_memory_compression("claude", log_path))
+            "orchestrator.memory.summariser._complete",
+            new=mock_complete,
+        ):
+            asyncio.run(run_memory_compression(
+                "claude", log_path,
+                compressor_model="claude-opus-4-6", compressor_provider="claude",
+            ))
 
         # Should have been called once (day 4 only)
         # Days 5 and 6 remain as raw
@@ -463,18 +466,21 @@ class TestCompressionResults:
             write_session_log(log_path, "claude", i, reflection=f"Day {i}.")
 
         call_count = 0
-        async def mock_create(**kwargs):
+        async def mock_complete(*args, **kwargs):
             nonlocal call_count
             call_count += 1
-            return _mock_api_response(
+            return _mock_complete_result(
                 f"### Week 1 (Days 1\u2013{3 + call_count})\n\nUpdated memory."
             )
 
         with patch(
-            "orchestrator.memory.summariser.anthropic.AsyncAnthropic"
-        ) as mock_cls:
-            mock_cls.return_value.messages.create = mock_create
-            asyncio.run(run_memory_compression("claude", log_path))
+            "orchestrator.memory.summariser._complete",
+            new=mock_complete,
+        ):
+            asyncio.run(run_memory_compression(
+                "claude", log_path,
+                compressor_model="claude-opus-4-6", compressor_provider="claude",
+            ))
 
         # 3 days to compress (4, 5, 6), each one API call
         assert call_count == 3
@@ -557,9 +563,9 @@ class TestRenderSessionLog:
             "reflection": None,
         }
         rendered = render_session_log(log)
-        assert "[response: ...]" in rendered
-        # Agent's ellipsis should be prefixed with "you:" not bracketed
-        assert "you: ..." in rendered
+        assert "[Response: ...]" in rendered
+        # Agent's ellipsis should be prefixed with "You:" not bracketed
+        assert "You: ..." in rendered
 
     def test_tool_result_is_blockquoted(self):
         log = {

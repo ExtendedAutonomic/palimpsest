@@ -238,16 +238,16 @@ def render_session_log(session_data: dict) -> str:
         agent_text = turn.get("agent_text", "").strip()
         tool_calls = turn.get("tool_calls", [])
         if agent_text:
-            parts.append(f"you: {agent_text}")
+            parts.append(f"You: {agent_text}")
         elif not tool_calls:
-            parts.append("you:")
+            parts.append("You:")
 
         # Nudge (injected user message after no-tool-call turns)
         # Bracketed with [response: ...] — square brackets mark
         # non-agent content (consistent with system prompts)
         nudge = turn.get("nudge")
         if nudge:
-            parts.append(f"[response: {nudge}]")
+            parts.append(f"[Response: {nudge}]")
 
         # Tool calls and results
         for tc in turn.get("tool_calls", []):
@@ -280,7 +280,7 @@ def render_session_log(session_data: dict) -> str:
 
     reflection = (session_data.get("reflection") or "").strip()
     if reflection:
-        parts.append(f"you: {reflection}")
+        parts.append(f"You: {reflection}")
 
     return "\n\n".join(parts)
 
