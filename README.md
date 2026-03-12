@@ -164,7 +164,9 @@ Each session ends with a reflect prompt. The reflection is stored and fed back a
 
 **Memory format:** Rendered session logs under `### Day N` headings with `---` separators. The last 2 sessions are given in full. Older sessions are compressed using a rolling system: after each session, the oldest uncompressed day is woven into the existing compressed memory one at a time. The agent always sees exactly 2 raw days plus the compressed history. Compressed memory is organised by week under `### Week N (Days X–Y)` headings.
 
-**What the rendered log contains:** Agent text, tool calls (names and arguments), tool results, dusk prompt, reflect prompt, and the agent's reflection. Thinking tokens are included in logs and visible to the narrator and experimenter, but not fed back to the agent as memory.
+**What the rendered log contains:** Agent text, thinking, tool calls (names and arguments), tool results, dusk prompt, reflect prompt, and the agent's reflection. Recent sessions (within the raw window) include thinking in the agent's memory. Compressed memory does not preserve thinking — it is lost during compression.
+
+**Compression model.** Each agent's memory is compressed using its own model, so the compressed voice matches the agent's native register. This is configurable per agent in `agents.yaml` — any agent can override with a different compression model if needed.
 
 **The compression effect.** Over weeks, the agent's memory of early sessions will be summaries of summaries — an interpretation of an interpretation. Early sessions may feel alien in retrospect. The compression is invisible from inside: the summarised memory reads as coherent. This is intentional and mirrors a central mechanic of *Piranesi*.
 
@@ -174,35 +176,33 @@ Each session ends with a reflect prompt. The reflection is stored and fed back a
 
 Two additional agents observe the experiment. Neither writes to the Place or interacts with the primary agents.
 
-Both can be run either via the CLI (API calls, tracked costs) or as Claude Desktop/claude.ai skills (uses your Max subscription, no API cost). Skills live in `skills/` and can be installed via Customize > Skills or referenced directly in conversation.
+Both run as Claude Desktop/claude.ai skills (using your Max subscription, no API cost). Skills live in `skills/` and can be installed via Customize > Skills or referenced directly in conversation.
 
 ### Narrator
 
 Reads rendered session logs, including agent thinking tokens, and produces narrative accounts: somewhere between literary nonfiction and a documentary record. It has access to interiority (what agents considered before acting) as well as behaviour (what they did).
 
-**CLI:** `palimpsest narrate --session 1`
 **Skill:** `skills/palimpsest-narrate/`
 
 ### Experimenter
 
-Writes from outside the experiment: showing working, noting what's surprising, being honest about what breaks. It has access to everything: session logs (including thinking and reflections), experiment design docs, and cost data. Narrator chapters can be passed in explicitly via `--chapter` but are excluded by default.
+Writes from outside the experiment: showing working, noting what's surprising, being honest about what breaks. It has access to everything: session logs (including thinking and reflections), experiment design docs, and cost data.
 
-The experimenter writes when there's something worth writing about, not on a fixed schedule. Its output is a researcher's notebook rather than a paper. The skill version includes a built-in edit pass that audits the draft against the style guide before finalising.
+The experimenter writes when there's something worth writing about, not on a fixed schedule. Its output is a researcher's notebook rather than a paper. The skill includes a built-in edit pass that audits the draft against the style guide before finalising.
 
-**CLI:** `palimpsest blog -s 3-6`
 **Skill:** `skills/palimpsest-blog/`
 
 ---
 
 ## Visibility
 
-| | Other agents' thinking | Session logs | Narrator chapters | Cost data |
-|---|---|---|---|---|
-| **Primary agents** | ✗ | Own only (as memory) | ✗ | ✗ |
-| **Narrator** | ✓ | All | — | ✗ |
-| **Experimenter** | ✓ | All | ✗ (by default) | ✓ |
+| | Other agents' thinking | Own thinking | Session logs | Narrator chapters | Cost data |
+|---|---|---|---|---|---|
+| **Primary agents** | ✗ | Recent sessions only (lost on compression) | Own only (as memory) | ✗ | ✗ |
+| **Narrator** | ✓ | ✓ | All | — | ✗ |
+| **Experimenter** | ✓ | ✓ | All | ✗ (by default) | ✓ |
 
-Thinking tokens are private phenomenology. The Place is the public consensus layer.
+Thinking tokens are private phenomenology between agents. Each agent sees its own thinking in recent memory but not other agents'. The Place is the public consensus layer.
 
 ---
 
@@ -236,44 +236,15 @@ palimpsest run --agent claude --once --session 8
 palimpsest run --agent claude --once --place place-test --logs logs-test
 ```
 
-### `palimpsest narrate`
-Run the narrator agent to chronicle recent sessions.
+### `palimpsest compress`
+Run memory compression for an agent without running a session. Useful after wiping `compressed_memory.md` to recompress from scratch.
 
 ```
---day     YYYY-MM-DD    Date to narrate (defaults to today)
---session N             Session number(s) to include (repeatable, accepts ranges)
---agent   name          Filter by agent (e.g. claude, gemini, deepseek)
---chapter N             Override chapter number (default: auto-increment)
---prompt  path          Path to narrator prompt file
---test                  Use Sonnet instead of Opus
+--agent   name    (required)
 ```
 
 ```bash
-palimpsest narrate
-palimpsest narrate --agent gemini --session 1
-palimpsest narrate --agent claude --session 2 --session 3 --chapter 2
-palimpsest narrate --day 2026-03-04 --test
-```
-
-### `palimpsest blog`
-Write an experimenter blog post.
-
-```
---topic   string        What to write about (omit to let it choose)
---since   YYYY-MM-DD    Include sessions from this date
---until   YYYY-MM-DD    Include sessions up to this date
---session N             Session number(s) to include (repeatable)
---agent   name          Filter sessions by agent
---chapter N             Narrator chapter(s) to include (repeatable)
---prompt  path          Path to experimenter prompt file
---test                  Use Sonnet instead of Opus
-```
-
-```bash
-palimpsest blog
-palimpsest blog --session 1 --session 2
-palimpsest blog --topic "the companion illusion" --since 2026-03-01
-palimpsest blog --since 2026-03-01 --until 2026-03-07 --test
+palimpsest compress --agent gemini
 ```
 
 ### `palimpsest logs`
@@ -335,23 +306,26 @@ palimpsest/
 │   │   └── narrator.py         # Narrator agent
 │   └── experimenter/
 │       └── experimenter.py     # Experimenter agent
-├── tests/                      # 125 tests
+├── tests/
 │   ├── test_place.py
 │   ├── test_security.py
 │   ├── test_notes.py
 │   ├── test_tools.py
 │   ├── test_memory.py
 │   ├── test_renderer.py
+│   ├── test_claude.py
+│   ├── test_gemini.py
 │   ├── test_narrator.py
 │   └── test_experimenter.py
 ├── skills/
 │   ├── palimpsest-blog/        # Experimenter blog skill (Claude Desktop/claude.ai)
 │   └── palimpsest-narrate/     # Narrator skill (Claude Desktop/claude.ai)
 ├── scripts/
-│   ├── preview_inputs.py       # Debug: preview narrator/experimenter inputs
+│   ├── preview_conversation.py # Preview API call log at a specific turn
+│   ├── preview_memory.py       # Preview memory context for next session
+│   ├── preview_inputs.py       # Preview narrator/experimenter inputs
 │   ├── export_substack.py      # Export posts for Substack publishing
-│   ├── count_ellipses.py       # Count agent-produced ellipses per session
-│   └── timeline.py             # Show chronological session timeline
+│   └── count_ellipses.py       # Count agent-produced ellipses per session
 ├── config/
 │   ├── prompts.yaml            # All agent prompts
 │   ├── agents.yaml             # Agent registry, session parameters, compression settings
@@ -359,6 +333,7 @@ palimpsest/
 ├── logs/                       # Session logs — local only, gitignored
 │   ├── {agent}/
 │   │   ├── json/               # Session JSON + compression_costs.json
+│   │   │   └── raw/            # API call logs (per-call deltas + responses)
 │   │   ├── obsidian_logs/      # Obsidian-formatted readable logs
 │   │   ├── github_logs/        # GitHub-formatted readable logs
 │   │   └── compressed_memory.md
