@@ -21,8 +21,6 @@ import json
 import logging
 from pathlib import Path
 
-import anthropic
-
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -32,9 +30,85 @@ logger = logging.getLogger(__name__)
 RECENT_WINDOW = 2  # Number of recent sessions kept in full
 DAYS_PER_WEEK = 7  # Sessions per "week" in compressed memory
 
-# Opus for compression — preserves voice and register better than Sonnet,
-# which tends to editorialise and impose retrospective structure.
-COMPRESSOR_MODEL = "claude-opus-4-6"
+# ---------------------------------------------------------------------------
+# Provider-agnostic completion
+# ---------------------------------------------------------------------------
+
+
+async def _complete(
+    prompt: str,
+    model: str,
+    provider: str,
+    max_tokens: int = 4096,
+) -> tuple[str, dict]:
+    """Send a single-message completion and return (text, token_counts).
+
+    Routes to the correct SDK based on the agent's provider. Imports are
+    lazy so only the relevant SDK is loaded for each compression run.
+    """
+    if provider == "claude":
+        import anthropic
+        client = anthropic.AsyncAnthropic()
+        response = await client.messages.create(
+            model=model,
+            max_tokens=max_tokens,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return response.content[0].text, {
+            "input": response.usage.input_tokens,
+            "output": response.usage.output_tokens,
+        }
+
+    elif provider == "gemini":
+        import os
+        from google import genai
+        from google.genai import types
+        client = genai.Client()
+        config = types.GenerateContentConfig(max_output_tokens=max_tokens)
+        response = await client.aio.models.generate_content(
+            model=model,
+            contents=prompt,
+            config=config,
+        )
+        # Extract text from response
+        text = ""
+        if response.candidates:
+            candidate = response.candidates[0]
+            if candidate.content and candidate.content.parts:
+                text_parts = []
+                for part in candidate.content.parts:
+                    if part.text and not (hasattr(part, "thought") and part.thought):
+                        text_parts.append(part.text)
+                text = "\n".join(text_parts)
+        return text, {
+            "input": getattr(response.usage_metadata, "prompt_token_count", 0) or 0,
+            "output": getattr(response.usage_metadata, "candidates_token_count", 0) or 0,
+        }
+
+    elif provider == "deepseek":
+        import os
+        from openai import AsyncOpenAI
+        client = AsyncOpenAI(
+            api_key=os.environ["DEEPSEEK_API_KEY"],
+            base_url="https://api.deepseek.com",
+        )
+        response = await client.chat.completions.create(
+            model=model,
+            max_tokens=max_tokens,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        choice = response.choices[0]
+        return choice.message.content or "", {
+            "input": response.usage.prompt_tokens if response.usage else 0,
+            "output": response.usage.completion_tokens if response.usage else 0,
+        }
+
+    else:
+        raise ValueError(
+            f"Unknown provider for compression: '{provider}'. "
+            f"Supported: claude, gemini, deepseek."
+        )
+
 
 # ---------------------------------------------------------------------------
 # Agent memory — what the agent receives
@@ -271,7 +345,8 @@ async def _compress_rolling(
     existing_memory: str,
     new_day_rendered: str,
     session_number: int,
-    model: str = COMPRESSOR_MODEL,
+    model: str,
+    provider: str,
 ) -> tuple[str, dict]:
     """Weave one new day into the existing compressed memory.
 
@@ -279,32 +354,24 @@ async def _compress_rolling(
     version that includes the new day. This preserves inter-session arcs
     that would be lost if days were compressed in isolation.
 
+    Uses the agent's own model via _complete() so the compression voice
+    matches the agent's native register.
+
     Returns (updated_memory_text, token_counts).
     """
-    client = anthropic.AsyncAnthropic()
-
     prompt = ROLLING_COMPRESS_PROMPT.format(
         existing_memory=existing_memory,
         session_number=session_number,
         new_day=new_day_rendered,
     )
 
-    response = await client.messages.create(
-        model=model,
-        max_tokens=4096,
-        messages=[{"role": "user", "content": prompt}],
-    )
-
-    token_counts = {
-        "input": response.usage.input_tokens,
-        "output": response.usage.output_tokens,
-    }
-    return response.content[0].text, token_counts
+    return await _complete(prompt, model=model, provider=provider)
 
 
 async def _compress_first(
     rendered_sessions: list[tuple[int, str]],
-    model: str = COMPRESSOR_MODEL,
+    model: str,
+    provider: str,
 ) -> tuple[str, dict]:
     """Compress the first batch of sessions when no existing memory exists.
 
@@ -312,8 +379,6 @@ async def _compress_first(
 
     Returns (compressed_text, token_counts).
     """
-    client = anthropic.AsyncAnthropic()
-
     session_parts = []
     for session_num, rendered in rendered_sessions:
         session_parts.append(f"### Day {session_num}\n\n{rendered}")
@@ -328,24 +393,15 @@ async def _compress_first(
         last=last,
     )
 
-    response = await client.messages.create(
-        model=model,
-        max_tokens=4096,
-        messages=[{"role": "user", "content": prompt}],
-    )
-
-    token_counts = {
-        "input": response.usage.input_tokens,
-        "output": response.usage.output_tokens,
-    }
-    return response.content[0].text, token_counts
+    return await _complete(prompt, model=model, provider=provider)
 
 
 async def run_memory_compression(
     agent_name: str,
     log_path: Path,
     *,
-    compressor_model: str | None = None,
+    compressor_model: str,
+    compressor_provider: str,
     recent_window: int | None = None,
     days_per_week: int | None = None,
     enabled: bool = True,
@@ -360,16 +416,17 @@ async def run_memory_compression(
     The compressor always sees the full compressed memory plus the new
     day, preserving arcs and context across the entire history.
 
-    Parameters can be overridden per agent via agents.yaml compression
-    settings. Falls back to module-level defaults if not provided.
+    The model and provider are resolved by the caller (session_runner)
+    from the agent's config — the compressor has no defaults.
 
     Returns True if compression was performed.
     """
     if not enabled:
         return False
 
-    # Resolve parameters — per-agent overrides or module defaults
-    model = compressor_model or COMPRESSOR_MODEL
+    # Resolve parameters
+    model = compressor_model
+    provider = compressor_provider
     window = recent_window if recent_window is not None else RECENT_WINDOW
     # days_per_week is used in the prompt template via week headings;
     # currently embedded in the prompt text. Reserved for future use.
@@ -440,7 +497,7 @@ async def run_memory_compression(
                     f"{remaining[-1]['session_number']}"
                 )
                 compressed_body, token_counts = await _compress_first(
-                    rendered_batch, model=model,
+                    rendered_batch, model=model, provider=provider,
                 )
                 total_input_tokens += token_counts["input"]
                 total_output_tokens += token_counts["output"]
@@ -452,7 +509,7 @@ async def run_memory_compression(
                 logger.info(f"Bootstrapping memory: day {session_num}")
                 rendered_batch = [(session_num, rendered)]
                 compressed_body, token_counts = await _compress_first(
-                    rendered_batch, model=model,
+                    rendered_batch, model=model, provider=provider,
                 )
                 total_input_tokens += token_counts["input"]
                 total_output_tokens += token_counts["output"]
@@ -466,6 +523,7 @@ async def run_memory_compression(
                 new_day_rendered=rendered,
                 session_number=session_num,
                 model=model,
+                provider=provider,
             )
             total_input_tokens += token_counts["input"]
             total_output_tokens += token_counts["output"]

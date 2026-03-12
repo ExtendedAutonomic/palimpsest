@@ -343,7 +343,8 @@ async def run_session(
     compression_config = agent_config.get("compression", {})
     memory_compressed = await run_memory_compression(
         agent_name, log_path,
-        compressor_model=compression_config.get("model"),
+        compressor_model=compression_config.get("model") or agent_config.get("model"),
+        compressor_provider=agent_config.get("provider"),
         recent_window=compression_config.get("recent_window"),
         days_per_week=compression_config.get("days_per_week"),
         enabled=compression_config.get("enabled", True),

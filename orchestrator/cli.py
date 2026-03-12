@@ -10,6 +10,7 @@ Usage:
     palimpsest logs --agent claude --last 3  # View recent logs
     palimpsest costs                         # Check spend
     palimpsest render                        # Re-render readable logs
+    palimpsest compress --agent gemini        # Recompress memory standalone
 """
 
 from __future__ import annotations
@@ -478,6 +479,45 @@ def render(agent: str | None, session: tuple[str, ...], fmt: str) -> None:
                 click.echo(f"  {agent_dir.name}/{log_file.name} FAILED: {e}", err=True)
 
     click.echo(f"\nRendered {rendered} session(s).")
+
+
+@cli.command()
+@click.option("--agent", "-a", type=str, required=True,
+              help="Which agent to compress memory for")
+def compress(agent: str) -> None:
+    """Run memory compression for an agent without running a session.
+
+    Useful when you need to recompress from scratch (e.g. after wiping
+    compressed_memory.md) or force compression before the next session.
+    """
+    config = load_config()
+    validate_agent_name(config, agent)
+
+    from .session_runner import resolve_agent_config
+    from .memory.summariser import run_memory_compression
+
+    agent_config = resolve_agent_config(agent, config)
+    compression_config = agent_config.get("compression", {})
+
+    model = compression_config.get("model") or agent_config.get("model")
+    provider = agent_config.get("provider")
+
+    click.echo(f"Compressing memory for {agent} (model: {model}, provider: {provider})")
+
+    compressed = asyncio.run(run_memory_compression(
+        agent, LOG_PATH,
+        compressor_model=model,
+        compressor_provider=provider,
+        recent_window=compression_config.get("recent_window"),
+        days_per_week=compression_config.get("days_per_week"),
+        enabled=compression_config.get("enabled", True),
+    ))
+
+    if compressed:
+        compressed_file = LOG_PATH / agent / "compressed_memory.md"
+        click.echo(f"Compression complete. Output: {compressed_file}")
+    else:
+        click.echo("Nothing to compress (not enough sessions beyond the recent window).")
 
 
 if __name__ == "__main__":

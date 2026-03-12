@@ -29,7 +29,6 @@ defaults:
     cost_limit: 3.00
   compression:
     enabled: true
-    model: claude-opus-4-6
     recent_window: 2
     days_per_week: 7
 
@@ -53,7 +52,6 @@ agents:
     provider: deepseek
     model: deepseek-v3.2
     start_location: somewhere
-    extended_thinking: false
     active: false
 
   claude_b:
