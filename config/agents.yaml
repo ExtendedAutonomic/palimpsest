@@ -47,7 +47,6 @@ agents:
     model: gemini-2.5-pro
     test_model: gemini-2.5-flash
     start_location: there
-    extended_thinking: false
 
   deepseek:
     description: "The third agent. DeepSeek V3.2."
