@@ -60,16 +60,40 @@ async def _complete(
         }
 
     elif provider == "gemini":
-        import os
+        import asyncio
+        import re
         from google import genai
         from google.genai import types
         client = genai.Client()
-        config = types.GenerateContentConfig(max_output_tokens=max_tokens)
-        response = await client.aio.models.generate_content(
-            model=model,
-            contents=prompt,
-            config=config,
+        config = types.GenerateContentConfig(
+            max_output_tokens=max_tokens,
+            automatic_function_calling=types.AutomaticFunctionCallingConfig(
+                disable=True,
+            ),
         )
+        max_retries = 5
+        for attempt in range(max_retries):
+            try:
+                response = await client.aio.models.generate_content(
+                    model=model,
+                    contents=prompt,
+                    config=config,
+                )
+                break
+            except Exception as e:
+                error_str = str(e)
+                retryable = "429" in error_str or "503" in error_str
+                if retryable and attempt < max_retries - 1:
+                    delay_match = re.search(r'retryDelay.*?(\d{2,})s', error_str)
+                    delay = int(delay_match.group(1)) + 2 if delay_match else 30
+                    logger.warning(
+                        f"Compression retryable error: {e} "
+                        f"(attempt {attempt + 1}/{max_retries}), "
+                        f"waiting {delay}s..."
+                    )
+                    await asyncio.sleep(delay)
+                else:
+                    raise
         # Extract text from response
         text = ""
         if response.candidates:

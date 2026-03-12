@@ -314,10 +314,19 @@ def render_session_markdown(
         if thinking:
             lines.extend(_render_thinking(thinking, fmt))
 
-        # Agent text
+        # Agent text — strip blockquote markers so hallucinated tool
+        # results (agent writing "> result") don't look like real ones
         text = turn.get("agent_text", "").strip()
         if text:
-            lines.append(text)
+            cleaned_lines = []
+            for tl in text.split("\n"):
+                if tl.startswith("> "):
+                    cleaned_lines.append(tl[2:])
+                elif tl == ">":
+                    cleaned_lines.append("")
+                else:
+                    cleaned_lines.append(tl)
+            lines.append("\n".join(cleaned_lines))
             lines.append("")
 
         # Show nudge if one was sent after this turn

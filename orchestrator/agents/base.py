@@ -199,6 +199,14 @@ class BaseAgent(ABC):
         """Return tool definitions as the agent encounters them."""
         return AGENT_TOOLS
 
+    def _track_usage(self, usage: dict) -> None:
+        """Accumulate token counts from an API response."""
+        self._session_log.total_input_tokens += usage.get("input_tokens", 0)
+        self._session_log.total_output_tokens += usage.get("output_tokens", 0)
+        self._session_log.total_cache_creation_tokens += usage.get("cache_creation_input_tokens", 0)
+        self._session_log.total_cache_read_tokens += usage.get("cache_read_input_tokens", 0)
+        self._session_log.total_thinking_tokens += usage.get("thinking_tokens", 0)
+
     async def run_session(
         self,
         session_number: int,
@@ -264,20 +272,12 @@ class BaseAgent(ABC):
         messages = [{"role": "user", "content": opening}]
         tools = self.get_tool_definitions()
 
-        total_actions = 0
         dusk_sent = False
+        dusk_pending = False
         running_cost = 0.0
 
         for turn_idx in range(max_turns):
-            # Dusk approaches — counted by turns, not actions
-            if turn_idx >= dusk_threshold and not dusk_sent:
-                dusk_prompt = self._get_prompt("dusk", "")
-                messages.append({"role": "user", "content": dusk_prompt})
-                self._session_log.dusk_prompt = dusk_prompt
-                self._session_log.dusk_action = turn_idx
-                dusk_sent = True
-
-            # Agent responds
+            # ---- Agent speaks ----
             response = await self.send_message(messages, system_prompt, tools)
 
             turn = Turn(
@@ -294,99 +294,107 @@ class BaseAgent(ABC):
                 f"{usage.get('output_tokens', 0)} out, "
                 f"{tool_count} tool call(s)"
             )
+            self._track_usage(usage)
+
             turn_input = usage.get("input_tokens", 0)
             turn_cache_create = usage.get("cache_creation_input_tokens", 0)
             turn_cache_read = usage.get("cache_read_input_tokens", 0)
-            self._session_log.total_input_tokens += turn_input
-            self._session_log.total_output_tokens += usage.get("output_tokens", 0)
-            self._session_log.total_cache_creation_tokens += turn_cache_create
-            self._session_log.total_cache_read_tokens += turn_cache_read
-            self._session_log.total_thinking_tokens += usage.get("thinking_tokens", 0)
-
-            # Safety checks: trigger early dusk if approaching limits
             turn_context = turn_input + turn_cache_create + turn_cache_read
-            turn_output = usage.get("output_tokens", 0)
-            turn_thinking = usage.get("thinking_tokens", 0)
 
             running_cost += calculate_cost(
                 self._session_log.model or "",
-                turn_input, turn_output + turn_thinking,
+                turn_input,
+                usage.get("output_tokens", 0) + usage.get("thinking_tokens", 0),
                 cache_creation_tokens=turn_cache_create,
                 cache_read_tokens=turn_cache_read,
             )
 
-            if not dusk_sent:
+            # Check for early dusk (flags it for next text-only response)
+            if not dusk_sent and not dusk_pending:
                 if turn_context >= context_limit:
                     logger.warning(
                         f"Turn {turn_idx}: context {turn_context:,} tokens, "
                         f"approaching limit. Triggering early dusk."
                     )
-                    dusk_prompt = self._get_prompt("dusk", "")
-                    messages.append({"role": "user", "content": dusk_prompt})
-                    self._session_log.dusk_prompt = dusk_prompt
-                    self._session_log.dusk_action = turn_idx
-                    dusk_sent = True
+                    dusk_pending = True
                 elif running_cost >= cost_limit:
                     logger.warning(
                         f"Turn {turn_idx}: session cost ${running_cost:.2f}, "
                         f"exceeds ${cost_limit:.2f} limit. Triggering early dusk."
                     )
-                    dusk_prompt = self._get_prompt("dusk", "")
-                    messages.append({"role": "user", "content": dusk_prompt})
-                    self._session_log.dusk_prompt = dusk_prompt
-                    self._session_log.dusk_action = turn_idx
-                    dusk_sent = True
+                    dusk_pending = True
 
-            # Process actions
+            # Process tool calls
             tool_calls = response.get("tool_calls", [])
-            if not tool_calls:
+            tool_results_content = None
+            if tool_calls:
+                tool_results = []
+                for tc_data in tool_calls:
+                    try:
+                        tc = ToolCall(
+                            tool=ToolName(tc_data["name"]),
+                            arguments=tc_data.get("arguments", {}),
+                        )
+                        result = self.place.execute_tool(tc)
+                        turn.tool_calls.append(tc)
+                        if tc.tool in _MUTATING_TOOLS:
+                            self._commit_action(tc, session_number)
+                    except (ValueError, KeyError) as e:
+                        logger.warning(f"Invalid tool call: {tc_data.get('name', '?')} — {e}")
+                        result = "You do not know how to do that."
+                    tool_results.append({
+                        "tool_call_id": tc_data.get("id", ""),
+                        "name": tc_data.get("name", "unknown"),
+                        "result": result,
+                    })
+                tool_results_content = self._format_tool_results(tool_results)
+            else:
                 if response.get("stop_reason") == "max_tokens":
                     logger.warning(f"Turn {turn_idx}: hit output token limit")
-                turn.nudge = nudge_text
-                messages.append({
-                    "role": "assistant",
-                    "content": self._format_assistant_message(response),
-                })
-                messages.append({
-                    "role": "user",
-                    "content": nudge_text,
-                })
-                self._session_log.turns.append(turn)
-                continue
 
-            # Execute each action
-            tool_results = []
-            for tc_data in tool_calls:
-                try:
-                    tc = ToolCall(
-                        tool=ToolName(tc_data["name"]),
-                        arguments=tc_data.get("arguments", {}),
-                    )
-                    result = self.place.execute_tool(tc)
-                    turn.tool_calls.append(tc)
-                    # Commit after each action that modifies the Place
-                    if tc.tool in _MUTATING_TOOLS:
-                        self._commit_action(tc, session_number)
-                except (ValueError, KeyError) as e:
-                    logger.warning(f"Invalid tool call: {tc_data.get('name', '?')} — {e}")
-                    result = "You do not know how to do that."
-                tool_results.append({
-                    "tool_call_id": tc_data.get("id", ""),
-                    "name": tc_data.get("name", "unknown"),
-                    "result": result,
-                })
-                total_actions += 1
-
+            # Record the turn
             self._session_log.turns.append(turn)
-
-            # Continue the conversation
             messages.append({
                 "role": "assistant",
                 "content": self._format_assistant_message(response),
             })
+
+            # ---- World responds — exactly one of four things ----
+
+            # 1. Tool results (always — agent needs to see what happened)
+            if tool_results_content:
+                messages.append({"role": "user", "content": tool_results_content})
+
+            # 2. Dusk (once, on the first text-only turn at or past threshold)
+            elif not dusk_sent and (dusk_pending or turn_idx + 1 >= dusk_threshold):
+                dusk_prompt = self._get_prompt("dusk", "")
+                messages.append({"role": "user", "content": dusk_prompt})
+                self._session_log.dusk_prompt = dusk_prompt
+                self._session_log.dusk_action = turn_idx + 1
+                dusk_sent = True
+
+            # 3. Last turn — no response (reflect follows after the loop)
+            elif turn_idx == max_turns - 1:
+                pass
+
+            # 4. Nudge (the silence)
+            else:
+                turn.nudge = nudge_text
+                messages.append({"role": "user", "content": nudge_text})
+
+        # If the loop ended with a user message (tool results or nudge
+        # on the final turn), the agent needs to respond before reflect.
+        if messages[-1]["role"] == "user":
+            response = await self.send_message(messages, system_prompt, tools=[])
+            turn = Turn(
+                agent_text=response.get("text", ""),
+                thinking=response.get("thinking"),
+            )
+            self._track_usage(response.get("usage", {}))
+            self._session_log.turns.append(turn)
             messages.append({
-                "role": "user",
-                "content": self._format_tool_results(tool_results),
+                "role": "assistant",
+                "content": self._format_assistant_message(response),
             })
 
         # Reflect — the agent's own memory of this day
