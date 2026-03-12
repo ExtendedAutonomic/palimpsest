@@ -475,11 +475,18 @@ class PlaceInterface:
         if not description or not description.strip():
             return False, "You must describe it."
 
-        # Check for file collision
+        # Check if something with this name already exists here
+        current = self._read_note(self._current_location)
+        if current:
+            here_fn = self._resolve_in_scope(name, current.things)
+            if here_fn:
+                return False, f"You cannot — something called \"{name}\" already exists here."
+
+        # Check for file collision elsewhere
         if self._note_exists(name):
             return False, f"You cannot — something called \"{name}\" already exists elsewhere."
 
-        # Check for display name collision
+        # Check for display name collision elsewhere
         matches = self._find_by_display_name(name)
         if matches:
             return False, f"You cannot — something called \"{name}\" already exists elsewhere."

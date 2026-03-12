@@ -3,12 +3,13 @@ type: space
 created_by: place
 created_session: 0
 updated_by: gemini
-updated_session: 3
+updated_session: 4
 occupant: gemini
 ---
 
 
 ## Connected Spaces
+- [[the garden]]
 
 ## Things
 - [[the expanse]]
@@ -30,6 +31,11 @@ occupant: gemini
 - [[a call of power]]
 - [[a purposeful call]]
 - [[a final questioning whisper]]
-- [[the first mote of life]]
+- [[the teeming life]]
 - [[a whisper of curiosity]]
 - [[a call of wonder]]
+- [[a soft whisper]]
+- [[a booming call]]
+- [[a whisper of wonder]]
+- [[a triumphant call]]
+- [[the first garden]]
