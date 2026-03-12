@@ -207,6 +207,36 @@ class BaseAgent(ABC):
         self._session_log.total_cache_read_tokens += usage.get("cache_read_input_tokens", 0)
         self._session_log.total_thinking_tokens += usage.get("thinking_tokens", 0)
 
+    async def _send_and_log(
+        self,
+        messages: list[dict],
+        system_prompt: str,
+        tools: list[dict],
+        api_log: list[dict],
+        prev_msg_len: int,
+    ) -> tuple[AgentResponse, int]:
+        """Send a message, log the API call, and return (response, new_prev_len).
+
+        Records what was new in the messages since the last call (the delta)
+        and the full response. The API log captures exactly what was sent
+        and received at each step.
+        """
+        new_messages = messages[prev_msg_len:]
+        response = await self.send_message(messages, system_prompt, tools)
+        api_log.append({
+            "new_messages": list(new_messages),
+            "tools": bool(tools),
+            "response": {
+                "text": response.get("text", ""),
+                "thinking": response.get("thinking"),
+                "tool_calls": response.get("tool_calls", []),
+                "raw_content": response.get("raw_content"),
+                "usage": response.get("usage", {}),
+                "stop_reason": response.get("stop_reason"),
+            },
+        })
+        return response, len(messages)
+
     async def run_session(
         self,
         session_number: int,
@@ -275,10 +305,14 @@ class BaseAgent(ABC):
         dusk_sent = False
         dusk_pending = False
         running_cost = 0.0
+        api_log: list[dict] = []
+        prev_msg_len = 0
 
         for turn_idx in range(max_turns):
             # ---- Agent speaks ----
-            response = await self.send_message(messages, system_prompt, tools)
+            response, prev_msg_len = await self._send_and_log(
+                messages, system_prompt, tools, api_log, prev_msg_len,
+            )
 
             turn = Turn(
                 agent_text=response.get("text", ""),
@@ -385,7 +419,9 @@ class BaseAgent(ABC):
         # If the loop ended with a user message (tool results or nudge
         # on the final turn), the agent needs to respond before reflect.
         if messages[-1]["role"] == "user":
-            response = await self.send_message(messages, system_prompt, tools=[])
+            response, prev_msg_len = await self._send_and_log(
+                messages, system_prompt, [], api_log, prev_msg_len,
+            )
             turn = Turn(
                 agent_text=response.get("text", ""),
                 thinking=response.get("thinking"),
@@ -402,7 +438,9 @@ class BaseAgent(ABC):
         if reflect_prompt:
             self._session_log.reflect_prompt = reflect_prompt
             messages.append({"role": "user", "content": reflect_prompt})
-            response = await self.send_message(messages, system_prompt, tools=[])
+            response, prev_msg_len = await self._send_and_log(
+                messages, system_prompt, [], api_log, prev_msg_len,
+            )
             self._session_log.reflection = response.get("text", "")
 
         # Sleep
@@ -410,7 +448,7 @@ class BaseAgent(ABC):
         self._session_log.location_end = self.place.current_location
 
         self._save_log()
-        self._save_raw_messages(messages, system_prompt, tools)
+        self._save_api_log(api_log, system_prompt, tools)
 
         return self._session_log
 
@@ -478,13 +516,23 @@ class BaseAgent(ABC):
             f"{self._session_log.total_input_tokens + self._session_log.total_cache_creation_tokens + self._session_log.total_cache_read_tokens + self._session_log.total_output_tokens} tokens)"
         )
 
-    def _save_raw_messages(
+    def _save_api_log(
         self,
-        messages: list[dict],
+        api_log: list[dict],
         system: str,
         tools: list[dict],
     ) -> None:
-        """Save the complete API conversation as a separate file."""
+        """Save the API call log — each call with its input delta and response.
+
+        Each entry in api_log records:
+          - new_messages: messages added since the previous call
+          - tools: whether tools were available for this call
+          - response: the full API response (text, thinking, tool_calls, etc.)
+
+        To reconstruct the full context at call N, concatenate new_messages
+        from calls 0 through N (the response from each call gets formatted
+        and appears in the next call's new_messages as an assistant message).
+        """
         if not self._session_log:
             return
         raw_dir = self.log_path / self.name / "json" / "raw"
@@ -496,7 +544,7 @@ class BaseAgent(ABC):
                     {
                         "system": system or None,
                         "tools": tools,
-                        "messages": messages,
+                        "calls": api_log,
                     },
                     indent=2,
                     ensure_ascii=False,
@@ -505,4 +553,4 @@ class BaseAgent(ABC):
                 encoding="utf-8",
             )
         except Exception as e:
-            logger.warning(f"Failed to save raw messages: {e}")
+            logger.warning(f"Failed to save API log: {e}")

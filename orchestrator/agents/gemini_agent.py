@@ -126,7 +126,15 @@ class GeminiAgent(BaseAgent):
                 parts = []
                 for item in content:
                     item_type = item.get("type")
-                    if item_type == "text" and item.get("text"):
+                    if item_type == "thinking" and item.get("thinking"):
+                        # Thinking must be sent back for multi-turn
+                        # coherence. The API expects a Part with
+                        # thought=True so the model can see its own
+                        # reasoning from prior turns.
+                        thought_part = types.Part.from_text(text=item["thinking"])
+                        thought_part.thought = True
+                        parts.append(thought_part)
+                    elif item_type == "text" and item.get("text"):
                         parts.append(types.Part.from_text(text=item["text"]))
                     elif item_type == "function_call":
                         parts.append(types.Part.from_function_call(

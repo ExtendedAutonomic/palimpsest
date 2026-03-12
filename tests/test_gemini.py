@@ -177,6 +177,116 @@ class TestGeminiFormatting:
         assert formatted[0]["name"] == "go"
 
 
+class TestGeminiThinkingRoundTrip:
+    """Thinking blocks must survive the _prepare_messages round trip.
+
+    If thinking is dropped from the conversation history, the model loses
+    continuity of reasoning across turns — it plans actions in thinking
+    then can't see those plans on the next turn. This caused Gemini to
+    hallucinate tool calls as text instead of making actual function calls.
+    """
+
+    def test_thinking_block_preserved(self, gemini_agent):
+        """A thinking block in raw_content survives _prepare_messages."""
+        messages = [
+            {
+                "role": "assistant",
+                "content": [
+                    {"type": "thinking", "thinking": "I should use perceive."},
+                    {"type": "text", "text": "Let me look around."},
+                ],
+            }
+        ]
+        contents = gemini_agent._prepare_messages(messages)
+        assert len(contents) == 1
+        assert len(contents[0].parts) == 2
+        # First part should be the thinking with thought=True
+        thought_part = contents[0].parts[0]
+        assert thought_part.thought is True
+        assert thought_part.text == "I should use perceive."
+        # Second part is regular text
+        assert contents[0].parts[1].text == "Let me look around."
+
+    def test_thinking_with_function_call(self, gemini_agent):
+        """Thinking + function_call both survive in the same message."""
+        messages = [
+            {
+                "role": "assistant",
+                "content": [
+                    {"type": "thinking", "thinking": "I'll create something."},
+                    {"type": "function_call", "name": "create", "args": {"name": "a stone", "description": "grey and smooth"}},
+                ],
+            }
+        ]
+        contents = gemini_agent._prepare_messages(messages)
+        assert len(contents[0].parts) == 2
+        assert contents[0].parts[0].thought is True
+        assert contents[0].parts[1].function_call.name == "create"
+
+    def test_multi_turn_thinking_preserved(self, gemini_agent):
+        """Thinking is preserved across multiple turns in conversation history."""
+        messages = [
+            {"role": "user", "content": "You are: there"},
+            {
+                "role": "assistant",
+                "content": [
+                    {"type": "thinking", "thinking": "Day 1. I should perceive."},
+                    {"type": "function_call", "name": "perceive", "args": {}},
+                ],
+            },
+            {
+                "role": "user",
+                "content": [
+                    {"type": "function_response", "name": "perceive", "response": {"result": "there"}},
+                ],
+            },
+            {
+                "role": "assistant",
+                "content": [
+                    {"type": "thinking", "thinking": "Now I should create something."},
+                    {"type": "text", "text": "I see emptiness."},
+                ],
+            },
+            {"role": "user", "content": "..."},
+        ]
+        contents = gemini_agent._prepare_messages(messages)
+        # Both assistant messages should have their thinking
+        assert contents[1].parts[0].thought is True
+        assert contents[1].parts[0].text == "Day 1. I should perceive."
+        assert contents[3].parts[0].thought is True
+        assert contents[3].parts[0].text == "Now I should create something."
+
+    def test_no_block_types_silently_dropped(self, gemini_agent):
+        """Every content block type that _format_assistant_message can
+        produce must survive _prepare_messages. If a new block type is
+        added to _parse_response without a matching case in
+        _prepare_messages, this test catches it."""
+        messages = [
+            {
+                "role": "assistant",
+                "content": [
+                    {"type": "thinking", "thinking": "planning..."},
+                    {"type": "text", "text": "speaking..."},
+                    {"type": "function_call", "name": "perceive", "args": {}},
+                ],
+            },
+            {
+                "role": "user",
+                "content": [
+                    {"type": "function_response", "name": "perceive", "response": {"result": "here"}},
+                ],
+            },
+        ]
+        contents = gemini_agent._prepare_messages(messages)
+        # Assistant message: 3 blocks in, 3 parts out
+        assert len(contents[0].parts) == 3, (
+            f"Expected 3 parts (thinking + text + function_call), "
+            f"got {len(contents[0].parts)}. A block type is being silently dropped."
+        )
+        # User message: 1 block in, 1 part out
+        assert len(contents[1].parts) == 1
+
+
 class TestGeminiStopReasonMapping:
     """Gemini finish reasons mapped to our standard format."""
 
