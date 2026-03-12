@@ -3,8 +3,7 @@ type: space
 created_by: place
 created_session: 0
 updated_by: gemini
-updated_session: 4
-occupant: gemini
+updated_session: 5
 ---
 
 
@@ -31,7 +30,6 @@ occupant: gemini
 - [[a call of power]]
 - [[a purposeful call]]
 - [[a final questioning whisper]]
-- [[the teeming life]]
 - [[a whisper of curiosity]]
 - [[a call of wonder]]
 - [[a soft whisper]]

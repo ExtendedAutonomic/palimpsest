@@ -581,6 +581,16 @@ class PlaceInterface:
                 self._last_resolved["name"] = name
                 parts.append(f"This space is now called {name}.")
             else:
+                # Track description history even without a rename
+                if description and description != note.description:
+                    current_display = self.display_name(self._current_location)
+                    prev = fm.get("previously", [])
+                    if isinstance(prev, str):
+                        prev = [prev]
+                    old_desc = note.description.strip() if note.description else ""
+                    entry = f"{current_display}: {old_desc}" if old_desc else current_display
+                    prev.append(entry)
+                    fm["previously"] = prev
                 self._write_note(self._current_location, build_space_note(
                     new_description, note.spaces, note.things, fm
                 ))
@@ -645,6 +655,16 @@ class PlaceInterface:
                 self._last_resolved["name"] = name
                 parts.append(f"What was called {old_display} is now called {name}.")
             else:
+                # Track description history even without a rename
+                if description and description != note.description:
+                    display = self.display_name(filename)
+                    prev = fm.get("previously", [])
+                    if isinstance(prev, str):
+                        prev = [prev]
+                    old_desc = note.description.strip() if note.description else ""
+                    entry = f"{display}: {old_desc}" if old_desc else display
+                    prev.append(entry)
+                    fm["previously"] = prev
                 self._write_note(filename, build_thing_note(new_description, fm))
 
             if description:
