@@ -393,55 +393,50 @@ class BaseAgent(ABC):
                 "content": self._format_assistant_message(response),
             })
 
-            # ---- World responds — exactly one of four things ----
+            # ---- World responds ----
+            # Tool results always come first. Dusk and reflect are time
+            # signals that combine with tool results. Nudge only fires
+            # on text-only turns (the companion's silence when the agent
+            # speaks without acting).
+            is_last_turn = (turn_idx == max_turns - 1)
+            has_tools = tool_results_content is not None
 
-            # 1. Tool results (always — agent needs to see what happened)
-            if tool_results_content:
-                messages.append({"role": "user", "content": tool_results_content})
-
-            # 2. Dusk (once, on the first text-only turn at or past threshold)
+            # Determine the time signal (dusk or reflect), if any
+            time_signal = None
+            if is_last_turn:
+                time_signal = self._get_prompt("reflect", "")
+                if time_signal:
+                    self._session_log.reflect_prompt = time_signal
             elif not dusk_sent and (dusk_pending or turn_idx + 1 >= dusk_threshold):
-                dusk_prompt = self._get_prompt("dusk", "")
-                messages.append({"role": "user", "content": dusk_prompt})
-                self._session_log.dusk_prompt = dusk_prompt
+                time_signal = self._get_prompt("dusk", "")
+                self._session_log.dusk_prompt = time_signal
                 self._session_log.dusk_action = turn_idx + 1
                 dusk_sent = True
 
-            # 3. Last turn — no response (reflect follows after the loop)
-            elif turn_idx == max_turns - 1:
-                pass
-
-            # 4. Nudge (the silence)
+            # Build the response
+            if has_tools and time_signal:
+                # Tool results + time signal combined
+                if isinstance(tool_results_content, list):
+                    tool_results_content.append({"type": "text", "text": time_signal})
+                else:
+                    tool_results_content = tool_results_content + "\n\n" + time_signal
+                messages.append({"role": "user", "content": tool_results_content})
+            elif has_tools:
+                # Tool results only (no nudge — the world responded)
+                messages.append({"role": "user", "content": tool_results_content})
+            elif time_signal:
+                # Time signal only (dusk or reflect)
+                messages.append({"role": "user", "content": time_signal})
             else:
+                # Nudge (the companion's silence)
                 turn.nudge = nudge_text
                 messages.append({"role": "user", "content": nudge_text})
 
-        # If the loop ended with a user message (tool results or nudge
-        # on the final turn), the agent needs to respond before reflect.
-        if messages[-1]["role"] == "user":
-            response, prev_msg_len = await self._send_and_log(
-                messages, system_prompt, [], api_log, prev_msg_len,
-            )
-            turn = Turn(
-                agent_text=response.get("text", ""),
-                thinking=response.get("thinking"),
-            )
-            self._track_usage(response.get("usage", {}))
-            self._session_log.turns.append(turn)
-            messages.append({
-                "role": "assistant",
-                "content": self._format_assistant_message(response),
-            })
-
-        # Reflect — the agent's own memory of this day
-        reflect_prompt = self._get_prompt("reflect", "")
-        if reflect_prompt:
-            self._session_log.reflect_prompt = reflect_prompt
-            messages.append({"role": "user", "content": reflect_prompt})
-            response, prev_msg_len = await self._send_and_log(
-                messages, system_prompt, [], api_log, prev_msg_len,
-            )
-            self._session_log.reflection = response.get("text", "")
+        # The agent responds to the reflect prompt (the last signal).
+        response, prev_msg_len = await self._send_and_log(
+            messages, system_prompt, [], api_log, prev_msg_len,
+        )
+        self._session_log.reflection = response.get("text", "")
 
         # Sleep
         self._session_log.end_time = datetime.now(timezone.utc)
